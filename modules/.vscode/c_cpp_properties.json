@@ -4,7 +4,7 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/home/masl/MaslOS2"
+                "/home/masl/PxttpOS"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

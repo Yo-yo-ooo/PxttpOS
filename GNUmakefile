@@ -1,4 +1,4 @@
-all: MaslOS2.iso
+all: PxttpOS.iso
 
 
 .PHONY: kernel
@@ -13,7 +13,7 @@ limine:
 	git clone https://github.com/limine-bootloader/limine.git --branch=v4.x-branch-binary --depth=1
 	make -C limine
 
-MaslOS2.iso:
+PxttpOS.iso:
 	$(MAKE) cleanObjFolder --silent
 	$(MAKE) kernel
 	rm -rf iso_root
@@ -51,14 +51,14 @@ MaslOS2.iso:
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
 		--efi-boot limine-cd-efi.bin \
 		-efi-boot-part --efi-boot-image --protective-msdos-label \
-		iso_root -o MaslOS2.iso
+		iso_root -o PxttpOS.iso
 		
-	limine/limine-deploy MaslOS2.iso
+	limine/limine-deploy PxttpOS.iso
 	rm -rf iso_root
 
 
 clean: clean2
-	@rm -rf iso_root MaslOS2.iso barebones.hdd ./external/programs.saf
+	@rm -rf iso_root PxttpOS.iso barebones.hdd ./external/programs.saf
 	
 
 
@@ -89,4 +89,4 @@ cleanObjFolder:
 cal:
 	make clean2 -j$(nproc) && make clean -j$(nproc)
 	make all -j$(nproc)
-	qemu-system-x86_64 -machine q35 -m 1G -cpu qemu64 -smp 4 -serial stdio -boot d -cdrom MaslOS2.iso -no-reboot --no-shutdown
+	qemu-system-x86_64 -machine q35 -m 1G -cpu qemu64 -smp 4 -serial stdio -boot d -cdrom PxttpOS.iso -no-reboot --no-shutdown
