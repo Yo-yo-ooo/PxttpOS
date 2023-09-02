@@ -1,4 +1,4 @@
-all: PxttpOS.iso
+all: System.iso
 
 
 .PHONY: kernel
@@ -13,7 +13,7 @@ limine:
 	git clone https://github.com/limine-bootloader/limine.git --branch=v4.x-branch-binary --depth=1
 	make -C limine
 
-PxttpOS.iso:
+System.iso:
 	$(MAKE) cleanObjFolder --silent
 	$(MAKE) kernel
 	rm -rf iso_root
@@ -51,14 +51,14 @@ PxttpOS.iso:
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
 		--efi-boot limine-cd-efi.bin \
 		-efi-boot-part --efi-boot-image --protective-msdos-label \
-		iso_root -o PxttpOS.iso
+		iso_root -o System.iso
 		
-	limine/limine-deploy PxttpOS.iso
+	limine/limine-deploy System.iso
 	rm -rf iso_root
 
 
 clean: clean2
-	@rm -rf iso_root PxttpOS.iso barebones.hdd ./external/programs.saf
+	@rm -rf iso_root System.iso barebones.hdd ./external/programs.saf
 	
 
 
@@ -86,7 +86,7 @@ cleanObjFolder:
 	@mkdir objects/external/programs
 	
 	
-cal:
-	make clean2 -j$(nproc) && make clean -j$(nproc)
+ccar:
+	make clean -j$(nproc) && make clean2 -j$(nproc)
 	make all -j$(nproc)
-	qemu-system-x86_64 -machine q35 -m 1G -cpu qemu64 -smp 4 -serial stdio -boot d -cdrom PxttpOS.iso -no-reboot --no-shutdown
+	qemu-system-x86_64 -machine q35 -m 1G -cpu qemu64 -smp 4 -serial stdio -boot d -cdrom System.iso -no-reboot --no-shutdown

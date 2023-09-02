@@ -288,14 +288,14 @@ void TempPitRoutine(interrupt_frame* frame)
 
     GlobalRenderer->Clear(0, GlobalRenderer->CursorPosition.y, GlobalRenderer->framebuffer->Width - 1, GlobalRenderer->CursorPosition.y + 15, Colors.black);
 
-    GlobalRenderer->Print("DATE(UTC): ", Colors.yellow);
-    GlobalRenderer->Print("{}/", to_string((int)RTC::Year), Colors.yellow);
-    GlobalRenderer->Print("{}/", to_string((int)RTC::Month), Colors.yellow);
+    GlobalRenderer->Print("DATE: ", Colors.yellow);
     GlobalRenderer->Print("{}.", to_string((int)RTC::Day), Colors.yellow);
+    GlobalRenderer->Print("{}.", to_string((int)RTC::Month), Colors.yellow);
+    GlobalRenderer->Print("{}", to_string((int)RTC::Year), Colors.yellow);
 
     GlobalRenderer->Print("  ", Colors.yellow);
 
-    GlobalRenderer->Print("TIME(UTC): ", Colors.yellow);
+    GlobalRenderer->Print("TIME: ", Colors.yellow);
     GlobalRenderer->Print("{}:", to_string((int)RTC::Hour), Colors.yellow);
     GlobalRenderer->Print("{}:", to_string((int)RTC::Minute), Colors.yellow);
     GlobalRenderer->Print("{}", to_string((int)RTC::Second), Colors.yellow);
