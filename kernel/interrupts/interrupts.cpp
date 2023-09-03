@@ -720,6 +720,9 @@ void Syscall_handler(interrupt_frame* frame)
     else if(syscall == SYSCALL_RENDER_CLS){
         GlobalRenderer->Clear(frame->rbx);
     }
+    else if(syscall == SYSCALL_GLOBAL_GETKEYCHR){
+        frame->rax = (uint64_t)Keyboard::GetChr();
+    }
     else
     {
         Serial::Writelnf("> Unknown Syscall: %d", syscall);

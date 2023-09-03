@@ -16,3 +16,5 @@ void globalPrintLn(const char* str);
 void globalCls();
 
 void exitProgram(int code);
+
+char GetKeyChr();

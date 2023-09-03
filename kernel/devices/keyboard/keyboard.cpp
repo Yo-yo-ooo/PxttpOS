@@ -130,6 +130,29 @@ namespace Keyboard
         return true;
     }
 
+    char GetChr(){
+        if (!KeysAvaiable())
+            return false;
+
+        keyboardQueue.Lock();
+        int scancode = keyboardQueue.obj->Dequeue();
+        keyboardQueue.Unlock();
+
+        int actualScancode = scancode & ~KEY_RELEASED;
+
+        if ((scancode & KEY_RELEASED) == 0)
+            KeyboardScancodeState[actualScancode] = true;
+        else
+            KeyboardScancodeState[actualScancode] = false;
+
+        bool shift = Keyboard::IsKeyPressed(Key_GeneralShift);
+        char chr = ScancodeTranslation::TranslateScancode(actualScancode, shift);
+
+        return chr;
+
+        return true;
+    }
+
     bool IsKeyPressed(int scancode)
     {
         if (scancode == Key_GeneralShift)

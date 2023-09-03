@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <libm/rendering/Cols.h>
 #include "../syscallList.h"
+#include "../syscallManager.h"
 //#include "../cStdLib/cstrTools.h"
 //#include "../memory/heap.h"
 
@@ -184,7 +185,7 @@ void TempRenderer::Print(char chr)
 
 void TempRenderer::Print(const char *chrs)
 {
-    TempRenderer::printStr(chrs);
+    globalPrint(chrs);
 }
 
 void TempRenderer::Print(const char *chrs, bool allowEscape)
@@ -194,8 +195,9 @@ void TempRenderer::Print(const char *chrs, bool allowEscape)
 
 void TempRenderer::Println(const char *chrs)
 {
-    TempRenderer::printStr(chrs);
-    TempRenderer::printStr("\n\r");
+    //TempRenderer::printStr(chrs);
+    //TempRenderer::printStr("\n\r");
+    globalPrintLn(chrs);
 }
 
 void TempRenderer::Print(const char *chrs, const char *var)
@@ -325,7 +327,7 @@ void TempRenderer::ClearDotted(uint32_t col)
 void TempRenderer::Cls()
 {
     TempRenderer::Clear(0);
-    TempRenderer::Println("(OLD) Masl OS 2 v0.01", Colors.green);
+    TempRenderer::Println("(OLD) PxttpOS 2", Colors.green);
     TempRenderer::Println("-------------------", Colors.green);
     TempRenderer::Println();
 }

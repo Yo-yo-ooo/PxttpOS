@@ -63,3 +63,8 @@ void exitProgram(int code)
     int syscall = SYSCALL_EXIT;
     asm("int $0x31" : : "a"(syscall), "b"(code));
 }
+
+char GetKeyChr(){
+    char key;
+    asm("int $0x31" : "=a"(key) : "a"(SYSCALL_GLOBAL_GETKEYCHR));
+}
