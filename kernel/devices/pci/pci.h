@@ -29,8 +29,8 @@ namespace PCI
         uint32_t BAR4;
         uint32_t BAR5;
         uint32_t CardbusCISPtr;
-        uint16_t SubsystemVendorID;
-        uint16_t SubsystemID;
+        uint16_t SubSystemVendorID;
+        uint16_t SubSystemID;
         uint32_t ExpansionROMBaseAddr;
         uint8_t CapabilitiesPtr;
         uint8_t Rsv0;
@@ -86,7 +86,7 @@ namespace PCI
     #define PCI_MEMORY_CONTROLLER 0x5
     #define PCI_BRIDGE_DEVICE 0x6
     #define PCI_SIMPLE_COMMUNICATION_CONTROLLER 0x7
-    #define PCI_BASE_SYSTEM_PERIPHERAL 0x8
+    #define PCI_BASE_System_PERIPHERAL 0x8
     #define PCI_INPUT_DEVICE_CONTROLLER 0x9
     #define PCI_DOCKING_STATION 0xA
     #define PCI_PROCESSOR 0xB

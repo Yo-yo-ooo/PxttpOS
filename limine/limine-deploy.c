@@ -507,7 +507,7 @@ static void usage(const char *name) {
     printf("    --help | -h     Display this help message\n");
     printf("\n");
 #ifdef IS_WINDOWS
-    system("pause");
+    System("pause");
 #endif
 }
 
@@ -742,7 +742,7 @@ int main(int argc, char *argv[]) {
 
         if (mbr && !any_active) {
             if (!quiet) {
-                fprintf(stderr, "No active partition found, some systems may not boot.\n");
+                fprintf(stderr, "No active partition found, some Systems may not boot.\n");
                 fprintf(stderr, "Setting partition 1 as active to work around the issue...\n");
             }
             hint8 = 0x80;

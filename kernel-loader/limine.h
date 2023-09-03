@@ -385,19 +385,19 @@ struct limine_smbios_request {
     LIMINE_PTR(struct limine_smbios_response *) response;
 };
 
-/* EFI system table */
+/* EFI System table */
 
-#define LIMINE_EFI_SYSTEM_TABLE_REQUEST { LIMINE_COMMON_MAGIC, 0x5ceba5163eaaf6d6, 0x0a6981610cf65fcc }
+#define LIMINE_EFI_System_TABLE_REQUEST { LIMINE_COMMON_MAGIC, 0x5ceba5163eaaf6d6, 0x0a6981610cf65fcc }
 
-struct limine_efi_system_table_response {
+struct limine_efi_System_table_response {
     uint64_t revision;
     LIMINE_PTR(void *) address;
 };
 
-struct limine_efi_system_table_request {
+struct limine_efi_System_table_request {
     uint64_t id[4];
     uint64_t revision;
-    LIMINE_PTR(struct limine_efi_system_table_response *) response;
+    LIMINE_PTR(struct limine_efi_System_table_response *) response;
 };
 
 /* Boot time */

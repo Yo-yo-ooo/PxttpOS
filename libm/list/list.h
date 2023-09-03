@@ -61,7 +61,7 @@ template <typename T> class List
 // // template class Array<PartitionInterface::GenericPartitionInterface*>;
 // // template class  List<PartitionInterface::GenericPartitionInterface*>;
 
-// #include "../kernelStuff/diskStuff/Filesystem_Interfaces/generic/genericFileSystemInterface.h"
+// #include "../kernelStuff/diskStuff/FileSystem_Interfaces/generic/genericFileSystemInterface.h"
 
 
 

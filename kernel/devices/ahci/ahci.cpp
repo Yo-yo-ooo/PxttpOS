@@ -6,8 +6,8 @@
 // #include "../../kernelStuff/diskStuff/Disk_Interfaces/sata/sataDiskInterface.h"
 // #include "../../kernelStuff/diskStuff/Partition_Interfaces/generic/genericPartitionInterface.h"
 // #include "../../kernelStuff/diskStuff/Partition_Interfaces/mraps/mrapsPartitionInterface.h"
-// #include "../../kernelStuff/diskStuff/Filesystem_Interfaces/generic/genericFileSystemInterface.h"
-// #include "../../kernelStuff/diskStuff/Filesystem_Interfaces/mrafs/mrafsFileSystemInterface.h"
+// #include "../../kernelStuff/diskStuff/FileSystem_Interfaces/generic/genericFileSystemInterface.h"
+// #include "../../kernelStuff/diskStuff/FileSystem_Interfaces/mrafs/mrafsFileSystemInterface.h"
 
 // namespace AHCI 
 // {
@@ -404,19 +404,19 @@
 //                         PartitionInterface::PartitionInfo* p = tDiskInterface->partitionList[i];
 //                         if (p->type != PartitionInterface::PartitionType::Normal)
 //                             continue;
-//                         FilesystemInterface::FilesystemInterfaceType fsType = FilesystemInterface::GetFilesystemInterfaceTypeFromPartition(tDiskInterface, i);
-//                         if (fsType == FilesystemInterface::FilesystemInterfaceType::Mrafs)
+//                         FileSystemInterface::FileSystemInterfaceType fsType = FileSystemInterface::GetFileSystemInterfaceTypeFromPartition(tDiskInterface, i);
+//                         if (fsType == FileSystemInterface::FileSystemInterfaceType::Mrafs)
 //                         {
-//                             osData.debugTerminalWindow->Log("  * - Filesystem Type: \"MRAFS\"",  Colors.orange);
-//                             FilesystemInterface::GenericFilesystemInterface* fsInterface = new FilesystemInterface::MrafsFilesystemInterface(tDiskInterface, p);
+//                             osData.debugTerminalWindow->Log("  * - FileSystem Type: \"MRAFS\"",  Colors.orange);
+//                             FileSystemInterface::GenericFileSystemInterface* fsInterface = new FileSystemInterface::MrafsFileSystemInterface(tDiskInterface, p);
 //                         }
 //                         else if (true)
 //                         {
-//                             osData.debugTerminalWindow->Log("  * - Filesystem Type: undefined",  Colors.orange);
+//                             osData.debugTerminalWindow->Log("  * - FileSystem Type: undefined",  Colors.orange);
 //                         }
 
 //                         if (p->fsInterface != NULL)
-//                             ((FilesystemInterface::GenericFilesystemInterface*)p->fsInterface)->LoadFSTable();
+//                             ((FileSystemInterface::GenericFileSystemInterface*)p->fsInterface)->LoadFSTable();
 //                     }
 
 

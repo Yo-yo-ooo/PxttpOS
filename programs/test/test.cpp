@@ -36,10 +36,11 @@ void main2(int argc, char** argv, ENV_DATA* env)
     globalCls();
     //return;
     
-    globalPrintLn("Hello from a test module!");
+    globalPrintLn("Hello from a test program!");
     globalPrintLn("Yes, new line!");
 
     //return;
+    // would crash the program but not the OS
     TempRenderer renderer = TempRenderer(env->globalFrameBuffer, env->globalFont);
     renderer.Clear(Colors.bblue);
     

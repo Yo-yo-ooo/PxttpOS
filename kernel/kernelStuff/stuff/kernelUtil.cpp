@@ -825,7 +825,7 @@
 
 // #include "../diskStuff/Disk_Interfaces/ram/ramDiskInterface.h"
 // #include "../diskStuff/Partition_Interfaces/mraps/mrapsPartitionInterface.h"
-// #include "../diskStuff/Filesystem_Interfaces/mrafs/mrafsFileSystemInterface.h"
+// #include "../diskStuff/FileSystem_Interfaces/mrafs/mrafsFileSystemInterface.h"
 
 // BasicRenderer r = *((BasicRenderer*)NULL);
 
@@ -1009,7 +1009,7 @@
     
 //     // PrintMsg("> Initing SB16");
 //     // if (!SB16::SB16Init())
-//     //     PrintMsg("> SB16 is not supported on this system");
+//     //     PrintMsg("> SB16 is not supported on this System");
 //     // StepDone();
 
 //     PrintMsg("> Initing Serial Manager Thingy");
@@ -1126,7 +1126,7 @@
 //         partInterface->partitionList[2]->driveNameLen=StrLen("bruh");
 //         partInterface->SavePartitionTable();
 
-//         FilesystemInterface::GenericFilesystemInterface* fsInterface = (FilesystemInterface::GenericFilesystemInterface*)new FilesystemInterface::MrafsFilesystemInterface(partInterface, partInterface->partitionList[2]);
+//         FileSystemInterface::GenericFileSystemInterface* fsInterface = (FileSystemInterface::GenericFileSystemInterface*)new FileSystemInterface::MrafsFileSystemInterface(partInterface, partInterface->partitionList[2]);
 //         fsInterface->InitAndSaveFSTable();
 
 //         PrintMsgStartLayer("MAAB");

@@ -202,6 +202,8 @@ __attribute__((interrupt)) void Breakpoint_handler(interrupt_frame* frame)
 
     SURVIVE_CRASH
 }
+
+#include "../devices/keyboard/keyboard.h"
  
 __attribute__((interrupt)) void KeyboardInt_handler(interrupt_frame* frame)
 { 
@@ -212,7 +214,7 @@ __attribute__((interrupt)) void KeyboardInt_handler(interrupt_frame* frame)
     if (osData.booting)
         osData.booting = false;
     else
-        ;//AddScancodeToKeyboardList(scancode);
+        Keyboard::HandleKeyboardInterrupt(scancode);//AddScancodeToKeyboardList(scancode);
         //HandleKeyboard(scancode);  
     PIC_EndMaster();
     RemoveFromStack();
@@ -635,8 +637,9 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
         
     }
 
-
-
+    for (int i = 0; i < 20; i++)
+        if (!Keyboard::DoKey())
+            break;
 
     //Panic("WAAAAAAAAA {}", to_string(regs->interrupt_number), true);
 
@@ -713,6 +716,9 @@ void Syscall_handler(interrupt_frame* frame)
         Scheduler::CurrentRunningTask = NULL;
 
         Scheduler::SchedulerInterrupt(frame);
+    }
+    else if(syscall == SYSCALL_RENDER_CLS){
+        GlobalRenderer->Clear(frame->rbx);
     }
     else
     {

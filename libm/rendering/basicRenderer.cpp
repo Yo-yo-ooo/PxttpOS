@@ -3,6 +3,7 @@
 #include <libm/cstr.h>
 #include <stdint.h>
 #include <libm/rendering/Cols.h>
+#include "../syscallList.h"
 //#include "../cStdLib/cstrTools.h"
 //#include "../memory/heap.h"
 
@@ -298,7 +299,8 @@ void TempRenderer::Clear(int64_t x1, int64_t y1, int64_t x2, int64_t y2, uint32_
 
 void TempRenderer::Clear(uint32_t col)
 {
-    TempRenderer::Clear(col, true);
+    //TempRenderer::Clear(col, true);
+    asm("int $0x31" : : "a"(SYSCALL_RENDER_CLS), "b"(col));
 }
 
 void TempRenderer::ClearDotted(uint32_t col, bool resetCursor)
