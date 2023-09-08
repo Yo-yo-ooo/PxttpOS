@@ -2,6 +2,7 @@
 #include <libm/syscallManager.h>
 #include <libm/rendering/basicRenderer.h>
 #include <libm/rendering/Cols.h>
+#include <libm/cpu.h>
 
 int main()
 {
@@ -31,19 +32,28 @@ void Bruhus(char* yes)
     }
 }
 
+char* Strcat(char *dst, const char *src)
+{
+    //assert(dst != NULL && src != NULL);
+    char *temp = dst;
+    while (*temp != '\0')
+        temp++;
+    while ((*temp++ = *src++) != '\0');
+
+    return dst;
+}
+
 void main2(int argc, char** argv, ENV_DATA* env)
 {
     //globalCls();
     //return;
+    struct cpuinfo_x86 _ci;
+    _ci = GetCI();
     
-    globalPrintLn("Hello from a test program!");
-    globalPrintLn("Yes, new line!");
-
+    globalPrintLn(Strcat("x86_CPULevel ",_ci.cpuid_level));
+    globalPrintLn(Strcat("X86_ModID",_ci.x86_model_id));
+    
     return;
-    // would crash the program but not the OS
-    TempRenderer renderer = TempRenderer(env->globalFrameBuffer, env->globalFont);
-    renderer.Clear(Colors.bblue);
-    
     //*((char*)(uint64_t)argc) = 'A';
     //Bruhus((char*)env->globalFrameBuffer->BaseAddress);
     
