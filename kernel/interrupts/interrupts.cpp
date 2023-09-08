@@ -925,6 +925,12 @@ void Syscall_handler(interrupt_frame* frame)
         osTask* task = Scheduler::CreateTaskFromElf(Scheduler::testElfFile, 0, NULL, false);
         Scheduler::AddTask(task);
     }
+    else if (syscall == SYSCALL_KDO)
+    {
+        void (*vp)(void) = (void (*)(void))frame->rbx;
+        vp();
+    }
+    
     else
     {
         Serial::Writelnf("> Unknown Syscall: %d", syscall);
