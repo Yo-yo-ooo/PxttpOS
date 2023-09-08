@@ -23,6 +23,8 @@
 
 #include "../devices/serial/serial.h"
 
+#include "../rnd/rnd.h"
+
 
 extern "C" void BruhusSafus()
 {
@@ -268,10 +270,14 @@ bool speakA = false;
 
 #include "../paging/PageTableManager.h"
 #include "../devices/rtc/rtc.h"
+#include "../memory/heap.h"
+
+int _usedHeapCount = 0;
+int _usedPages = 0;
 
 void TempPitRoutine(interrupt_frame* frame)
 {
-    GlobalPageTableManager.SwitchPageTable(GlobalPageTableManager.PML4);
+    //GlobalPageTableManager.SwitchPageTable(GlobalPageTableManager.PML4);
 
     AddToStack();
     PIT::Tick();
@@ -290,21 +296,68 @@ void TempPitRoutine(interrupt_frame* frame)
 
     GlobalRenderer->Clear(0, GlobalRenderer->CursorPosition.y, GlobalRenderer->framebuffer->Width - 1, GlobalRenderer->CursorPosition.y + 15, Colors.black);
 
-    GlobalRenderer->Print("DATE: ", Colors.yellow);
-    GlobalRenderer->Print("{}.", to_string((int)RTC::Day), Colors.yellow);
-    GlobalRenderer->Print("{}.", to_string((int)RTC::Month), Colors.yellow);
-    GlobalRenderer->Print("{}", to_string((int)RTC::Year), Colors.yellow);
+    uint32_t currCol = 0;
+    
+    currCol = Colors.orange;
+    GlobalRenderer->Print("DATE: ", currCol);
+    GlobalRenderer->Print("{}.", to_string((int)RTC::Day), currCol);
+    GlobalRenderer->Print("{}.", to_string((int)RTC::Month), currCol);
+    GlobalRenderer->Print("{}", to_string((int)RTC::Year), currCol);
+    GlobalRenderer->Print(" - ", Colors.white);
 
-    GlobalRenderer->Print("  ", Colors.yellow);
+    currCol = Colors.yellow;
+    GlobalRenderer->Print("{}:", to_string((int)RTC::Hour), currCol);
+    GlobalRenderer->Print("{}:", to_string((int)RTC::Minute), currCol);
+    GlobalRenderer->Print("{}", to_string((int)RTC::Second), currCol);
+    GlobalRenderer->Print(" - ", Colors.white);
 
-    GlobalRenderer->Print("TIME: ", Colors.yellow);
-    GlobalRenderer->Print("{}:", to_string((int)RTC::Hour), Colors.yellow);
-    GlobalRenderer->Print("{}:", to_string((int)RTC::Minute), Colors.yellow);
-    GlobalRenderer->Print("{}", to_string((int)RTC::Second), Colors.yellow);
+    currCol = Colors.bgreen;
+    GlobalRenderer->Print("HEAP: ", currCol);
+    GlobalRenderer->Print("Used Count: {}, ", to_string(usedHeapCount), currCol);
+    GlobalRenderer->Print("Used Amount: {} Bytes", to_string(usedHeapAmount), currCol);
+    // GlobalRenderer->Print("Malloc Count: {}", to_string((int)mallocCount), currCol);
+    GlobalRenderer->Print(" - ", Colors.white);
 
+
+    currCol = Colors.cyan;
+    GlobalRenderer->Print("GLOB ALLOC: ", currCol);
+    GlobalRenderer->Print("Used: {} KB / ", to_string(GlobalAllocator->GetUsedRAM() / 1024), currCol);
+    GlobalRenderer->Print("{} KB", to_string(GlobalAllocator->GetFreeRAM() / 1024), currCol);
+    GlobalRenderer->Print("  - ", Colors.white);
+
+    currCol = Colors.lime;
+    GlobalRenderer->Print("Runnings Tasks: ", currCol);
+    if (!Scheduler::osTasks.IsLocked())
+    {
+        Scheduler::osTasks.Lock();
+        GlobalRenderer->Print("{}", to_string(Scheduler::osTasks.obj->GetCount()), currCol);
+        Scheduler::osTasks.Unlock();
+    }
+    //GlobalRenderer->Print("  - ", Colors.white);
+
+    if (mallocCount > 0)
+        Serial::Writelnf("MEM> Malloced %d times", mallocCount);
+    if (freeCount > 0)
+        Serial::Writelnf("MEM> Freed %d times", freeCount);
+
+    freeCount = 0;
+    mallocCount = 0;
+    
     GlobalRenderer->CursorPosition = tempPoint;
 
+    if (usedHeapCount != _usedHeapCount)
+    {
+        _usedHeapCount = usedHeapCount;
+        Serial::Writelnf("MEM> Used Heap Count: %d", usedHeapCount);
+        Serial::Writelnf("MEM> Used Heap Amount: %d", usedHeapAmount);
+    }
 
+    if (GlobalAllocator->GetUsedRAM() / 0x1000 != _usedPages)
+    {
+        _usedPages = GlobalAllocator->GetUsedRAM() / 0x1000;
+
+        Serial::Writelnf("MEM> Used Pages: %d", _usedPages);
+    }
 
     // TestSetSpeakerPosition(speakA);
     // speakA = !speakA;
@@ -605,8 +658,32 @@ void IRQGenericDriverHandler(int irq, interrupt_frame* frame)
 }
 
 
+void MapMemoryOfCurrentTask(osTask* task)
+{
+    // TODO MAP IT AAAA
+}
+
+bool InterruptGoingOn = false;
+
 extern "C" void intr_common_handler_c(interrupt_frame* frame) 
 {
+    AddToStack();
+    //GlobalPageTableManager.SwitchPageTable(GlobalPageTableManager.PML4);
+
+    if (InterruptGoingOn)
+    {
+        Serial::Writelnf("WAAAA> INT STOPPED!!!");
+        for (int i = 0; i < 100000; i++)
+            asm("nop");
+        //return;
+    }
+    InterruptGoingOn = true;
+
+    int rnd = RND::RandomInt();
+
+    if (Scheduler::CurrentRunningTask != NULL)
+        MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
+    
     //Panic("WAAAAAAAAA {}", to_string(regs->interrupt_number), true);
     if (frame->interrupt_number == 32)
         TempPitRoutine(frame);
@@ -628,39 +705,66 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
         Serial::Writeln();
         PrintRegisterDump(GlobalRenderer);
         Serial::Writeln();
-        
 
-        Scheduler::RemoveTask(Scheduler::CurrentRunningTask);
+        {
+            Serial::Writeln("> Resetting MStackPointer");
+            MStackData::stackPointer = 1;
+            for (int i = 1; i < 1000; i++)
+                MStackData::stackArr[i] = MStack();
+        }
+
+        if (Scheduler::CurrentRunningTask != NULL)
+            Scheduler::CurrentRunningTask->removeMe = true;
         Scheduler::CurrentRunningTask = NULL;
 
+        Serial::Writelnf("> END OF INT");
+        InterruptGoingOn = false;
         Scheduler::SchedulerInterrupt(frame);
-        
+        RemoveFromStack();
+        return;
     }
 
     for (int i = 0; i < 20; i++)
         if (!Keyboard::DoKey())
             break;
 
+    if (Scheduler::CurrentRunningTask == NULL)
+    {
+        InterruptGoingOn = false;
+        RemoveFromStack();
+        return;
+    }
+
     //Panic("WAAAAAAAAA {}", to_string(regs->interrupt_number), true);
 
     //Serial::Writelnf("> END OF INTERRUPT");
+
+    InterruptGoingOn = false;
+    RemoveFromStack();
 }
 
 
 extern "C" void CloseCurrentTask()
 {
     Serial::Writelnf("> PROGRAM REACHED END");
-    Scheduler::RemoveTask(Scheduler::CurrentRunningTask);
-    Scheduler::CurrentRunningTask = NULL;
+    if (Scheduler::CurrentRunningTask != NULL)
+    {
+        Scheduler::CurrentRunningTask->removeMe = true;
+        Scheduler::CurrentRunningTask = NULL;
+    }
+    // Scheduler::RemoveTask();
+    // Scheduler::CurrentRunningTask = NULL;
 }
 
 #include <libm/syscallList.h>
 
 void Syscall_handler(interrupt_frame* frame)
 {
-    Serial::Writelnf("> Syscall: %d", frame->rax);
+    //Serial::Writelnf("> Syscall: %d", frame->rax);
     if (Scheduler::CurrentRunningTask == NULL)
         return;
+
+    AddToStack();
 
     int syscall = frame->rax;
     frame->rax = 0;
@@ -682,6 +786,26 @@ void Syscall_handler(interrupt_frame* frame)
         frame->rax = (uint64_t)((int*)(stack - 12 - sizeof(ENV_DATA)));
         Serial::Writelnf("> Get env %d", frame->rax);
     }
+    else if (syscall == SYSCALL_REQUEST_NEXT_PAGE)
+    {
+        if (Scheduler::CurrentRunningTask != NULL)
+        {
+            osTask* task = Scheduler::CurrentRunningTask;
+            void* tempPage = GlobalAllocator->RequestPage();
+            int count = task->requestedPages->GetCount();
+
+            task->requestedPages->Add(tempPage);
+            
+            void* newAddr = (void*)(MEM_AREA_USER_PROGRAM_REQUEST_START + 0x1000 * count);
+            PageTableManager manager = PageTableManager((PageTable*)task->pageTableContext);
+            manager.MapMemory((void*)tempPage, newAddr);
+            
+            frame->rax = (uint64_t)newAddr;
+            Serial::Writelnf("> Requested next page to %d", frame->rax);
+        }
+        else
+            frame->rax = 0;
+    }
     else if (syscall == SYSCALL_SERIAL_PRINT)
     {
         char* str = (char*)frame->rbx;
@@ -691,6 +815,23 @@ void Syscall_handler(interrupt_frame* frame)
     {
         char* str = (char*)frame->rbx;
         Serial::Writeln(str);
+    }
+    else if(syscall ==SYSCALL_SERIAL_PRINT_CHAR)
+    {
+        char* ch = (char*)frame->rbx;
+        Serial::Write(*ch);
+    }
+    else if(syscall == SYSCALL_SERIAL_READ_CHAR)
+    {
+        char chr = 0;
+        if (Serial::CanRead())
+            chr = Serial::Read();
+        
+        frame->rax = chr;
+    }
+    else if(syscall == SYSCALL_SERIAL_CAN_READ_CHAR)
+    {
+        frame->rax = Serial::CanRead();
     }
     else if (syscall == SYSCALL_GLOBAL_PRINT)
     {
@@ -704,6 +845,12 @@ void Syscall_handler(interrupt_frame* frame)
         Serial::Writelnf("> Printing: \"%s\"", str);
         GlobalRenderer->Println(str);
     }
+    else if (syscall == SYSCALL_GLOBAL_PRINT_CHAR)
+    {
+        char ch = (char)frame->rbx;
+        //Serial::Writelnf("> Printing: \"%d\"", frame->rbx);
+        GlobalRenderer->Print(ch);
+    }
     else if (syscall == SYSCALL_GLOBAL_CLS)
     {
         Serial::Writelnf("> Clearing Screen");
@@ -712,20 +859,85 @@ void Syscall_handler(interrupt_frame* frame)
     else if (syscall == SYSCALL_EXIT)
     {
         Serial::Writelnf("> EXITING PROGRAM %d", frame->rbx);
-        Scheduler::RemoveTask(Scheduler::CurrentRunningTask);
-        Scheduler::CurrentRunningTask = NULL;
+        if (Scheduler::CurrentRunningTask != NULL)
+        {
+            Scheduler::CurrentRunningTask->removeMe = true;
+            Scheduler::CurrentRunningTask = NULL;
+        }
+
+        // Scheduler::RemoveTask(Scheduler::CurrentRunningTask);
+        // Scheduler::CurrentRunningTask = NULL;
 
         Scheduler::SchedulerInterrupt(frame);
     }
-    else if(syscall == SYSCALL_RENDER_CLS){
-        GlobalRenderer->Clear(frame->rbx);
+    else if (syscall == SYSCALL_CRASH)
+    {
+        Serial::Writelnf("> EXITING PROGRAM bc it CRASHED");
+        if (Scheduler::CurrentRunningTask != NULL)
+        {
+            Scheduler::CurrentRunningTask->removeMe = true;
+            Scheduler::CurrentRunningTask = NULL;
+        }
+
+        Scheduler::SchedulerInterrupt(frame);
     }
-    else if(syscall == SYSCALL_GLOBAL_GETKEYCHR){
-        frame->rax = (uint64_t)Keyboard::GetChr();
+    else if (syscall == SYSCALL_YIELD)
+    {
+        Serial::Writelnf("> YIELDING PROGRAM");
+        if (Scheduler::CurrentRunningTask != NULL)
+            Scheduler::CurrentRunningTask->justYielded = true;
+        Scheduler::SchedulerInterrupt(frame);
+    }
+    else if (syscall == SYSCALL_WAIT)
+    {
+        Serial::Writelnf("> WAITING PROGRAM %d ms", frame->rbx);
+        if (Scheduler::CurrentRunningTask != NULL)
+            Scheduler::CurrentRunningTask->taskTimeoutDone = PIT::TimeSinceBootMS() + frame->rbx;
+        Scheduler::SchedulerInterrupt(frame);
+    }
+    else if (syscall == SYSCALL_SET_PRIORITY)
+    {
+        if (Scheduler::CurrentRunningTask != NULL)
+        {
+            int prio = frame->rbx;
+            if (prio < 0)
+                prio = 0;
+
+            // user space programs cant get a prio of 1-4          
+            if (prio != 0 && prio < 5 && !Scheduler::CurrentRunningTask->isKernelModule)
+                prio = 5;
+     
+            Serial::Writelnf("> SETTING PRIORITY TO %d (wanted %d)", prio, frame->rbx);
+            Scheduler::CurrentRunningTask->priority = prio;
+            frame->rax = prio;
+        }
+    }
+    else if (syscall == SYSCALL_ENV_GET_TIME_MS)
+    {
+        frame->rax = PIT::TimeSinceBootMS();
+    }
+    else if (syscall == SYSCALL_RNG_UINT64)
+    {
+        frame->rax = RND::RandomInt();
+    }
+    else if (syscall == SYSCALL_LAUNCH_TEST_ELF_USER)
+    {
+        Serial::Writelnf("> Launching User Test Elf");
+        osTask* task = Scheduler::CreateTaskFromElf(Scheduler::testElfFile, 0, NULL, true);
+        Scheduler::AddTask(task);
+    }
+    else if (syscall == SYSCALL_LAUNCH_TEST_ELF_KERNEL)
+    {
+        Serial::Writelnf("> Launching Kernel Test Elf");
+        osTask* task = Scheduler::CreateTaskFromElf(Scheduler::testElfFile, 0, NULL, false);
+        Scheduler::AddTask(task);
     }
     else
     {
         Serial::Writelnf("> Unknown Syscall: %d", syscall);
     }
     //Scheduler::SchedulerInterrupt(frame);
+
+
+    RemoveFromStack();
 }

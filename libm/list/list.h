@@ -39,15 +39,15 @@ template <typename T> class List
     uint64_t GetCapacity();
     int64_t GetIndexOf(T item);
     void Add(T item);
-    void InsertAt(T item, uint64_t index);
-    void RemoveAt(uint64_t index);
+    void InsertAt(T item, int64_t index);
+    void RemoveAt(int64_t index);
     void RemoveLast();
     void RemoveFirst();
     void RemoveFirst(int count);
-    T ElementAt(uint64_t index);
+    T ElementAt(int64_t index);
     T LastElement();
-    void Set(uint64_t index, T item);
-    T& operator[](uint64_t index);
+    void Set(int64_t index, T item);
+    T& operator[](int64_t index);
     void Clear();
     bool operator==(List<T> other);
 };
@@ -61,7 +61,7 @@ template <typename T> class List
 // // template class Array<PartitionInterface::GenericPartitionInterface*>;
 // // template class  List<PartitionInterface::GenericPartitionInterface*>;
 
-// #include "../kernelStuff/diskStuff/FileSystem_Interfaces/generic/genericFileSystemInterface.h"
+// #include "../kernelStuff/diskStuff/Filesystem_Interfaces/generic/genericFileSystemInterface.h"
 
 
 

@@ -1,19 +1,19 @@
-override OUTPUT := kernel.elf
+OUTPUT = kernel.elf
+OBJDIR = ../objects/kernel-loader
 
 
 CC = gcc
 LD = ld
 
     
-CPPFLAGS = -ffreestanding -fshort-wchar -mno-red-zone -fno-omit-frame-pointer -fno-exceptions -fpermissive -Wno-pmf-conversions -I ../
-# -w
-
-override LDFLAGS +=         \
-    -nostdlib               \
-    -static                 \
-    -Bsymbolic              \
-    -m elf_x86_64           \
-    -z max-page-size=0x1000 \
+LDFLAGS =                                   \
+    -unresolved-symbols=ignore-all          \
+    -nostdlib                               \
+    -static                                 \
+    -Bsymbolic                              \
+    -m elf_x86_64                           \
+    -z max-page-size=0x1000                 \
+    --gc-sections                                \
     -T linker.ld
 
 # Check if the linker supports -no-pie and enable it if it does
@@ -22,22 +22,24 @@ ifeq ($(shell $(LD) --help 2>&1 | grep 'no-pie' >/dev/null 2>&1; echo $$?),0)
 endif
 
 
-override CPPFILES  := $(shell find . -type f -name '*.cpp')
+CPPFLAGS = -ffreestanding -fshort-wchar -mno-red-zone -fno-omit-frame-pointer -fno-exceptions -fpermissive -Wno-pmf-conversions -I ../
+# -w
 
-override OBJ       := $(CPPFILES:.cpp=.o)
+
+CPPFILES = $(shell find . -type f -name '*.cpp')
 
 
-# Default target.
+OBJ      = $(patsubst %.cpp, $(OBJDIR)/%.o, $(CPPFILES))
+
+
 .PHONY: all
 all: $(OUTPUT)
 
+$(OUTPUT): $(OBJ) ../objects/kernel/FINAL_kernel.o ../objects/libm/FINAL_libm.o.kernel_src
+	$(LD) $(OBJ) ../objects/kernel/FINAL_kernel.o ../objects/libm/FINAL_libm.o.kernel_src $(LDFLAGS) -o $(OBJDIR)/$@
 
-# Link rules for the final kernel.
-$(OUTPUT): $(OBJ)
-	$(LD) $(OBJ) ../kernel/FINAL_kernel.o ../libm/FINAL_libm.o.kernel_src $(LDFLAGS) -o $@
-
-
-%.o: %.cpp
+$(OBJDIR)/%.o: %.cpp
+	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) -c $^ -o $@
 
 

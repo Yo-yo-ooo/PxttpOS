@@ -20,17 +20,31 @@
 // } cpu_registers_t;
 
 #include "interrupt_frame.h"
+#include <libm/list/list_basics.h>
 
 struct osTask
 {
 	interrupt_frame* frame;
-    bool exited;
+    bool doExit;
+	bool removeMe;
+	bool active;
+	bool isKernelModule;
+	bool justYielded;
 
     uint8_t* kernelStack;
     uint8_t* kernelEnvStack;
     uint8_t* userStack;
 
     void* pageTableContext;
+
+	int taskTimeoutDone;
+
+	int priority;
+	int priorityStep;
+
+	List<void*>* requestedPages;
+
+	//int requestedPages;
 
 	//bool active;
 

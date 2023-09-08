@@ -13,9 +13,12 @@
 
 #include "saf/saf.h"
 
+#include "interrupts/interrupts.h"
 
 void boot(void* _bootInfo)
 {
+    
+
     BootInfo* bootInfo = (BootInfo*)_bootInfo;
 
     osData.NO_INTERRUPTS = false;
@@ -38,20 +41,30 @@ void boot(void* _bootInfo)
     
     InitKernel(bootInfo);
 
-    GlobalRenderer->ClearDotted(Colors.black);
+    PIT::Sleep(100);
+
+    GlobalRenderer->Clear(Colors.black);
     
     Scheduler::SchedulerEnabled = false;
 
     {
+        Serial::Writelnf("> Setting up Nothing Doer Task");
+        Elf::LoadedElfFile elf;
+        elf.entryPoint = (void*)nothing_task_entry;
+        osTask* task = Scheduler::CreateTaskFromElf(elf, 0, NULL, false);
+        Scheduler::NothingDoerTask = task;
+    }
+
+    {
         uint8_t* data = (uint8_t*)bootInfo->programs->fileData;
-        Serial::Writelnf("data: %X", data);
+        //Serial::Writelnf("data: %X", data);
 
         SAF::initrdMount* mount = SAF::initrd_mount(data);
         SAF::saf_node_folder_t* topNode = (SAF::saf_node_folder_t*) mount->driver_specific_data;
-        Serial::Writelnf("NODES: %d", topNode->num_children);
+        Serial::Writelnf("> NODES: %d", topNode->num_children);
         
         SAF::saf_node_folder_t* moduleNode = (SAF::saf_node_folder_t*)SAF::initrd_find("modules/", topNode, (SAF::saf_node_hdr_t*)topNode);
-        Serial::Writelnf("module nodes: %d", moduleNode->num_children);
+        Serial::Writelnf("> module nodes: %d", moduleNode->num_children);
         for (int i = 0; i < moduleNode->num_children; i++)
         {
             SAF::file_t* file = LoadFileFromNode(mount, (SAF::saf_node_file_t*)((uint64_t)topNode + (uint64_t)moduleNode->children[i]));
@@ -63,13 +76,19 @@ void boot(void* _bootInfo)
 
             Serial::Writelnf("> Adding ELF");
 
-            Scheduler::AddElf(elf, 0, NULL, false);
+            osTask* task = Scheduler::CreateTaskFromElf(elf, 0, NULL, false);
+            Scheduler::AddTask(task);
             Serial::Writelnf("> ADDED MODULE");
 
+            if (i == 1)
+            {
+                Scheduler::testElfFile = elf;
+                Serial::Writelnf("> SET TEST ELF");
+            }
         }
 
         SAF::saf_node_folder_t* programNode = (SAF::saf_node_folder_t*)SAF::initrd_find("programs/", topNode, (SAF::saf_node_hdr_t*)topNode);
-        Serial::Writelnf("program nodes: %d", programNode->num_children);
+        Serial::Writelnf("> program nodes: %d", programNode->num_children);
         for (int i = 0; i < programNode->num_children; i++)
         {
             SAF::file_t* file = LoadFileFromNode(mount, (SAF::saf_node_file_t*)((uint64_t)topNode + (uint64_t)programNode->children[i]));
@@ -81,7 +100,7 @@ void boot(void* _bootInfo)
 
             Serial::Writelnf("> Adding ELF");
 
-            Scheduler::AddElf(elf, 0, NULL, true);
+            Scheduler::AddTask(Scheduler::CreateTaskFromElf(elf, 0, NULL, true));
             Serial::Writelnf("> ADDED PROGRAM");
 
         }
@@ -104,7 +123,7 @@ void boot(void* _bootInfo)
 
 
  
-void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, SystemAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData)
+volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, SystemAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData)
 {
     //MStackData::BenchmarkEnabled = false;
     BootInfo tempBootInfo;

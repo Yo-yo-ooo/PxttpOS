@@ -54,7 +54,7 @@
 // 	// Add a TSS descriptor to the GDT.
 // 	g->limit_low = limit;
 // 	g->base_low = base;
-// 	g->accessed = 1; // With a System entry (`code_data_segment` = 0), 1 indicates TSS and 0 indicates LDT
+// 	g->accessed = 1; // With a system entry (`code_data_segment` = 0), 1 indicates TSS and 0 indicates LDT
 // 	g->read_write = 0; // For a TSS, indicates busy (1) or not busy (0).
 // 	g->conforming_expand_down = 0; // always 0 for TSS
 // 	g->code = 1; // For a TSS, 1 indicates 32-bit (1) or 16-bit (0).

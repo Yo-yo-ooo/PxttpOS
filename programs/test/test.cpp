@@ -33,33 +33,20 @@ void Bruhus(char* yes)
 
 void main2(int argc, char** argv, ENV_DATA* env)
 {
-    globalCls();
+    //globalCls();
     //return;
     
     globalPrintLn("Hello from a test program!");
     globalPrintLn("Yes, new line!");
 
-    //return;
+    return;
     // would crash the program but not the OS
     TempRenderer renderer = TempRenderer(env->globalFrameBuffer, env->globalFont);
     renderer.Clear(Colors.bblue);
-/*
-    while (true)
-    {
-        if(!GetKeyChr()){
-
-        }else
-        {
-            globalPrint((const char*)GetKeyChr());
-        }
-        
-    }
-*/  
-    
     
     //*((char*)(uint64_t)argc) = 'A';
     //Bruhus((char*)env->globalFrameBuffer->BaseAddress);
     
     //while (true);
+    
 }
-

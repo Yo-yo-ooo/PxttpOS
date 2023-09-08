@@ -28,6 +28,15 @@ ENV_DATA* getEnvData()
     return env;
 }
 
+void* requestNextPage()
+{
+    int syscall = SYSCALL_REQUEST_NEXT_PAGE;
+    void* page;
+
+    asm("int $0x31" : "=a"(page): "a"(syscall));
+    return page;
+}
+
 void serialPrint(const char* str)
 {
     int syscall = SYSCALL_SERIAL_PRINT;
@@ -38,6 +47,28 @@ void serialPrintLn(const char* str)
 {
     int syscall = SYSCALL_SERIAL_PRINTLN;
     asm("int $0x31" : : "a"(syscall), "b"(str));
+}
+
+char serialReadChar()
+{
+    int syscall = SYSCALL_SERIAL_READ_CHAR;
+    char ch;
+    asm("int $0x31" : "=a"(ch) : "a"(syscall));
+    return ch;
+}
+
+bool serialCanReadChar()
+{
+    int syscall = SYSCALL_SERIAL_CAN_READ_CHAR;
+    bool canRead;
+    asm("int $0x31" : "=a"(canRead) : "a"(syscall));
+    return canRead;
+}
+
+void serialPrintChar(char c)
+{
+    int syscall = SYSCALL_SERIAL_PRINT_CHAR;
+    asm("int $0x31" : : "a"(syscall), "b"(&c));
 }
 
 void globalPrint(const char* str)
@@ -52,19 +83,75 @@ void globalPrintLn(const char* str)
     asm("int $0x31" : : "a"(syscall), "b"(str));
 }
 
+void globalPrintChar(char chr)
+{
+    int syscall = SYSCALL_GLOBAL_PRINT_CHAR;
+    asm("int $0x31" : : "a"(syscall), "b"(chr));
+}
+
+
 void globalCls()
 {
     int syscall = SYSCALL_GLOBAL_CLS;
     asm("int $0x31" : : "a"(syscall));
 }
 
-void exitProgram(int code)
+void proramExit(int code)
 {
     int syscall = SYSCALL_EXIT;
     asm("int $0x31" : : "a"(syscall), "b"(code));
 }
 
-char GetKeyChr(){
-    char key;
-    asm("int $0x31" : "=a"(key) : "a"(SYSCALL_GLOBAL_GETKEYCHR));
+void programCrash()
+{
+    int syscall = SYSCALL_CRASH;
+    asm("int $0x31" : : "a"(syscall));
+}
+
+void programWait(int timeMs)
+{
+    int syscall = SYSCALL_WAIT;
+    asm("int $0x31" : : "a"(syscall), "b"(timeMs));
+}
+
+void programYield()
+{
+    int syscall = SYSCALL_YIELD;
+    asm("int $0x31" : : "a"(syscall));
+}
+
+int programSetPriority(int priority)
+{
+    int actualPrio = 0;
+    int syscall = SYSCALL_SET_PRIORITY;
+    asm("int $0x31" : "=a"(actualPrio) : "a"(syscall), "b"(priority));
+    return actualPrio;
+}
+
+uint64_t envGetTimeMs()
+{
+    int syscall = SYSCALL_ENV_GET_TIME_MS;
+    uint64_t timeMs;
+    asm("int $0x31" : "=a"(timeMs) : "a"(syscall));
+    return timeMs;
+}
+
+uint64_t randomUint64()
+{
+    int syscall = SYSCALL_RNG_UINT64;
+    uint64_t rand;
+    asm("int $0x31" : "=a"(rand) : "a"(syscall));
+    return rand;
+}
+
+void launchTestElfUser()
+{
+    int syscall = SYSCALL_LAUNCH_TEST_ELF_USER;
+    asm("int $0x31" : : "a"(syscall));
+}
+
+void launchTestElfKernel()
+{
+    int syscall = SYSCALL_LAUNCH_TEST_ELF_KERNEL;
+    asm("int $0x31" : : "a"(syscall));
 }

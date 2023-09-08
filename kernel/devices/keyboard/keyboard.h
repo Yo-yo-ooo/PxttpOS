@@ -60,7 +60,5 @@ namespace Keyboard
     int KeysAvaiable();
     bool DoKey();
 
-    char GetChr();
-
     bool IsKeyPressed(int scancode);
 }

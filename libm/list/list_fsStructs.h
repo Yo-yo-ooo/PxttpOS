@@ -2,13 +2,13 @@
 // #include "./list.h"
 
 
-// #include "../../kernelStuff/diskStuff/FileSystem_Interfaces/generic/fileSystemStructs.h"
+// #include "../../kernelStuff/diskStuff/Filesystem_Interfaces/generic/fileSystemStructs.h"
 
-// template class Array<FileSystemInterface::BaseInfo*>;
-// template class  List<FileSystemInterface::BaseInfo*>;
+// template class Array<FilesystemInterface::BaseInfo*>;
+// template class  List<FilesystemInterface::BaseInfo*>;
 
-// template class Array<FileSystemInterface::FileInfo*>;
-// template class  List<FileSystemInterface::FileInfo*>;
+// template class Array<FilesystemInterface::FileInfo*>;
+// template class  List<FilesystemInterface::FileInfo*>;
 
-// template class Array<FileSystemInterface::FolderInfo*>;
-// template class  List<FileSystemInterface::FolderInfo*>;
+// template class Array<FilesystemInterface::FolderInfo*>;
+// template class  List<FilesystemInterface::FolderInfo*>;

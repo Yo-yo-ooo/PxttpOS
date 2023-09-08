@@ -509,7 +509,7 @@ do
       {
         # Now remove or move aside any old file at destination location.
         # We try this two ways since rm can't unlink itself on some
-        # Systems and the destination file might be busy for other
+        # systems and the destination file might be busy for other
         # reasons.  In this case, the final cleanup might fail but the new
         # file should still install successfully.
         {
