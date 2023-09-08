@@ -856,6 +856,10 @@ void Syscall_handler(interrupt_frame* frame)
         Serial::Writelnf("> Clearing Screen");
         GlobalRenderer->Clear(Colors.black);
     }
+    else if (syscall == SYSCALL_GLOBAL_CLS2)
+    {
+        GlobalRenderer->Clear(frame->rbx);
+    }
     else if (syscall == SYSCALL_EXIT)
     {
         Serial::Writelnf("> EXITING PROGRAM %d", frame->rbx);
