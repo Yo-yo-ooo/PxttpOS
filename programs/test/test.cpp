@@ -10,16 +10,7 @@ int main()
     //while (true);
 
 
-    int argc = getArgC();
-    //*((char*)(uint64_t)argc) = 'A';
-    char** argv = getArgV();
-    ENV_DATA* env = getEnvData();
-
-
-
-    //return 0;
-    
-    main2(argc, argv, env);
+    proramExit(0);
 
     return 0;
 }
@@ -46,12 +37,7 @@ char* Strcat(char *dst, const char *src)
 void main2(int argc, char** argv, ENV_DATA* env)
 {
     //globalCls();
-    //return;
-    struct cpuinfo_x86 _ci;
-    _ci = GetCI();
     
-    globalPrintLn(Strcat("x86_CPULevel ",_ci.cpuid_level));
-    globalPrintLn(Strcat("X86_ModID",_ci.x86_model_id));
     
     return;
     //*((char*)(uint64_t)argc) = 'A';

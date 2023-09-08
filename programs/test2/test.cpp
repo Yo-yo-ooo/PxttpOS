@@ -6,63 +6,41 @@
 #include <libm/experimental/RelocatableAllocator.h>
 #include <libm/experimental/AutoFree.h>
 #include <libm/cstr.h>
+#include <libm/cpu.h>
 
-char buffer[512];
+//char buffer[512];
+
+char* Strcat(char* dest, const char* source){
+	if (dest == NULL || source == NULL){		//合法性校验
+		return dest;
+	}
+	char* p = dest;			//将目的数组赋给p
+	while (*p != '\0'){		//循环看大小
+		p++;
+	}
+	while (*source != '\0'){			//注意指针的用法
+		*p = *source;
+		p++;			//依次加加进行连接
+		source++;
+	}
+	*p = '\0';
+	return dest;
+}
 
 int main()
 {
-    //globalCls();
-
-    int argc = getArgC();
-    char **argv = getArgV();
-    ENV_DATA *env = getEnvData();
-
-    for (int i = 0; i < 10; i++)
-    {
-        void* newPage = requestNextPage();
-        uint64_t newPageAddr = (uint64_t)newPage;
-        globalPrint("> New page: ");
-        globalPrintLn(ConvertHexToString(newPageAddr));
-    }
-
-    globalPrintLn("Hello from a test (2) program!");
-
+    globalCls();
+    struct cpuinfo_x86 _ci;
+    _ci = GetCI();
     
-    int prio = programSetPriority(1);
-    globalPrint("> Priority: ");
-    globalPrintLn(to_string(prio));
+    globalPrintLn("CPU Basic Information:");
+    globalPrintLn(Strcat("x86_CPU Level ",to_string(_ci.cpuid_level)));
+    globalPrintLn(Strcat("x86_CPU Cache Bits ",to_string(_ci.x86_cache_bits)));
+    globalPrintLn(Strcat("x86_CPU Family ",to_string(_ci.x86)));
+    globalPrintLn(Strcat("X86_ModID ",_ci.x86_model_id));
+    programWait(3000);
+    globalCls();
+    globalPrintLn("Hello World");
 
-    
-
-    programWait(2000);
-    globalPrintLn("> USER ELF");
-    for (int i = 0; i < 1000; i++)
-    {
-        //programWait(50);
-        launchTestElfUser();
-    }
-    programWait(100);
-
-    return 0;
-    globalPrintLn("> KERNEL ELF");
-    for (int i = 0; i < 100; i++)
-    {
-        //programWait(50);
-        launchTestElfKernel();
-    }
-    return 0;
-
-    for (int i = 0; i < 10;)
-    {
-        if (serialCanReadChar())
-        {
-            char c = serialReadChar();
-            serialPrintChar(c);
-            globalPrintChar(c);
-            i++;
-        }
-        else
-            programWait(500);//programYield();
-    }
     return 0;
 }
