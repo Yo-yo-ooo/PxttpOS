@@ -3,7 +3,6 @@
 #include <libm/cstr.h>
 #include <stdint.h>
 #include <libm/rendering/Cols.h>
-#include <libm/syscallManager.h>
 //#include "../cStdLib/cstrTools.h"
 //#include "../memory/heap.h"
 
@@ -74,7 +73,7 @@ void TempRenderer::putStr(const char *chrs, int64_t xoff, int64_t yoff, uint32_t
 
 void TempRenderer::printStr(const char *chrs)
 {
-    globalPrint(chrs);
+    printStr(chrs, NULL, true);
 }
 
 void TempRenderer::printStr(const char *chrs, bool allowEscape)
@@ -184,7 +183,7 @@ void TempRenderer::Print(char chr)
 
 void TempRenderer::Print(const char *chrs)
 {
-    globalPrint(chrs);
+    TempRenderer::printStr(chrs);
 }
 
 void TempRenderer::Print(const char *chrs, bool allowEscape)
@@ -194,7 +193,8 @@ void TempRenderer::Print(const char *chrs, bool allowEscape)
 
 void TempRenderer::Println(const char *chrs)
 {
-    globalPrintLn(chrs);
+    TempRenderer::printStr(chrs);
+    TempRenderer::printStr("\n\r");
 }
 
 void TempRenderer::Print(const char *chrs, const char *var)
@@ -298,7 +298,7 @@ void TempRenderer::Clear(int64_t x1, int64_t y1, int64_t x2, int64_t y2, uint32_
 
 void TempRenderer::Clear(uint32_t col)
 {
-    GlobalClear(col);
+    TempRenderer::Clear(col, true);
 }
 
 void TempRenderer::ClearDotted(uint32_t col, bool resetCursor)
@@ -322,7 +322,10 @@ void TempRenderer::ClearDotted(uint32_t col)
 
 void TempRenderer::Cls()
 {
-    globalCls();
+    TempRenderer::Clear(0);
+    TempRenderer::Println("(OLD) Masl OS 2 v0.01", Colors.green);
+    TempRenderer::Println("-------------------", Colors.green);
+    TempRenderer::Println();
 }
 
 TempRenderer::TempRenderer(Framebuffer* framebuffer, PSF1_FONT* psf1_font)

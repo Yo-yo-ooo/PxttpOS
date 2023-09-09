@@ -1,7 +1,7 @@
 
 all: 
-	rm System.iso || true
-	$(MAKE) System.iso
+	rm MaslOS2.iso || true
+	$(MAKE) MaslOS2.iso
 	true || $(MAKE) cleanError
 
 # for nvim users apparently
@@ -20,7 +20,7 @@ limine:
 	git clone https://github.com/limine-bootloader/limine.git --branch=v4.x-branch-binary --depth=1
 	make -C limine
 
-System.iso:
+MaslOS2.iso:
 	# $(MAKE) cleanObjFolder --silent
 	$(MAKE) cleanExternalFolder --silent
 	$(MAKE) kernel
@@ -59,9 +59,9 @@ System.iso:
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
 		--efi-boot limine-cd-efi.bin \
 		-efi-boot-part --efi-boot-image --protective-msdos-label \
-		iso_root -o System.iso
+		iso_root -o MaslOS2.iso
 		
-	limine/limine-deploy System.iso
+	limine/limine-deploy MaslOS2.iso
 	rm -rf iso_root
 
 
@@ -70,7 +70,7 @@ cleanError:
 	$(error "error happened")
 
 clean: clean2
-	@rm -rf iso_root System.iso barebones.hdd ./external/programs.saf
+	@rm -rf iso_root MaslOS2.iso barebones.hdd ./external/programs.saf
 	
 
 clean2:
@@ -100,11 +100,4 @@ cleanExternalFolder:
 	@mkdir objects/external/modules
 	@mkdir objects/external/programs
 	
-
-mr:
-	make -j$(nproc) && qemu-system-x86_64 -machine q35 -m 1G -cpu qemu64 -smp 4 -serial stdio -boot d -cdrom System.iso -no-reboot --no-shutdown
-
-ccar:
-	make clean -j$(nproc) && make clean2 -j$(nproc)
-	make all -j$(nproc)
-	qemu-system-x86_64 -machine q35 -m 1G -cpu qemu64 -smp 4 -serial stdio -boot d -cdrom System.iso -no-reboot --no-shutdown
+	

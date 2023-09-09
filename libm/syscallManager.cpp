@@ -1,8 +1,6 @@
 #include "syscallManager.h"
 #include "syscallList.h"
 
-#define DSYSC(n) int syscall = n;
-
 int getArgC()
 {
     int syscall = SYSCALL_GET_ARGC;
@@ -156,14 +154,4 @@ void launchTestElfKernel()
 {
     int syscall = SYSCALL_LAUNCH_TEST_ELF_KERNEL;
     asm("int $0x31" : : "a"(syscall));
-}
-
-void GlobalClear(uint32_t col){
-    int syscall = SYSCALL_GLOBAL_CLS2;
-    asm("int $0x31" :  : "a"(syscall), "b"(col));
-}
-
-void Kernel_Do(void (*vp)(void)){
-    DSYSC(SYSCALL_KDO)
-    asm("int $0x31" : : "a"(syscall), "b"((uint64_t)vp));
 }

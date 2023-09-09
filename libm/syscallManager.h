@@ -20,7 +20,6 @@ void globalPrintLn(const char* str);
 void globalPrintChar(char chr);
 
 void globalCls();
-void GlobalClear(uint32_t col);
 
 void proramExit(int code);
 void programCrash();

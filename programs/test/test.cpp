@@ -2,7 +2,6 @@
 #include <libm/syscallManager.h>
 #include <libm/rendering/basicRenderer.h>
 #include <libm/rendering/Cols.h>
-#include <libm/cpu.h>
 
 int main()
 {
@@ -10,7 +9,16 @@ int main()
     //while (true);
 
 
-    proramExit(0);
+    int argc = getArgC();
+    //*((char*)(uint64_t)argc) = 'A';
+    char** argv = getArgV();
+    ENV_DATA* env = getEnvData();
+
+
+
+    //return 0;
+    
+    main2(argc, argv, env);
 
     return 0;
 }
@@ -23,23 +31,19 @@ void Bruhus(char* yes)
     }
 }
 
-char* Strcat(char *dst, const char *src)
-{
-    //assert(dst != NULL && src != NULL);
-    char *temp = dst;
-    while (*temp != '\0')
-        temp++;
-    while ((*temp++ = *src++) != '\0');
-
-    return dst;
-}
-
 void main2(int argc, char** argv, ENV_DATA* env)
 {
     //globalCls();
+    //return;
     
-    
+    globalPrintLn("Hello from a test program!");
+    globalPrintLn("Yes, new line!");
+
     return;
+    // would crash the program but not the OS
+    TempRenderer renderer = TempRenderer(env->globalFrameBuffer, env->globalFont);
+    renderer.Clear(Colors.bblue);
+    
     //*((char*)(uint64_t)argc) = 'A';
     //Bruhus((char*)env->globalFrameBuffer->BaseAddress);
     

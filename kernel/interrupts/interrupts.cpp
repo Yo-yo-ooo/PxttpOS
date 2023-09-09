@@ -667,6 +667,8 @@ bool InterruptGoingOn = false;
 
 extern "C" void intr_common_handler_c(interrupt_frame* frame) 
 {
+    //Serial::Writelnf("INT> INT %d", frame->interrupt_number);
+
     AddToStack();
     //GlobalPageTableManager.SwitchPageTable(GlobalPageTableManager.PML4);
 
@@ -674,6 +676,7 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
     {
         Serial::Writelnf("WAAAA> INT %d IS INTERRUPTING INT!", frame->interrupt_number);
         Panic("INT IN INT", true);
+        
         //return;
     }
     InterruptGoingOn = true;
@@ -729,7 +732,7 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
 
     if (Scheduler::CurrentRunningTask == NULL)
     {
-        Serial::Writelnf("> END OF INTERRUPT");
+        //Serial::Writelnf("> END OF INTERRUPT");
         InterruptGoingOn = false;
         RemoveFromStack();
         return;
@@ -737,8 +740,7 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
 
     //Panic("WAAAAAAAAA {}", to_string(regs->interrupt_number), true);
 
-    Serial::Writelnf("> END OF INTERRUPT");
-
+    //Serial::Writelnf("> END OF INTERRUPT");
     InterruptGoingOn = false;
     RemoveFromStack();
 }
@@ -856,10 +858,6 @@ void Syscall_handler(interrupt_frame* frame)
         Serial::Writelnf("> Clearing Screen");
         GlobalRenderer->Clear(Colors.black);
     }
-    else if (syscall == SYSCALL_GLOBAL_CLS2)
-    {
-        GlobalRenderer->Clear(frame->rbx);
-    }
     else if (syscall == SYSCALL_EXIT)
     {
         Serial::Writelnf("> EXITING PROGRAM %d", frame->rbx);
@@ -883,12 +881,14 @@ void Syscall_handler(interrupt_frame* frame)
     {
         Serial::Writelnf("> YIELDING PROGRAM");
         Scheduler::CurrentRunningTask->justYielded = true;
+
         Scheduler::SchedulerInterrupt(frame);
     }
     else if (syscall == SYSCALL_WAIT)
     {
         Serial::Writelnf("> WAITING PROGRAM %d ms", frame->rbx);
         Scheduler::CurrentRunningTask->taskTimeoutDone = PIT::TimeSinceBootMS() + frame->rbx;
+
         Scheduler::SchedulerInterrupt(frame);
     }
     else if (syscall == SYSCALL_SET_PRIORITY)
@@ -897,10 +897,12 @@ void Syscall_handler(interrupt_frame* frame)
         if (prio < 0)
             prio = 0;
 
-        // user space programs cant get a prio of 1-4          
-        if (prio != 0 && prio < 5 && !Scheduler::CurrentRunningTask->isKernelModule)
-            prio = 5;
+        #define BEST_USERMODE_PRIO 2
 
+        // user space programs cant get a prio of 1-4          
+        if (prio != 0 && prio < BEST_USERMODE_PRIO && !Scheduler::CurrentRunningTask->isKernelModule)
+            prio = BEST_USERMODE_PRIO;
+    
         Serial::Writelnf("> SETTING PRIORITY TO %d (wanted %d)", prio, frame->rbx);
         Scheduler::CurrentRunningTask->priority = prio;
         frame->rax = prio;
@@ -917,20 +919,16 @@ void Syscall_handler(interrupt_frame* frame)
     {
         Serial::Writelnf("> Launching User Test Elf");
         osTask* task = Scheduler::CreateTaskFromElf(Scheduler::testElfFile, 0, NULL, true);
+        //task->active = false;
         Scheduler::AddTask(task);
     }
     else if (syscall == SYSCALL_LAUNCH_TEST_ELF_KERNEL)
     {
         Serial::Writelnf("> Launching Kernel Test Elf");
         osTask* task = Scheduler::CreateTaskFromElf(Scheduler::testElfFile, 0, NULL, false);
+        //task->active = false;
         Scheduler::AddTask(task);
     }
-    else if (syscall == SYSCALL_KDO)
-    {
-        void (*vp)(void) = (void (*)(void))frame->rbx;
-        vp();
-    }
-    
     else
     {
         Serial::Writelnf("> Unknown Syscall: %d", syscall);
