@@ -106,6 +106,13 @@ int strncmp(const char *s1, const char *s2, size_t n)
         return *s1 - *s2;
 }
 
+void memset(void* start, uint8_t value, uint64_t num)
+{
+    uint8_t* curr = (uint8_t*)start;
+    
+    for (int64_t rem = num; rem > 0; rem--)
+        *curr++ = value;
+}
 
 /*
 char *strchr(string, chr) - search a string for a character

@@ -1,13 +1,7 @@
 #include <libm/cpuid/cpuid.h>
 #include <stdint.h>
 
-void memset(void* start, uint8_t value, uint64_t num)
-{
-    uint8_t* curr = (uint8_t*)start;
-    
-    for (int64_t rem = num; rem > 0; rem--)
-        *curr++ = value;
-}
+#include <libm/c/string/string.h>
 
 static inline void cpuid(unsigned int op, unsigned int *eax, unsigned int *ebx,
 			 				unsigned int *ecx, unsigned int *edx)

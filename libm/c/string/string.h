@@ -19,6 +19,8 @@ extern "C" {
     char * strstr (const char * str1,const char * str2);
     void* memcpy(void* memTo, void* memFrom, size_t size);
 
+    void memset(void* start, uint8_t value, uint64_t num);
+
 #ifdef __cplusplus
 }
 #endif
