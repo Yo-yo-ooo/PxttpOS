@@ -91,7 +91,7 @@ namespace Elf
         
 
         Elf64_Phdr* ph = (Elf64_Phdr*) (((char*) data) + header->e_phoff);
-        Serial::Writelnf("ELF> ph: %x\n", ph);
+        //Serial::Writelnf("ELF> ph: %x\n", ph);
 
         void* last_dest;
 
@@ -104,8 +104,9 @@ namespace Elf
         }
 
         void* offset = GlobalAllocator->RequestPages((uint64_t) last_dest / 0x1000 + 1);
-        GlobalPageTableManager.MapMemories((void*)offset, (void*)offset, (uint64_t) last_dest / 0x1000 + 1, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_UserSuper);
-        Serial::Writelnf("offset: %x\n", offset);
+        GlobalPageTableManager.MapMemories((void*)((uint64_t)offset + MEM_AREA_ELF_MAP_OFFSET), (void*)offset, (uint64_t) last_dest / 0x1000 + 1, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_UserSuper);
+        offset = (void*)((uint64_t)offset + MEM_AREA_ELF_MAP_OFFSET);
+        //Serial::Writelnf("offset: %x\n", offset);
 
         ph = (Elf64_Phdr*) (((char*) data) + header->e_phoff);
         for (int i = 0; i < header->e_phnum; i++, ph++)
@@ -135,13 +136,22 @@ namespace Elf
         return file;
     }
 
-    void RunElfHere(LoadedElfFile file, int argc, char** argv, ENV_DATA* envData)
+    // void RunElfHere(LoadedElfFile file, int argc, char** argv, ENV_DATA* envData)
+    // {
+    //     if (file.works)
+    //     {
+    //         void (*entry)(int, char**, ENV_DATA*) = (void (*)(int, char**, ENV_DATA*)) file.entryPoint;
+    //         Serial::Writelnf("ELF> ENTRY POINT: %x", entry);
+    //         entry(argc, argv, envData);
+    //     }
+    // }
+
+    void FreeElf(LoadedElfFile file)
     {
         if (file.works)
         {
-            void (*entry)(int, char**, ENV_DATA*) = (void (*)(int, char**, ENV_DATA*)) file.entryPoint;
-            Serial::Writelnf("ELF> ENTRY POINT: %x", entry);
-            entry(argc, argv, envData);
+            void* offset = (void*)((uint64_t)file.offset - MEM_AREA_ELF_MAP_OFFSET);
+            GlobalAllocator->FreePages(offset, file.size);
         }
     }
 }

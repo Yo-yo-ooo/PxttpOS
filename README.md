@@ -1,2 +1,2 @@
 # PxttpOS
-    based on SkylineSystem(NK-64)
+    Based on SkylineSystem(NewKernel)
