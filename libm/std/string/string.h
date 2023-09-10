@@ -3,6 +3,18 @@
 #include <libm/c/string/string.h>
 #include <libm/heap/heap.h>
 #include <libm/heap/new2.h>
+#include <libm/cstr.h>
+#include <libm/cstrTools.h>
+
+#define strlen(a) StrLen(a)
+
+void memset(void* start, uint8_t value, uint64_t num)
+{
+    uint8_t* curr = (uint8_t*)start;
+    
+    for (int64_t rem = num; rem > 0; rem--)
+        *curr++ = value;
+}
  
 namespace std {
  
