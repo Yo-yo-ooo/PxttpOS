@@ -4,10 +4,9 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/home/masl/System",
-                "/home/masl/System-2"
+                "${workspaceFolder}/../"
             ],
-            "defines": [],
+            "defines": ["_KERNEL_MODULE"],
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "c17",
             "cppStandard": "gnu++14",

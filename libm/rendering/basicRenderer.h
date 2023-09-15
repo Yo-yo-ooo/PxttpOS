@@ -4,7 +4,6 @@
 #include <libm/math.h>
 #include <libm/rendering/framebuffer.h>
 #include <libm/rendering/S-Font.h>
-#include <libm/syscallManager.h>
 
 class TempRenderer
 {
@@ -40,7 +39,6 @@ class TempRenderer
         void Print(const char* chrs, const char* var, uint32_t col);
         void Println(const char* chrs, const char* var, uint32_t col);
 
-        void Clear(){ globalCls(); }
         void Clear(uint32_t col);
         void Clear(int64_t x1, int64_t y1, int64_t x2, int64_t y2, uint32_t col);
         void Clear(uint32_t col, bool resetCursor);

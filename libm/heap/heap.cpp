@@ -5,125 +5,92 @@
 #include <libm/rendering/Cols.h>
 #include <libm/syscallManager.h>
 
+
 namespace Heap
 {
     const uint64_t HeapMagicNum = 0xABCD12DEAD9654AA;//0;// 0xFFFFFFFFFFFFFFFF;//0xABCD12DEAD9654AA;
-
-    int64_t lastFreeSize = 0;
-    int64_t heapCount = 0;
-    int64_t usedHeapCount = 0;
-    int64_t usedHeapAmount = 0;
-    void* heapStart;
-    void* heapEnd;
-    HeapSegHdr* lastHdr;
-
-    int64_t mallocCount = 0;
-    int64_t freeCount = 0;
-    int64_t activeMemFlagVal = 0;
-
-    bool heapInited = false;
-
-
-
-
-    void HeapSegHdr::CombineForward()
+    
+    HeapManager* GlobalHeapManager;
+    
+    void _HeapSegHdr::CombineForward(HeapManager* manager)
     {
         AddToStack();
-        //GlobalRenderer->Print("B");
-        //GlobalRenderer->Print("[{}]", ConvertHexToString((uint64_t)this), Colors.yellow);
         if (next == NULL)
         {
             RemoveFromStack();
             return;   
         }
-        //GlobalRenderer->Print("[{}]", ConvertHexToString((uint64_t)next), Colors.yellow);
+        
         if (!next->free)
         {
             RemoveFromStack();
             return;   
         }
-        //GlobalRenderer->Print("B2");
 
         if (next->last != this)
         {
+            #ifdef _KERNEL_SRC
+            return;
+            #else
             Panic("COMBINING FORWARD BUT ACTUALLY NOT???", true);
+            #endif
         }
 
         if (!free)
         {
+            #ifdef _KERNEL_SRC
+            return;
+            #else
             Panic("COMBINING FORWARD BUT THE HDR IS NOT FREE???", true);
+            #endif
         }
         
-        //GlobalRenderer->Print("<");
-        if (next == lastHdr) 
-            lastHdr = this;
-        //GlobalRenderer->Print("-");
+        if (next == manager->_lastHdr) 
+            manager->_lastHdr = this;
+
         if (next->next != NULL)
-        {
             next->next->last = this;
-        }
-        //GlobalRenderer->Print("-");
-        length = length + next->length + sizeof(HeapSegHdr);
-        //GlobalRenderer->Print("-");
+        
+        length = length + next->length + sizeof(_HeapSegHdr);
         next = next->next;
         text = "<FREE>";
-        heapCount--;
-        //GlobalRenderer->Print(">");
+        manager->_heapCount--;
         RemoveFromStack();
     }
 
-    void HeapSegHdr::CombineBackward()
+    void _HeapSegHdr::CombineBackward(HeapManager* manager)
     {
         AddToStack();
-        //GlobalRenderer->Print("C");
-        if (last != NULL)
-            if (last->free)
-            {
-                //GlobalRenderer->Print("<");
-                last->CombineForward();
-                //GlobalRenderer->Print(">");
-            }
+        if (last != NULL && last->free)
+            last->CombineForward(manager);
         RemoveFromStack();
     }
 
-    HeapSegHdr* HeapSegHdr::Split(size_t splitLength)
+    _HeapSegHdr* _HeapSegHdr::Split(HeapManager* manager, size_t splitLength)
     {
         AddToStack();
-
-        //AddToStack();
         if (splitLength < 0x10)
         {
-            //RemoveFromStack();
             RemoveFromStack();
             return NULL;
         }
 
-        //AddToStack();
-        //GlobalRenderer->Println("this len: {}", to_string(length), Colors.bgreen);
-        int64_t splitSegLength = ((int64_t)length - (int64_t)splitLength) - (int64_t)sizeof(HeapSegHdr);
-        //GlobalRenderer->Println("Splitseg len: {}", to_string(splitSegLength), Colors.bgreen);
-        if (splitSegLength < 0x10)
+        int64_t splitSegLength = ((int64_t)length - (int64_t)splitLength) - (int64_t)sizeof(_HeapSegHdr);
+       if (splitSegLength < 0x10)
         {
-            //RemoveFromStack();
-            //RemoveFromStack();
             RemoveFromStack();
             return NULL;
         }
 
-        HeapSegHdr* newSplitHdr = (HeapSegHdr*)((uint64_t)this + splitLength + sizeof(HeapSegHdr));
-        //AddToStack();
-        *newSplitHdr = HeapSegHdr();
+        _HeapSegHdr* newSplitHdr = (_HeapSegHdr*)((uint64_t)this + splitLength + sizeof(_HeapSegHdr));
+        *newSplitHdr = _HeapSegHdr();
 
-        //GlobalRenderer->Println("Splitheader addr: {}", ConvertHexToString((uint64_t)newSplitHdr), Colors.bgreen);
-        //AddToStack();
         if (next != NULL)
             next->last = newSplitHdr;
-        //AddToStack();
 
-        //AddToStack();
         newSplitHdr->next = next;
         next = newSplitHdr;
-        //AddToStack();
+
         newSplitHdr->last = this;
         newSplitHdr->length = splitSegLength;
         newSplitHdr->free = free;
@@ -131,150 +98,106 @@ namespace Heap
         length = splitLength;
         newSplitHdr->text = "<FREE>";
 
-        //GlobalRenderer->Println("this len: {}", to_string(length), Colors.bgreen);
+        if (manager->_lastHdr == this) 
+            manager->_lastHdr = newSplitHdr;
 
-        //AddToStack();
-        if (lastHdr == this) 
-            lastHdr = newSplitHdr;
-        //GlobalRenderer->Println("Split successful!");
-        heapCount++;
-
-        //RemoveFromStack();
-        //RemoveFromStack();
-        //RemoveFromStack();
-        //RemoveFromStack();
-        //RemoveFromStack();
-        //RemoveFromStack();
-        //RemoveFromStack();
+        manager->_heapCount++;
         RemoveFromStack();
         return newSplitHdr;
     }
 
-
-    int64_t lastUpdateTime = 0;
-    bool mallocToCache = false;
-
-    void* backupHeapStart = NULL;
-    static const int backupHeapPageCount = 1000; // ~4MB
-    bool usingBackupHeap = false;
-    bool backupHeapFailed = false;
-
-
-    void SubInitHeap(void* heapAddress, size_t pageCount)
+    void HeapManager::SubInitHeap(void* heapAddress, size_t pageCount)
     {
         AddToStack();
-        activeMemFlagVal = 0;
+        _activeMemFlagVal = 0;
 
         uint64_t heapLength = pageCount * 0x1000;
+        _heapStart = heapAddress;
+        _heapEnd = (void*)((uint64_t)_heapStart + heapLength);
 
-        heapStart = heapAddress;
-        heapEnd = (void*)((uint64_t)heapStart + heapLength);
-        HeapSegHdr* startSeg = (HeapSegHdr*)heapAddress;
-        startSeg->length = heapLength - sizeof(HeapSegHdr);
+        _HeapSegHdr* startSeg = (_HeapSegHdr*)heapAddress;
+
+        //serialPrint("Start Seg: 0x");
+        //serialPrintLn(ConvertHexToString((uint64_t)startSeg));
+
+        startSeg->length = heapLength - sizeof(_HeapSegHdr);
+        
+        //return;
         startSeg->next = NULL;
         startSeg->last = NULL;
         startSeg->free = true;
         startSeg->text = "<FREE>";
         startSeg->magicNum = HeapMagicNum;
-        startSeg->activeMemFlagVal = activeMemFlagVal;
-        lastHdr = startSeg;
-        heapCount = 1;
-        usedHeapCount = 0;
-        usedHeapAmount = 0;
-
-        heapInited = true;
-
-        lastUpdateTime = 0;
-
-
+        startSeg->activeMemFlagVal = _activeMemFlagVal;
+        _lastHdr = startSeg;
+        _heapCount = 1;
+        _usedHeapCount = 0;
+        _usedHeapAmount = 0;
         RemoveFromStack();
     }
 
-    void InitializeHeap(int pageCount)
+    void HeapManager::InitializeHeap(int pageCount)
     {
         AddToStack();
-        
         void* pos = requestNextPage();
-
         for (int i = 0; i < pageCount - 1; i++)
-        {
-            //uint64_t addr = (uint64_t)GlobalAllocator->RequestPage();
-            //GlobalRenderer->Println("Requesting Page: {}", ConvertHexToString(addr), Colors.yellow);
-            //GlobalPageTableManager.MapMemory(pos, (void*)addr);
             requestNextPage();
-            // GlobalPageTableManager.MapMemory(pos, GlobalAllocator->RequestPage());
-            // pos = (void*)((uint64_t)pos + 0x1000);
-        }
-
+        
         SubInitHeap(pos, pageCount);
-
         RemoveFromStack();
     }
 
+    void* HeapManager::_Xmalloc(int64_t size,  const char* text)
+    {
+        return _Xmalloc(size, text, "<NO FUNC GIVEN>", "<NO FILE GIVEN>", 0);
+    }
 
-
-    
-
-
-    void* _Xmalloc(int64_t size, const char* func, const char* file, int line)
+    void* HeapManager::_Xmalloc(int64_t size, const char* func, const char* file, int line)
     {
         return _Xmalloc(size, "<NO TEXT GIVEN>", func, file, line);
     }
 
-    uint64_t mCount = 0;
-
-
-
-
-
-    bool HeapCheck(bool wait)
+    bool HeapManager::HeapCheck(bool wait)
     {
         AddToStack();
-        //GlobalRenderer->Clear(Colors.black);
-        //GlobalRenderer->Println("> Performing Heap Check...", Colors.white);
         if (wait)
+        {
+            #ifdef _KERNEL_SRC
+            //return;
+            #else
             programWait(100);
+            #endif
+            
+        }
         bool foundError = false;
 
-        HeapSegHdr* current = (HeapSegHdr*) heapStart;
+        _HeapSegHdr* current = (_HeapSegHdr*) _heapStart;
         int counter = 0;
         while(true)
         {
             counter++;
-            // if (GlobalRenderer->CursorPosition.y >= ((GlobalRenderer->framebuffer->Height * 3) / 4))
-            // {
-            //     //PIT::Sleep(200);
-            //     GlobalRenderer->Clear(Colors.black);
-            //     GlobalRenderer->Println("> Heap Check:", Colors.white);
-            // }
-            // GlobalRenderer->Println("<Heapseg: {}>", to_string(counter), Colors.yellow);
 
             if ((uint64_t)current < 10000)
             {
-                //GlobalRenderer->Println("*Heapseg is at NULL!", Colors.bred);
-                //GlobalRenderer->Println("-> Heapseg addr: 0x{}", ConvertHexToString((uint64_t)current), Colors.bred);
+                foundError = true;
                 break;
             }
 
             if (current->magicNum != HeapMagicNum)
             {
-                //GlobalRenderer->Println("*Heapseg is invalid!", Colors.bred);
-                //GlobalRenderer->Println("-> Heapseg addr: 0x{}", ConvertHexToString((uint64_t)current), Colors.bred);
+                foundError = true;
                 break;
             }
 
             if (current->next == NULL)
-                break;
-            
-            if (((uint64_t)(current->length + sizeof(HeapSegHdr) + (uint64_t)current)) != (uint64_t)current->next)
             {
-                //GlobalRenderer->Print("* Heapseg at 0x{} ", ConvertHexToString((uint64_t)current), Colors.bred);
-                //GlobalRenderer->Print("with size: {} ", to_string(current->length), Colors.bred);
-                //GlobalRenderer->Print("+ {} ", to_string(sizeof(HeapSegHdr)), Colors.bred);
-                //GlobalRenderer->Println("= 0x{}", ConvertHexToString(((uint64_t)(current->length + sizeof(HeapSegHdr) + (uint64_t)current))), Colors.bred);
-                //GlobalRenderer->Println("-> Points to 0x{}!", ConvertHexToString((uint64_t)current->next), Colors.bred);
-
-                //GlobalRenderer->Println();
+                foundError = true;
+                break;
+            }
+            
+            if (((uint64_t)(current->length + sizeof(_HeapSegHdr) + (uint64_t)current)) != (uint64_t)current->next)
+            {
+                foundError = true;
                 break;
             }
 
@@ -282,9 +205,7 @@ namespace Heap
             {
                 if (current->last->next != current)
                 {
-                    //GlobalRenderer->Println("*Heapseg prev is not pointing to current!", Colors.bred);
-                    //GlobalRenderer->Println("-> Heapseg at addr: 0x{}", ConvertHexToString((uint64_t)current), Colors.bred);
-                    //GlobalRenderer->Println("-> Prev Heapseg at addr: 0x{}", ConvertHexToString((uint64_t)current->last), Colors.bred);
+                    foundError = true;
                     break;
                 }
             }
@@ -293,33 +214,30 @@ namespace Heap
             current = current->next;
         }
 
-
-        //GlobalRenderer->Println("> Heap Check Done!", Colors.white);
         if (foundError)
         {
-            //GlobalRenderer->Println("> Heap has Errors!", Colors.bred);
-            //TrySwitchToBackupHeap();
-            //Panic("HEAP CHECK HAS ERRORS!", true);
-            
             RemoveFromStack();
             return false;
         }
+
         if (wait)
+        {
+            #ifdef _KERNEL_SRC
+            //return;
+            #else
             programWait(500);
+            #endif
+        }
         
         RemoveFromStack();
         return true;
     }
 
 
-    void* _Xmalloc(int64_t size, const char* text, const char* func, const char* file, int line)
+    void* HeapManager::_Xmalloc(int64_t size, const char* text, const char* func, const char* file, int line)
     {
-        //// Serial::Writelnf("Mallocing: %X bytes", size);
-        mCount++;
         AddToStack();
-        if (!heapInited)
-            Panic("Trying to malloc with Heap not being initialized!", true);
-
+        
         if (size <= 0)
             size = 0x10;
 
@@ -329,40 +247,37 @@ namespace Heap
             size += 0x10;
         }
 
-        
-        HeapSegHdr* current = (HeapSegHdr*) heapStart;
+        _HeapSegHdr* current = (_HeapSegHdr*) _heapStart;
         while(true)
         {
 
             if ((int64_t)current < 10000)
+            {
+                #ifdef _KERNEL_SRC
+                return NULL;
+                #else
                 Panic("CURRENT IS NULL BRO", true); 
+                #endif
+            }
 
             if (current->magicNum != HeapMagicNum)
             {
-                // Serial::Writelnf("BRUH PRE ERR: start: %X, end: %X, this %X, magic: %X, actual: %X, time: %X", (uint64_t)heapStart, (uint64_t)heapEnd, (uint64_t)current, current->magicNum, HeapMagicNum, PIT::TimeSinceBootMS());
-                
-                // Serial::Writelnf("current heap info:");
-                // Serial::Writelnf("this %X, magic: %X, len: %d, time: %X, \"%X\"", (uint64_t)current, current->magicNum, current->length, current->time, current->text);
-
-                // Serial::Writelnf("last heap info:");
-                // Serial::Writelnf("this %X, magic: %X, len: %d, time: %X, \"%X\"", (uint64_t)lastHdr, lastHdr->magicNum, lastHdr->length, lastHdr->time, lastHdr->text); 
-                
-                
-                // Serial::Writelnf("BRUH AFTER ERR: start: %X, end: %X, this %X, magic: %X, actual: %X", (uint64_t)heapStart, (uint64_t)heapEnd, (uint64_t)current, current->magicNum, HeapMagicNum);
-                
                 HeapCheck(false);
                 
-
+                #ifdef _KERNEL_SRC
+                return NULL;
+                #else
                 Panic("Trying to access invalid HeapSegment Header!", true);
+                #endif
                 RemoveFromStack();
                 return NULL;
             }
 
             if (current->free)
             {
-                if (current->length > (size + sizeof(HeapSegHdr) + 0x10))
+                if (current->length > (size + sizeof(_HeapSegHdr) + 0x10))
                 {
-                    if (current->Split(size) == NULL)
+                    if (current->Split(this, size) == NULL)
                     {
                         if (current->next == NULL)
                             break;
@@ -372,33 +287,29 @@ namespace Heap
                     }
                     current->free = false;
                     current->text = text;
-                    current->activeMemFlagVal = activeMemFlagVal;
+                    current->activeMemFlagVal = _activeMemFlagVal;
                     current->file = file;
                     current->func = func;
                     current->line = line;
                     current->time = PIT::TimeSinceBootMS();
-                    mallocCount++;
-                    usedHeapCount++;
-                    usedHeapAmount += size;
+                    _usedHeapCount++;
+                    _usedHeapAmount += size;
                     RemoveFromStack();
-                    //// Serial::Writeln("> Malloced (1) to 0x{}", ConvertHexToString(((uint64_t)current + sizeof(HeapSegHdr))));
-                    return (void*)((uint64_t)current + sizeof(HeapSegHdr));
+                    return (void*)((uint64_t)current + sizeof(_HeapSegHdr));
                 }
                 if (current->length == size)
                 {
                     current->free = false;
                     current->text = text;
-                    current->activeMemFlagVal = activeMemFlagVal;
+                    current->activeMemFlagVal = _activeMemFlagVal;
                     current->file = file;
                     current->func = func;
                     current->line = line;
                     current->time = PIT::TimeSinceBootMS();
-                    mallocCount++;
-                    usedHeapCount++;
-                    usedHeapAmount += size;
+                    _usedHeapCount++;
+                    _usedHeapAmount += size;
                     RemoveFromStack();
-                    //// Serial::Writeln("> Malloced (2) to 0x{}", ConvertHexToString(((uint64_t)current + sizeof(HeapSegHdr))));
-                    return (void*)((uint64_t)current + sizeof(HeapSegHdr));
+                    return (void*)((uint64_t)current + sizeof(_HeapSegHdr));
                 }
             }
 
@@ -406,130 +317,97 @@ namespace Heap
                 break;
             current = current->next;
         }
-        //GlobalRenderer->Println("Requesting more RAM.");
-
-        // Serial::Writelnf("> Gotta expand Heap");
+        
         if (ExpandHeap(size))
         {
-            // Serial::Writelnf("> Heap expanded");
             AddToStack();
-            // Serial::Writelnf("> Doing Sub Malloc");
-            void* res = _Xmalloc(size, text, "SUB MALLOC", "prolly heap.cpp", 555);
+            void* res = _Xmalloc(size, text);//_Malloc(size, text);
             RemoveFromStack();
-            //mallocCount++;
             RemoveFromStack();
-            // Serial::Writelnf("> Sub Malloc Done");
 
             return res;
         }
 
-        // GlobalRenderer->ClearDotted(Colors.green);
-        // while (true);
-
-
+        
+        #ifdef _KERNEL_SRC
+        return NULL;
+        #else
         Panic("MALLOC FAILED!!!", true);
+        #endif
 
         RemoveFromStack();
         return NULL;
     }
 
 
-
-
-    void _Xfree(void* address, const char* func, const char* file, int line)
+    void HeapManager::_Xfree(void* address)
     {
-        AddToStack();
-        if (!heapInited)
-            Panic("Trying to free with Heap not being initialized!", true);
-        if (mallocToCache)
-            Panic("Malloc to cache on when trying to free!");
-        
-        if (address < (void*)1000)
-            Panic("Tried to free NULL address!", true);
-        HeapSegHdr* segment = ((HeapSegHdr*)address) - 1;
+        _Xfree(address, "<NO FUNC GIVEN>", "<NO FILE GIVEN>", 0);
+    }
 
+    void HeapManager::_Xfree(void* address, const char* func, const char* file, int line)
+    {
+        AddToStack();  
+        if (address < (void*)1000)
+        {
+            #ifdef _KERNEL_SRC
+            return;
+            #else
+            Panic("Tried to free NULL address!", true);
+            #endif
+        }
+        
+        _HeapSegHdr* segment = ((_HeapSegHdr*)address) - 1;
         if (segment->magicNum == HeapMagicNum)
         {
             if (!segment->free)
             {
-                lastFreeSize = segment->length;
-                freeCount++;
                 segment->free = true;
                 segment->text = "<FREE>";
-                usedHeapAmount -= segment->length;
-                //GlobalRenderer->Print("A");
-                //GlobalRenderer->Print("<");
-                segment->CombineForward();
-                //GlobalRenderer->Print("-");
-                segment->CombineBackward();
-                //GlobalRenderer->Print(">");
-                usedHeapCount--;
-                
+                _usedHeapAmount -= segment->length;
+                segment->CombineForward(this);
+                segment->CombineBackward(this);
+                _usedHeapCount--;
                 RemoveFromStack();
                 return;
             }
             else
             {
+                #ifdef _KERNEL_SRC
+                return;
+                #else
                 Panic("Tried to free already free Segment!");
+                #endif
                 RemoveFromStack();
                 return;
             }
         }
         else
         {
-            //TrySwitchToBackupHeap();
+            #ifdef _KERNEL_SRC
+            return;
+            #else
             Panic("Tried to free invalid Segment!", true);
+            #endif
             RemoveFromStack();
             return;
         }
         RemoveFromStack();
     }
 
-    /*
-
-    void* _malloc(size_t size)
+    bool HeapManager::ExpandHeap(size_t length)
     {
         AddToStack();
-        void* res = malloc(size);
-        RemoveFromStack();
-        return res;
-    }
-
-    void _free(void* address)
-    {
-        AddToStack();
-        free(address);
-        RemoveFromStack();
-    }
-
-    void* _malloc(size_t size, const char* text)
-    {
-        AddToStack();
-        void* res = malloc(size, text);
-        RemoveFromStack();
-        return res;
-    }
-
-    */
-
-
-
-
-    bool ExpandHeap(size_t length)
-    {
-        AddToStack();
-        if (usingBackupHeap)
+        if (_lastHdr->next != NULL)
         {
-            backupHeapFailed = true;
-            Panic("Trying to expand heap while using backup heap!", true);
-        }
-
-        if (lastHdr->next != NULL)
-        {
+            #ifdef _KERNEL_SRC
+            return false;
+            #else
             Panic("LAST HDR NEXT IS NOT NULL!", true);
+            #endif
         }
 
-        length += sizeof(HeapSegHdr) + 0x100;
+        length += sizeof(_HeapSegHdr) + 0x100;
 
         if (length % 0x1000)
         {
@@ -538,18 +416,18 @@ namespace Heap
         }
 
         size_t pageCount = length / 0x1000;
-        void* tHeapEnd = heapEnd;
-
-        //GlobalRenderer->Println("Page Count  {}", to_string(pageCount), Colors.white);
-        //GlobalRenderer->Println("free RAM 1: {}", to_string(GlobalAllocator->GetFreeRAM()), Colors.white);
+        void* tHeapEnd = _heapEnd;
 
         for (int i = 0; i < pageCount; i++)
         {
-            void* tempAddr =  requestNextPage();//GlobalAllocator->RequestPage();
+            void* tempAddr =  requestNextPage();
             if (tempAddr == NULL)
             {
-                //SwitchToBackupHeap();
+                #ifdef _KERNEL_SRC
+                return false;
+                #else
                 Panic("NO MORE RAM!!!!!!!", true);
+                #endif
             }
             
             //GlobalPageTableManager.MapMemory(tHeapEnd, tempAddr);
@@ -557,19 +435,19 @@ namespace Heap
             tHeapEnd = (void*)((uint64_t)tHeapEnd + 0x1000);
         }
 
-        HeapSegHdr* newSegment = (HeapSegHdr*) heapEnd;
+        _HeapSegHdr* newSegment = (_HeapSegHdr*) _heapEnd;
 
         
-        newSegment->last = lastHdr;
-        lastHdr->next = newSegment;
-        lastHdr = newSegment;
+        newSegment->last = _lastHdr;
+        _lastHdr->next = newSegment;
+        _lastHdr = newSegment;
         
         newSegment->next = NULL;
-        newSegment->length = length - sizeof(HeapSegHdr);
+        newSegment->length = length - sizeof(_HeapSegHdr);
         newSegment->free = true;
 
         newSegment->magicNum = HeapMagicNum;
-        newSegment->activeMemFlagVal = activeMemFlagVal;
+        newSegment->activeMemFlagVal = _activeMemFlagVal;
         newSegment->time = 0;
 
         newSegment->text = "<FREE>";
@@ -577,127 +455,55 @@ namespace Heap
         newSegment->func = "<NO FUNC GIVEN>";
         newSegment->line = 0;
         
+        _heapCount++;
         
-        heapCount++;
-        
-        heapEnd = tHeapEnd;
-
-
-
-        //// Serial::Writelnf("BRUH: start: %X, end %X, this: %X, magic: %X", (uint64_t)heapStart, (uint64_t)heapEnd, (uint64_t)newSegment, newSegment->magicNum);
-
-
-
-        // for (size_t i = 0; i < pageCount; i++)
-        // {
-        //     if (i == 1)
-        //     {
-        //         newSegment->free = true;
-        //         newSegment->last = lastHdr;
-        //         lastHdr->next = newSegment;
-        //         lastHdr = newSegment;
-        //         newSegment->magicNum = HeapMagicNum;
-                
-        //         newSegment->next = NULL;
-        //         newSegment->text = "<FREE>";
-        //         newSegment->length = 0x1000 - sizeof(HeapSegHdr);
-        //         heapCount++;
-        //         //newSegment->CombineBackward(); 
-        //         //GlobalRenderer->Println("ADD MEM", Colors.yellow);
-        //     }
-        //     if (i > 0)
-        //     {
-        //         uint64_t tempI = (i+1) * 0x1000;
-        //         newSegment->length = tempI - sizeof(HeapSegHdr);
-        //     }
-
-        //     void* tempAddr = GlobalAllocator->RequestPage();
-        //     if (tempAddr == NULL)
-        //     {
-        //         //GlobalRenderer->Println("<HEAP START>", Colors.yellow);
-        //         // we gotta add the stuff that we requested but didnt add because it return NULL here
-                
-        //         // GlobalRenderer->ClearDotted(Colors.bblue);
-        //         // while(true);
-        //         Panic("NO MORE RAM!!!!!!!", true);
-
-        //         RemoveFromStack();
-        //         //GlobalRenderer->Println("<HEAP END>", Colors.yellow);
-        //         return false;
-        //     }
-        //     GlobalPageTableManager.MapMemory(heapEnd, tempAddr);
-        //     heapEnd = (void*)((size_t)heapEnd + 0x1000);
-        // }
-
-        //GlobalRenderer->Println("free RAM 2: {}", to_string(GlobalAllocator->GetFreeRAM()), Colors.white);
-        
-        // newSegment->free = true;
-        // newSegment->last = lastHdr;
-        // lastHdr->next = newSegment;
-        // lastHdr = newSegment;
-        // newSegment->magicNum = HeapMagicNum;
+        _heapEnd = tHeapEnd;
 
         if (newSegment == NULL)
         {
-            //TrySwitchToBackupHeap();
+            #ifdef _KERNEL_SRC
+            return false;
+            #else
             Panic("NEW SEGMENT IS NULL!", true);
+            #endif
         }
 
-
-        // newSegment->next = NULL;
-        // newSegment->text = "<FREE>";
-        //newSegment->length = length - sizeof(HeapSegHdr);
-        // heapCount++;
-        newSegment->CombineBackward();
+        newSegment->CombineBackward(this);
         RemoveFromStack();
         return true;
     }
 
-    bool _XtryFree(void* address, const char* func, const char* file, int line)
+    bool HeapManager::_XtryFree(void* address, const char* func, const char* file, int line)
     {
         if (address  < (void*)1000)
             return false;
 
         AddToStack();
 
-        if (!heapInited)
-            Panic("Trying to free with Heap not being initialized!", true);
-        if (mallocToCache)
-            Panic("Malloc to cache on when trying to free!");
-
-
-        HeapSegHdr* segment = ((HeapSegHdr*)address) - 1;
+        _HeapSegHdr* segment = ((_HeapSegHdr*)address) - 1;
 
         if (segment->magicNum == HeapMagicNum)
         {
             if (!segment->free)
             {
-                freeCount++;
                 segment->free = true;
                 segment->text = "<FREE>";
-                usedHeapAmount -= segment->length;
-                //GlobalRenderer->Print("A");
-                //GlobalRenderer->Print("<");
-                segment->CombineForward();
-                //GlobalRenderer->Print("-");
-                segment->CombineBackward();
-                //GlobalRenderer->Print(">");
-                usedHeapCount--;
+                _usedHeapAmount -= segment->length;
+                segment->CombineForward(this);
+                segment->CombineBackward(this);
+                _usedHeapCount--;
                 
-
                 RemoveFromStack();
                 return true;
             }
             else
             {
-                //Panic("Tried to free already free Segment!");
                 RemoveFromStack();
                 return false;
             }
         }
         else
         {
-            //Panic("Tried to free invalid Segment!");
             RemoveFromStack();
             return false;
         }

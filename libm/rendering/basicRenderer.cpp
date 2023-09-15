@@ -183,7 +183,7 @@ void TempRenderer::Print(char chr)
 
 void TempRenderer::Print(const char *chrs)
 {
-    globalPrint(chrs);
+    TempRenderer::printStr(chrs);
 }
 
 void TempRenderer::Print(const char *chrs, bool allowEscape)
@@ -193,7 +193,8 @@ void TempRenderer::Print(const char *chrs, bool allowEscape)
 
 void TempRenderer::Println(const char *chrs)
 {
-    globalPrintLn(chrs);
+    TempRenderer::printStr(chrs);
+    TempRenderer::printStr("\n\r");
 }
 
 void TempRenderer::Print(const char *chrs, const char *var)

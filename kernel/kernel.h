@@ -1,7 +1,5 @@
 #pragma once
 
-#define _KERNEL_SRC
-
 #include "rendering/Framebuffer.h"
 #include "devices/acpi/acpi.h"
 #include "kernelStuff/kernelFiles/kernelFiles.h"
@@ -11,7 +9,7 @@
 
 #include <libm/rendering/S-Font.h>
 
-struct SystemAssetStruct
+struct MaslOsAssetStruct
 {
     // Images
     kernelFiles::ImageFile* bgImage;
@@ -55,7 +53,7 @@ struct limineSmpResponse {
 void boot(void* bootInfo);
 
 
-volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, SystemAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData);
+volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, MaslOsAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData);
 
 // void RenderLoop();
 // void RecoverDed();

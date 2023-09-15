@@ -2,9 +2,6 @@
 #include <libm/syscallManager.h>
 #include <libm/rendering/basicRenderer.h>
 #include <libm/rendering/Cols.h>
-#include <libm/std/string/string.h>
-
-using namespace std;
 
 int main()
 {

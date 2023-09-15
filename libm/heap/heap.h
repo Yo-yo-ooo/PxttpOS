@@ -4,11 +4,13 @@
 
 namespace Heap
 {
-    struct HeapSegHdr
+    class HeapManager;
+
+    struct _HeapSegHdr
     {
         size_t length;
-        HeapSegHdr* next;
-        HeapSegHdr* last;
+        _HeapSegHdr* next;
+        _HeapSegHdr* last;
         const char* text = "<DEF>";
         int64_t activeMemFlagVal = 0;
         const char* file = "<DEF>";
@@ -16,35 +18,44 @@ namespace Heap
         int line = 0;
         uint64_t time = 0;
         bool free;
-        void CombineForward();
-        void CombineBackward();
-        HeapSegHdr* Split(size_t splitLength);
+        void CombineForward(HeapManager* manager);
+        void CombineBackward(HeapManager* manager);
+        _HeapSegHdr* Split(HeapManager* manager, size_t splitLength);
         uint64_t magicNum;
     };
 
-    void InitializeHeap(int pageCount);
+    class HeapManager
+    {
+        public:
+        int64_t _heapCount;
+
+        int64_t _usedHeapCount;
+        int64_t _usedHeapAmount;
+        int64_t _activeMemFlagVal;
+
+        void* _heapStart;
+        void* _heapEnd;
+
+        _HeapSegHdr* _lastHdr;
+
+        void SubInitHeap(void* heapAddress, size_t pageCount);
+        void InitializeHeap(int pageCount);
 
 
-    void* _Xmalloc(int64_t size, const char* func, const char* file, int line);
-    void* _Xmalloc(int64_t size, const char* text, const char* func, const char* file, int line);
+        void* _Xmalloc(int64_t size,  const char* text);
+        void* _Xmalloc(int64_t size, const char* func, const char* file, int line);
+        void* _Xmalloc(int64_t size, const char* text, const char* func, const char* file, int line);
 
-    void _Xfree(void* address, const char* func, const char* file, int line);
-    bool _XtryFree(void* address, const char* func, const char* file, int line);
+        void _Xfree(void* address);
+        void _Xfree(void* address, const char* func, const char* file, int line);
+        bool _XtryFree(void* address, const char* func, const char* file, int line);
 
-    bool ExpandHeap(size_t length);
+        bool ExpandHeap(size_t length);
 
-    bool HeapCheck(bool wait);
+        bool HeapCheck(bool wait);
+    };
 
-    extern void* heapStart;
-
-    extern int64_t heapCount;
-
-    extern int64_t usedHeapCount;
-    extern int64_t usedHeapAmount;
-    extern int64_t mallocCount;
-    extern int64_t freeCount;
-    extern int64_t activeMemFlagVal;
-    extern int64_t lastFreeSize;
+    extern HeapManager* GlobalHeapManager;
 }
 
 
@@ -80,10 +91,10 @@ namespace Heap
 
 
 
-#define _Malloc1(size) Heap::_Xmalloc(size, __PRETTY_FUNCTION__, __FILE__, __LINE__)
-#define _Malloc2(size, text) Heap::_Xmalloc(size, text, __PRETTY_FUNCTION__, __FILE__, __LINE__)
-#define _Free(address) Heap::_Xfree((void*)address, __PRETTY_FUNCTION__, __FILE__, __LINE__)
-#define _TryFree(address) Heap::_XtryFree((void*)address, __PRETTY_FUNCTION__, __FILE__, __LINE__)
+#define _Malloc1(size) Heap::GlobalHeapManager->_Xmalloc(size, __PRETTY_FUNCTION__, __FILE__, __LINE__)
+#define _Malloc2(size, text) Heap::GlobalHeapManager->_Xmalloc(size, text, __PRETTY_FUNCTION__, __FILE__, __LINE__)
+#define _Free(address) Heap::GlobalHeapManager->_Xfree((void*)address, __PRETTY_FUNCTION__, __FILE__, __LINE__)
+#define _TryFree(address) Heap::GlobalHeapManager->_XtryFree((void*)address, __PRETTY_FUNCTION__, __FILE__, __LINE__)
 
 
 #include "new.hpp"
