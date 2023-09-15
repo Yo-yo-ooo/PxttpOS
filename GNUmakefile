@@ -104,3 +104,4 @@ cleanExternalFolder:
 ccar:
 	make clean -j$(nproc) && make clean2 -j$(nproc)
 	make -j$(nproc)
+	qemu-system-x86_64 -machine q35 -m 2G -cpu qemu64 -smp 4 -serial stdio -boot d -cdrom System2.iso -no-reboot --no-shutdown
