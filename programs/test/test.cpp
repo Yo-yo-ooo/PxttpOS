@@ -2,9 +2,6 @@
 #include <libm/syscallManager.h>
 #include <libm/rendering/basicRenderer.h>
 #include <libm/rendering/Cols.h>
-#include <libm/syscallManager.h>
-#include <libm/cstr.h>
-#include <libm/cstrTools.h>
 
 int main()
 {
@@ -39,8 +36,13 @@ void main2(int argc, char** argv, ENV_DATA* env)
     //globalCls();
     //return;
     
-    globalCls();
-    globalPrintLn("Hello World");
+    globalPrintLn("Hello from a test program!");
+    globalPrintLn("Yes, new line!");
+
+    return;
+    // would crash the program but not the OS
+    TempRenderer renderer = TempRenderer(env->globalFrameBuffer, env->globalFont);
+    renderer.Clear(Colors.bblue);
     
     //*((char*)(uint64_t)argc) = 'A';
     //Bruhus((char*)env->globalFrameBuffer->BaseAddress);
