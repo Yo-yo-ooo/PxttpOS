@@ -7,6 +7,64 @@ template<typename T> void swap(T &a, T &b) {
     b = tmp;
 }
 
+template<typename X>
+void Merge(X A[], X TmpArry[],
+        int Lpos, int Rpos, int RightEnd){
+    int i, LeftEnd, NumElements,Tmpos;
+    LeftEnd = Rpos - 1;
+    NumElements = RightEnd - Lpos + 1;
+
+    while (Lpos <= LeftEnd && Rpos <= RightEnd)
+    {
+        if(A[Lpos] <= A[Rpos]){
+            TmpArry[Tmpos++] = A[Lpos++];
+        }else
+        {
+            TmpArry[Tmpos++] = A[Rpos++];
+        }
+        
+    }
+    while (Lpos <= LeftEnd)
+    {
+        TmpArry[Tmpos++] = A[Lpos++];
+    }
+    while(Rpos <= RightEnd){
+        TmpArry[Tmpos++] = A[Rpos++];
+    }
+    for(i = 0;i < NumElements;i++,RightEnd--){
+        A[RightEnd] = TmpArry[RightEnd];
+    }
+    
+}
+
+
+template<typename ElementType>
+void MSort(ElementType A[], ElementType TmpArry[],
+            int Left,int Right){
+    int Center;
+
+    if(Left < Right){
+        Center = (Left + Right) / 2;
+        MSort(A, TmpArry, Left, Center);
+        MSort(A, TmpArry, Center + 1, Right);
+        Merge(A,TmpArry,Left,Center + 1,Right);
+    }
+}
+
+template<typename ElementType>
+void MergeSort(ElementType A[],int N){
+    ElementType *TmpArry;
+
+    TmpArry = _Malloc(N * sizeof(ElementType));
+    if(TmpArry != NULL){
+        MSort(A,TmpArry,0,N-1);
+        _Free(TmpArry);
+    }
+    else{
+        return;
+    }
+}
+
 template <class T>
 class Stack
 {
