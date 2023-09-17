@@ -50,11 +50,6 @@ class BasicRenderer
         void ClearDotted(uint32_t col);
         void ClearButDont();
 
-        inline void Next(){
-            CursorPosition.x = 0;
-            CursorPosition.y += 16;
-        }
-
         void Cls();
         void DrawImage(kernelFiles::ImageFile* image, int64_t x, int64_t y, int64_t sx, int64_t sy);
 
