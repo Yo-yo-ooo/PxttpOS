@@ -13,5 +13,6 @@ sata::sata(AHCI::Port *port){
 
     AddToStack();
     //SectorCount = ();
+    SectorCount = Port->Identifydrive().lba_capacity;
     RemoveFromStack();
 }

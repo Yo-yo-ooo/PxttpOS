@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include "../pci/pci.h"
-
+#include "sataStuff.h"
 namespace AHCI {
 
     #define ATA_DEV_BUSY 0x80
@@ -145,6 +145,7 @@ namespace AHCI {
             int FindCommandSlot();
             void StartCMD(); 
             void StopCMD();
+            SATA_Ident Identifydrive();
             bool Read(uint64_t Sector, uint32_t SectorCount, void* Buffer);
             bool Port::Write(uint64_t sector, uint32_t sectorCount, void* buffer);
     };

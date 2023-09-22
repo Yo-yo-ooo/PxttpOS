@@ -4,6 +4,8 @@
 #include "../../paging/PageFrameAllocator.h"
 #include "../../paging/PageTableManager.h"
 #include "../../interrupts/panic.h"
+#include "sataStuff.h"
+#include "../pit/pit.h"
 
 #define Memset(a,b,c) _memset(a,b,c)
 namespace AHCI{
@@ -302,6 +304,87 @@ namespace AHCI{
             Port->Read(0, 4, Port->Buffer);
             
         }
+    }
+
+    SATA_Ident Port::Identifydrive()
+    {
+        AddToStack();
+        /***Make the Command Header***/
+        HBACommandHeader* cmdhead=(HBACommandHeader*)(uint64_t)HBAPortPtr->CommandListBase;//kmalloc(sizeof(HBA_CMD_HEADER));
+        //port->clb = (DWORD)cmdhead;
+        //cmdhead->commandFISLenght = 5;
+        //cmdhead->a=0;
+        //_memset(cmdhead, 0, sizeof(HBACommandHeader));
+        cmdhead->Write = 0;
+        cmdhead->PRDTLength = 1;
+        //cmdhead->prefetchable = 1; //p
+        cmdhead->ClearBusy = 1;
+        RemoveFromStack();
+
+        AddToStack();
+        cmdhead->CommandFISLength = sizeof(FIS_REG_H2D) / sizeof(uint32_t); // command FIS size
+        cmdhead->PRDTLength = 1;
+        RemoveFromStack();
+
+        AddToStack();
+        /***Make the Command Table***/
+        HBACommandTable* cmdtbl = (HBACommandTable*)((uint64_t)cmdhead->CommandTableBaseAddress);//(HBACommandTable*)GlobalAllocator->RequestPage();// kmalloc(sizeof(HBA_CMD_TBL));
+        //cmdhead->commandTableBaseAddress = (uint32_t)(uint64_t)cmdtbl;
+        RemoveFromStack();
+
+        AddToStack();
+        //_memset((void*)cmdtbl, 0, sizeof(HBACommandTable));
+        RemoveFromStack();
+
+        AddToStack();
+        cmdtbl->PRDTEntry[0].DataBaseAddress = (uint32_t)(uint64_t)GlobalAllocator->RequestPage();
+        //_memset((void*)(uint64_t)cmdtbl->prdtEntry[0].dataBaseAddress , 0, 0x1000);
+        //GlobalPageTableManager.MapMemory((void*)(uint64_t)cmdtbl->prdtEntry[0].dataBaseAddress, (void*)(uint64_t)cmdtbl->prdtEntry[0].dataBaseAddress);
+        RemoveFromStack();
+
+        AddToStack();
+        cmdtbl->PRDTEntry[0].ByteCount = 0x200 - 1;
+        cmdtbl->PRDTEntry[0].InterruptOnCompletion = 1;   // interrupt when identify complete
+        uint32_t data_base = cmdtbl->PRDTEntry[0].DataBaseAddress;
+        //_memset((void*)(uint64_t)data_base, 0, 4096);
+        RemoveFromStack();
+
+
+        AddToStack();
+        /***Make the IDENTIFY DEVICE h2d FIS***/
+        FIS_REG_H2D* cmdfis = (FIS_REG_H2D*)(uint64_t)cmdtbl->CommandFIS;
+        //printf("cmdfis %x ",cmdfis);
+        _memset((void*)cmdfis,0,sizeof(FIS_REG_H2D));
+        cmdfis->FISType = FIS_TYPE_REG_H2D;
+        cmdfis->CommandControl = 1;
+        cmdfis->Command = 0xEC;
+        RemoveFromStack();
+
+        AddToStack();
+        /***Send the Command***/
+        HBAPortPtr->CommandIssue = 1;
+
+        /***Wait for a reply***/
+        uint64_t s =  PIT::TimeSinceBootMS() + 3000;
+        //GlobalRenderer->Clear(Colors.green);
+        while(PIT::TimeSinceBootMS() < s)
+        {
+            if(HBAPortPtr->CommandIssue == 0)
+                break;
+        }
+        RemoveFromStack();
+        //if (PIT::TimeSinceBootMS() >= s)
+        //    GlobalRenderer->Clear(Colors.red);
+
+        AddToStack();
+        uint32_t* baddr = (uint32_t*)(uint64_t)data_base;
+        SATA_Ident test = *((SATA_Ident*)baddr);
+
+        GlobalAllocator->FreePage((void*)(uint64_t)data_base);
+        //GlobalAllocator->FreePage((void*)(uint64_t)cmdtbl);
+        RemoveFromStack();
+
+        return test;
     }
 
     AHCIDriver::~AHCIDriver(){
