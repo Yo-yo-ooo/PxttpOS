@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include "../../paging/PageTableManager.h"
 #include "../ahci/ahci.h"
+#include "../../kernelStuff/stuff/stackmacro.h"
 
 // //#include "../../paging/PageTableManager.h"
 // #include "../../osData/osData.h"
@@ -413,7 +414,7 @@ namespace PCI
         uint64_t Offset = Function << 12;
 
         uint64_t FunctionAddress = DeviceAddress + Offset;
-        GlobalPageTableManager->MapMemory((void*)FunctionAddress, (void*)FunctionAddress);
+        GlobalPageTableManager.MapMemory((void*)FunctionAddress, (void*)FunctionAddress);
 
         PCIDeviceHeader* PCIDeviceHdr = (PCIDeviceHeader*)FunctionAddress;
 
@@ -434,45 +435,62 @@ namespace PCI
         }
     }
 
-    void EnumerateDevice(uint64_t BusAddress, uint64_t Device){
-        uint64_t Offset = Device << 15;
+    void EnumeratePCI(ACPI::MCFGHeader* mcfg)
+    {
+        AddToStack();
+        int entries = (mcfg->Header.Length - sizeof(ACPI::MCFGHeader)) / sizeof(ACPI::DeviceConfig);
+        RemoveFromStack();
+        
+        AddToStack();
 
-        uint64_t DeviceAddress = BusAddress + Offset;
-        GlobalPageTableManager.MapMemory((void*)DeviceAddress, (void*)DeviceAddress);
-
-        PCIDeviceHeader* PCIDeviceHdr = (PCIDeviceHeader*)DeviceAddress;
-
-        if (PCIDeviceHdr->Device_ID == 0) return;
-        if (PCIDeviceHdr->Device_ID == 0xFFFF) return;
-
-        for (uint64_t Function = 0; Function < 8; Function++){
-            EnumerateFunction(DeviceAddress, Function);
+        for (int t = 0; t < entries; t++)
+        {
+            ACPI::DeviceConfig* newDeviceConfig = (ACPI::DeviceConfig*)((uint64_t)mcfg + sizeof(ACPI::MCFGHeader) + sizeof(ACPI::DeviceConfig) * t);
+            for (uint64_t bus = newDeviceConfig->StartBus; bus < newDeviceConfig->EndBus; bus++)
+                EnumerateBus(newDeviceConfig->BaseAddress, bus);
         }
+        RemoveFromStack();
     }
 
-    void EnumerateBus(uint64_t BaseAddress, uint64_t Bus){
-        uint64_t Offset = Bus << 20;
+    void EnumerateBus(uint64_t baseAddress, uint64_t bus)
+    {
+        AddToStack();
+        uint64_t offset = bus << 20;
 
-        uint64_t BusAddress = BaseAddress + Offset;
-        GlobalPageTableManager.MapMemory((void*)BusAddress, (void*)BusAddress);
+        uint64_t busAddress = baseAddress + offset;
 
-        PCIDeviceHeader* PCIDeviceHdr = (PCIDeviceHeader*)BusAddress;
+        //GlobalPageTableManager.MapMemory((void*)busAddress, (void*)busAddress);
+        
+        PCIDeviceHeader* pciDeviceHeader  = (PCIDeviceHeader*)busAddress;
 
-        if (PCIDeviceHdr->Device_ID == 0) return;
-        if (PCIDeviceHdr->Device_ID == 0xFFFF) return;
+        if (pciDeviceHeader ->Device_ID == 0x0000) {RemoveFromStack(); return;}
+        if (pciDeviceHeader ->Device_ID == 0xFFFF) {RemoveFromStack(); return;}
 
-        for (uint64_t Device = 0; Device < 32; Device++){
-            EnumerateDevice(BusAddress, Device);
+        for (uint64_t device = 0; device < 32; device++)
+        {
+            EnumerateDevice(busAddress, device);
         }
+        RemoveFromStack();
     }
 
-    void EnumeratePCI(ACPI::MCFGHeader* MCFG){
-        int Entries = ((MCFG->Header.Length) - sizeof(ACPI::MCFGHeader)) / sizeof(ACPI::DeviceConfig);
-        for (int t = 0; t < Entries; t++){
-            ACPI::DeviceConfig* NewDeviceConfig = (ACPI::DeviceConfig*)((uint64_t)MCFG + sizeof(ACPI::MCFGHeader) + (sizeof(ACPI::DeviceConfig) * t));
-            for (uint64_t Bus = NewDeviceConfig->StartBus; Bus < NewDeviceConfig->EndBus; Bus++){
-                EnumerateBus(NewDeviceConfig->BaseAddress, Bus);
-            }
+    void EnumerateDevice(uint64_t busAddress, uint64_t device) // Slot
+    {
+        AddToStack();
+        uint64_t offset = device << 15;
+
+        uint64_t deviceAddress = busAddress + offset;
+
+        //GlobalPageTableManager.MapMemory((void*)deviceAddress, (void*)deviceAddress);
+        
+        PCIDeviceHeader* pciDeviceHeader  = (PCIDeviceHeader*)deviceAddress;
+
+        if (pciDeviceHeader ->Device_ID == 0x0000) {RemoveFromStack(); return;}
+        if (pciDeviceHeader ->Device_ID == 0xFFFF) {RemoveFromStack(); return;}
+
+        for (uint64_t function = 0; function < 8; function++)
+        {
+            EnumerateFunction(deviceAddress, function);
         }
+        RemoveFromStack();
     }
 }

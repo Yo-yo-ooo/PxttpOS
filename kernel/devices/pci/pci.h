@@ -128,9 +128,9 @@ namespace PCI
     // const char* GetSubclassName(uint8_t classCode, uint8_t subclassCode);
 
     // const char* GetProgIFName(uint8_t classCode, uint8_t subclassCode, uint8_t progIFCode);
-    void EnumeratePCI(ACPI::MCFGHeader* MCFG);
-    void EnumerateBus(uint64_t BaseAddress, uint64_t Bus);
-    void EnumerateDevice(uint64_t BusAddress, uint64_t Device);
+     void EnumeratePCI(ACPI::MCFGHeader* mcfg);
+    void EnumerateBus(uint64_t baseAddress, uint64_t bus);
+    void EnumerateDevice(uint64_t busAddress, uint64_t device);
 
 
     uint8_t io_read_byte(uint64_t address, uint8_t field);
