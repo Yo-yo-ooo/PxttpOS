@@ -6,6 +6,7 @@
 #include "../../interrupts/panic.h"
 #include "sataStuff.h"
 #include "../pit/pit.h"
+#include "../../kernelStuff/stuff/stackmacro.h"
 
 #define Memset(a,b,c) _memset(a,b,c)
 namespace AHCI{

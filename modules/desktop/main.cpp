@@ -71,6 +71,7 @@ int main()
         for (int i = 0; i < frameCount; i++)
         {
             DrawFrame();
+            
 
             programWait(10);
             //programYield();
@@ -94,7 +95,7 @@ int main()
             Colors.black
         );
 
-        actualScreenRenderer->Print("FPS: {}", to_string(fps), Colors.yellow);
+        //actualScreenRenderer->Print("FPS: {}", to_string(fps), Colors.yellow);
     }
 
     return 0;
@@ -120,7 +121,7 @@ void DrawFrame()
             }
         }
 
-    actualScreenRenderer->Clear(0, 0, 200, 200, rndCol);
+    //actualScreenRenderer->Clear(0, 0, 200, 200, rndCol);
 }
 
 
