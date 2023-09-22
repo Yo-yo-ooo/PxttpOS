@@ -1,7 +1,8 @@
 #include "pci.h"
 #include "../../kernelStuff/IO/IO.h"
 #include <stddef.h>
-
+#include "../../paging/PageTableManager.h"
+#include "../ahci/ahci.h"
 
 // //#include "../../paging/PageTableManager.h"
 // #include "../../osData/osData.h"
@@ -406,5 +407,72 @@ namespace PCI
             *(uint32_t*)(type.mem_address + field) = value;
         else if (type.type == PCI_BAR_TYPE_ENUM::IO)
             outl(type.io_address + field, value);
+    }
+
+    void EnumerateFunction(uint64_t DeviceAddress, uint64_t Function){
+        uint64_t Offset = Function << 12;
+
+        uint64_t FunctionAddress = DeviceAddress + Offset;
+        GlobalPageTableManager->MapMemory((void*)FunctionAddress, (void*)FunctionAddress);
+
+        PCIDeviceHeader* PCIDeviceHdr = (PCIDeviceHeader*)FunctionAddress;
+
+        if (PCIDeviceHdr->Device_ID == 0) return;
+        if (PCIDeviceHdr->Device_ID == 0xFFFF) return;
+
+        
+
+        switch (PCIDeviceHdr->Class){
+            case 0x01: // mass storage controller
+                switch (PCIDeviceHdr->SubClass){
+                    case 0x06: //Serial ATA 
+                        switch (PCIDeviceHdr->Prog_IF){
+                            case 0x01: //AHCI 1.0 Device
+                                new AHCI::AHCIDriver(PCIDeviceHdr);
+                        }
+                }
+        }
+    }
+
+    void EnumerateDevice(uint64_t BusAddress, uint64_t Device){
+        uint64_t Offset = Device << 15;
+
+        uint64_t DeviceAddress = BusAddress + Offset;
+        GlobalPageTableManager.MapMemory((void*)DeviceAddress, (void*)DeviceAddress);
+
+        PCIDeviceHeader* PCIDeviceHdr = (PCIDeviceHeader*)DeviceAddress;
+
+        if (PCIDeviceHdr->Device_ID == 0) return;
+        if (PCIDeviceHdr->Device_ID == 0xFFFF) return;
+
+        for (uint64_t Function = 0; Function < 8; Function++){
+            EnumerateFunction(DeviceAddress, Function);
+        }
+    }
+
+    void EnumerateBus(uint64_t BaseAddress, uint64_t Bus){
+        uint64_t Offset = Bus << 20;
+
+        uint64_t BusAddress = BaseAddress + Offset;
+        GlobalPageTableManager.MapMemory((void*)BusAddress, (void*)BusAddress);
+
+        PCIDeviceHeader* PCIDeviceHdr = (PCIDeviceHeader*)BusAddress;
+
+        if (PCIDeviceHdr->Device_ID == 0) return;
+        if (PCIDeviceHdr->Device_ID == 0xFFFF) return;
+
+        for (uint64_t Device = 0; Device < 32; Device++){
+            EnumerateDevice(BusAddress, Device);
+        }
+    }
+
+    void EnumeratePCI(ACPI::MCFGHeader* MCFG){
+        int Entries = ((MCFG->Header.Length) - sizeof(ACPI::MCFGHeader)) / sizeof(ACPI::DeviceConfig);
+        for (int t = 0; t < Entries; t++){
+            ACPI::DeviceConfig* NewDeviceConfig = (ACPI::DeviceConfig*)((uint64_t)MCFG + sizeof(ACPI::MCFGHeader) + (sizeof(ACPI::DeviceConfig) * t));
+            for (uint64_t Bus = NewDeviceConfig->StartBus; Bus < NewDeviceConfig->EndBus; Bus++){
+                EnumerateBus(NewDeviceConfig->BaseAddress, Bus);
+            }
+        }
     }
 }

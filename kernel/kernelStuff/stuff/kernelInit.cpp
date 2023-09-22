@@ -15,6 +15,7 @@
 #include "../../scheduler/scheduler.h"
 #include "../../devices/gdt/initialGdt.h"
 #include "../../devices/keyboard/keyboard.h"
+#include "../../devices/acpi/acpi.h"
 
 
 BasicRenderer tempRenderer = BasicRenderer(NULL, NULL);
@@ -362,4 +363,30 @@ void PrepareInterrupts()
     __asm__ volatile ("sti");
     RemoveFromStack();
     
+}
+
+void* FindTable(ACPI::SDTHeader* SDTHeader, char* Signature){
+
+    int Entries = (SDTHeader->Length - sizeof(ACPI::SDTHeader)) / 8;
+
+    for (int t = 0; t < Entries; t++){
+        ACPI::SDTHeader* NewSDTHeader = (ACPI::SDTHeader*)*(uint64_t*)((uint64_t)SDTHeader + sizeof(ACPI::SDTHeader) + (t * 8));
+        for (int i = 0; i < 4; i++){
+            if (NewSDTHeader->Signature[i] != Signature[i])
+            {
+                break;
+            }
+            if (i == 3) return NewSDTHeader;
+        }
+    }
+    return 0;
+}
+
+void PrepareACPI(BootInfo* BootInfo){
+    //ACPI::MCFGHeader* mcfg = (ACPI::MCFGHeader*)ACPI::FindTable(rootThing, (char*)"MCFG", div);
+    ACPI::SDTHeader* XSDT = (ACPI::SDTHeader*)(BootInfo->rsdp->XSDTAddress);
+    
+    ACPI::MCFGHeader* MCFG = (ACPI::MCFGHeader*)ACPI::FindTable(XSDT, (char*)"MCFG");
+
+    PCI::EnumeratePCI(MCFG);
 }
