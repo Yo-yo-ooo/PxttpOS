@@ -108,12 +108,112 @@ namespace AHCI{
         HBAPortPtr->CommandStatus |= HBA_PxCMD_ST;
     }
 
-    
+    int Port::FindCommandSlot()
+    {
+        uint32_t cmdSlots = 32;
+        uint32_t slots = (HBAPortPtr->SataControl | HBAPortPtr->CommandIssue);
+        for (int i = 0; i < cmdSlots; i++)
+        {
+            if ((slots & 1) == 0)
+                return i;
+            slots >>= 1;
+        }
+        //osData.debugTerminalWindow->Log("Coult not find free Command Slot!");
+        return -1;
+    }
+
+    bool Port::Write(uint64_t sector, uint32_t sectorCount, void* buffer)
+    {
+        uint32_t sectorL = (uint32_t)sector;
+        uint32_t sectorH = (uint32_t)(sector >> 32);
+        uint32_t sectorCountCopy = sectorCount;
+        
+        HBAPortPtr->InterruptStatus = (uint32_t)-1;
+        int slot = FindCommandSlot();
+        if (slot == -1)
+            return false;
+
+        HBACommandHeader* cmdHeader = (HBACommandHeader*)(uint64_t)HBAPortPtr->CommandListBase;
+        cmdHeader += slot; // A
+        cmdHeader->CommandFISLength = sizeof(FIS_REG_H2D) / sizeof(uint32_t); // command FIS size
+        cmdHeader->Write = 1;
+        cmdHeader->PRDTLength = ((sectorCount) / 16) + 1;
+
+        HBACommandTable* commandTable = (HBACommandTable*)((uint64_t)cmdHeader->CommandTableBaseAddress);
+        _memset(commandTable, 0, sizeof(HBACommandTable) + (cmdHeader->PRDTLength - 1) * sizeof(HBAPRDTEntry));
+
+        int i = 0;
+        for (i = 0; i < cmdHeader->PRDTLength - 1; i++)
+        {
+            commandTable->PRDTEntry[i].DataBaseAddress = (uint32_t)(uint64_t)buffer;
+            commandTable->PRDTEntry[i].DataBaseAddressUpper = (uint32_t)((uint64_t)buffer >> 32);
+            commandTable->PRDTEntry[i].ByteCount = 0x2000 - 1;
+            commandTable->PRDTEntry[i].InterruptOnCompletion = 1;
+            buffer = (uint8_t*)buffer + 0x2000;
+            sectorCount -= 16;
+        }
+
+        commandTable->PRDTEntry[i].DataBaseAddress = (uint32_t)(uint64_t)buffer;
+        commandTable->PRDTEntry[i].DataBaseAddressUpper = (uint32_t)((uint64_t)buffer >> 32);
+        commandTable->PRDTEntry[i].ByteCount = (sectorCount << 9) - 1; // 512 bytes per sector
+        //osData.debugTerminalWindow->Log("Writing {} Bytes.", to_string((uint64_t)(commandTable->prdtEntry[i].byteCount + 1)), Colors.bgreen);
+        commandTable->PRDTEntry[i].InterruptOnCompletion = 1;
+        
+        FIS_REG_H2D* cmdFIS = (FIS_REG_H2D*)(&commandTable->CommandFIS);
+        cmdFIS->FISType = FIS_TYPE_REG_H2D;
+        cmdFIS->CommandControl = 1;
+        cmdFIS->Command = 0x35;
+
+        // cmdFIS->lba0 = (uint8_t)sectorL;
+        // cmdFIS->lba1 = (uint8_t)(sectorL >> 8);
+        // cmdFIS->lba2 = (uint8_t)(sectorL >> 16);
+        // cmdFIS->lba3 = (uint8_t)sectorH;
+        // cmdFIS->lba4 = (uint8_t)(sectorH >> 8);
+        // cmdFIS->lba5 = (uint8_t)(sectorH >> 16);
+
+        cmdFIS->LBA0 = (uint8_t)sectorL;
+        cmdFIS->LBA1 = (uint8_t)(sectorL >> 8);
+        cmdFIS->LBA2 = (uint8_t)(sectorL >> 16);
+        cmdFIS->LBA3 = (uint8_t)(sectorL >> 24);
+        cmdFIS->LBA4 = (uint8_t)sectorH;
+        cmdFIS->LBA5 = (uint8_t)(sectorH >> 8);
+
+        cmdFIS->DeviceRegister = 1<<6; // Set to LBA Mode
+
+        cmdFIS->CountLow = sectorCountCopy & 0xFF;
+        cmdFIS->CountHigh = (sectorCountCopy >> 8) & 0xFF;
+        
+        uint64_t spin = 0;
+        while((HBAPortPtr->TaskFileData & (ATA_DEV_BUSY | ATA_DEV_DRQ)) && spin < 1000000)
+            spin++;
+        if (spin == 1000000)
+            return false;
+        //osData.debugTerminalWindow->Log("Spin: {}", to_string(spin), Colors.bblue);
+
+        HBAPortPtr->CommandIssue = 1<<slot; // A
+        
+        while (true)
+        {
+            if ((HBAPortPtr->CommandIssue & (1<<slot)) == 0) // A
+                break;
+            if (HBAPortPtr->InterruptStatus & HBA_PxIS_TFES) 
+                return false;
+        }
+
+        if (HBAPortPtr->InterruptStatus & HBA_PxIS_TFES) 
+                return false;
+
+        return true;
+    }
 
 
     bool Port::Read(uint64_t Sector, uint32_t SectorCount, void* Buffer){
         uint32_t SectorL = (uint32_t) Sector;
         uint32_t SectorH = (uint32_t) (Sector >> 32);
+
+        int slot = FindCommandSlot();
+        if (slot == -1)
+            return false;
 
         HBAPortPtr->InterruptStatus = (uint32_t)-1; // Clear pending interrupt bits
 
@@ -183,6 +283,16 @@ namespace AHCI{
         
         for (int i = 0; i < PortCount; i++){
             Port* Port = Ports[i];
+            PortType pe = Port->AHCIPortType;
+
+            if(pe == PortType::SATA)
+                GlobalRenderer->Println("SATA");
+            else if(pe == PortType::SATAPI)
+                GlobalRenderer->Println("SATAPI");
+            else
+                GlobalRenderer->Println("Error:NI");
+            
+            
 
             Port->Configure();
 

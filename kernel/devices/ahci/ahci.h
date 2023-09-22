@@ -142,9 +142,11 @@ namespace AHCI {
             uint8_t* Buffer;
             uint8_t PortNumber;
             void Configure();
+            int FindCommandSlot();
             void StartCMD(); 
             void StopCMD();
             bool Read(uint64_t Sector, uint32_t SectorCount, void* Buffer);
+            bool Port::Write(uint64_t sector, uint32_t sectorCount, void* buffer);
     };
 
     class AHCIDriver{
