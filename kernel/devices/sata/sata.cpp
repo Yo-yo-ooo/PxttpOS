@@ -8,7 +8,7 @@ sata::sata(AHCI::Port *port){
     this->Port = port;
     this->Port->Buffer = (uint8_t*)GlobalAllocator->RequestPage();
 
-    GlobalPageTableManager.MapMemory(this->Port->buffer, this->Port->buffer, false);
+    GlobalPageTableManager.MapMemory(this->Port->Buffer, this->Port->Buffer, false);
     RemoveFromStack();
 
     AddToStack();
