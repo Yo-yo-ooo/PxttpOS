@@ -3,6 +3,7 @@
 #include "../../rendering/BasicRenderer.h"
 #include "../../paging/PageFrameAllocator.h"
 #include "../../paging/PageTableManager.h"
+#include "../../interrupts/panic.h"
 
 #define Memset(a,b,c) _memset(a,b,c)
 namespace AHCI{
@@ -107,6 +108,9 @@ namespace AHCI{
         HBAPortPtr->CommandStatus |= HBA_PxCMD_ST;
     }
 
+    
+
+
     bool Port::Read(uint64_t Sector, uint32_t SectorCount, void* Buffer){
         uint32_t SectorL = (uint32_t) Sector;
         uint32_t SectorH = (uint32_t) (Sector >> 32);
@@ -170,7 +174,7 @@ namespace AHCI{
     AHCIDriver::AHCIDriver(PCI::PCIDeviceHeader* PCIBaseAddress){
         this->PCIBaseAddress = PCIBaseAddress;
         GlobalRenderer->Print("AHCI Driver instance initialized");
-        //GlobalRenderer->Next();
+        
 
         ABAR = (HBAMemory*)((PCI::PCIHeader0*)PCIBaseAddress)->BAR5;
 
