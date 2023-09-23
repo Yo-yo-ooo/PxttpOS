@@ -83,17 +83,7 @@ int main()
 
         int fps = (int)((frameCount * 1000) / frameTime);
 
-        actualScreenRenderer->CursorPosition.x = 0;
-        actualScreenRenderer->CursorPosition.y = actualScreenFramebuffer->Height - 64;
         
-        actualScreenRenderer->Clear(
-            0, 
-            actualScreenRenderer->CursorPosition.y, 
-
-            160, 
-            actualScreenRenderer->CursorPosition.y + 16, 
-            Colors.black
-        );
 
         //actualScreenRenderer->Print("FPS: {}", to_string(fps), Colors.yellow);
     }
@@ -112,7 +102,7 @@ void DrawFrame()
     for (int y = 0; y < pointerBuffer->Height; y++)
         for (int x = 0; x < pointerBuffer->Width; x++)
         {
-            uint32_t tempCol = *pointerData[x + y * pointerBuffer->Width];
+            uint32_t tempCol = Colors.dblue;
 
             if (tempCol != mainData[x + y * mainBuffer->PixelsPerScanLine])
             {
