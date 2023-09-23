@@ -110,7 +110,7 @@ void DrawFrame()
                 mainData[x + y * mainBuffer->PixelsPerScanLine] = tempCol;
             }
         }
-
+    
     //actualScreenRenderer->Clear(0, 0, 200, 200, rndCol);
 }
 
