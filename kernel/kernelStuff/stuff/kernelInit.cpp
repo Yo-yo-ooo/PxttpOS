@@ -9,16 +9,13 @@
 #include "../../devices/pit/pit.h"
 #include "../../interrupts/IDT.h"
 #include "../../interrupts/interrupts.h"
-#include "../../interrupts/panic.h"
 #include "../IO/IO.h"
 #include "../../osData/MStack/MStackM.h"
 #include "../../memory/heap.h"
 #include "../../scheduler/scheduler.h"
 #include "../../devices/gdt/initialGdt.h"
 #include "../../devices/keyboard/keyboard.h"
-#include "../../devices/acpi/acpi.h"
-#include "../../devices/pci/pci.h"
-
+#include "../../devices/mouse/mouse.h"
 
 BasicRenderer tempRenderer = BasicRenderer(NULL, NULL);
 
@@ -83,87 +80,6 @@ void InitKernel(BootInfo* bootInfo)
     PIT::InitPIT();
     StepDone();
 
-    AddToStack();   
-    ACPI::SDTHeader* rootThing = NULL;
-    int div = 1;
-
-
-    if (bootInfo->rsdp->firstPart.Revision == 0)
-    {
-        //osData.debugTerminalWindow->Log("ACPI Version: 1");
-        rootThing = (ACPI::SDTHeader*)(uint64_t)(bootInfo->rsdp->firstPart.RSDTAddress);
-        //osData.debugTerminalWindow->Log("RSDT Header Addr: {}", ConvertHexToString((uint64_t)rootThing));
-        div = 4;
-
-        if (rootThing == NULL)
-        {
-            Panic("RSDT Header is at NULL!", true);
-        }
-        else
-        {
-            //GlobalRenderer->Clear(Colors.black);
-            PrintMsg("> Testing ACPI Loader...");
-
-            //InitAcpiShutdownThing(rootThing);
-            //while (true);
-        }
-    }
-    else
-    {
-        //osData.debugTerminalWindow->Log("ACPI Version: 2");
-        rootThing = (ACPI::SDTHeader*)(bootInfo->rsdp->XSDTAddress);
-        //osData.debugTerminalWindow->Log("XSDT Header Addr: {}", ConvertHexToString((uint64_t)rootThing));
-        div = 8;
-
-        if (rootThing == NULL)
-        {
-            Panic("XSDT Header is at NULL!", true);
-        }
-    }
-    
-    //PrintDebugTerminal();
-    RemoveFromStack();
-
-    AddToStack();
-    int entries = (rootThing->Length - sizeof(ACPI::SDTHeader)) / div;
-    //osData.debugTerminalWindow->Log("Entry count: {}", to_string(entries));
-    RemoveFromStack();
-
-    AddToStack();
-    //osData.debugTerminalWindow->renderer->Print("> ");
-    for (int t = 0; t < entries; t++)
-    {
-        uint64_t bleh1 = *(uint64_t*)((uint64_t)rootThing + sizeof(ACPI::SDTHeader) + (t * div));
-        if (div == 4)
-            bleh1 &= 0x00000000FFFFFFFF;
-        ACPI::SDTHeader* newSDTHeader = (ACPI::SDTHeader*)bleh1;
-        
-    
-
-        //osData.debugTerminalWindow->renderer->Print(" ");
-    }
-    //osData.debugTerminalWindow->renderer->Println();
-    RemoveFromStack();
-
-    AddToStack();
-    ACPI::MCFGHeader* mcfg = (ACPI::MCFGHeader*)ACPI::FindTable(rootThing, (char*)"MCFG", div);
-
-    //osData.debugTerminalWindow->Log("MCFG Header Addr: {}", ConvertHexToString((uint64_t)mcfg));
-    RemoveFromStack();
-
-    if (mcfg == NULL)
-    {
-        Panic("MCFG HEADER IS NULL!", true);
-        //DoPCIWithoutMCFG(bootInfo);
-
-        RemoveFromStack();
-        return;
-    }
-
-    AddToStack();
-    PCI::EnumeratePCI(mcfg);
-    RemoveFromStack();
-
 //     #define STAT 0x64
 //     #define CMD 0x60
     
@@ -178,10 +94,10 @@ void InitKernel(BootInfo* bootInfo)
 //     }
 //     StepDone();
     
-//     PrintMsg("> Initing PS/2 Mouse");
-//     InitPS2Mouse(bootInfo->mouseZIP, "default.mbif");
-//     //mouseImage = kernelFiles::ConvertFileToImage(kernelFiles::ZIP::GetFileFromFileName(bootInfo->mouseZIP, "default.mbif"));
-//     StepDone();
+    PrintMsg("> Initing PS/2 Mouse");
+    Mouse::InitPS2Mouse();//(bootInfo->mouseZIP, "default.mbif");
+    //mouseImage = kernelFiles::ConvertFileToImage(kernelFiles::ZIP::GetFileFromFileName(bootInfo->mouseZIP, "default.mbif"));
+    StepDone();
 
     PrintMsg("> Initing Keyboard");
     Keyboard::InitKeyboard();
@@ -446,13 +362,4 @@ void PrepareInterrupts()
     __asm__ volatile ("sti");
     RemoveFromStack();
     
-}
-
-void PrepareACPI(BootInfo* BootInfo){
-    //ACPI::MCFGHeader* mcfg = (ACPI::MCFGHeader*)ACPI::FindTable(rootThing, (char*)"MCFG", div);
-    ACPI::SDTHeader* XSDT = (ACPI::SDTHeader*)(BootInfo->rsdp->XSDTAddress);
-    
-    ACPI::MCFGHeader* MCFG = (ACPI::MCFGHeader*)ACPI::FindTable(XSDT, (char*)"MCFG",8);
-
-    PCI::EnumeratePCI(MCFG);
 }

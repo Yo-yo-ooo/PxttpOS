@@ -8,5 +8,3 @@ void PrepareMemory(BootInfo* bootInfo);
 void PrepareInterrupts();
 
 void DoGdtStuff();
-
-void PrepareACPI(BootInfo* BootInfo);

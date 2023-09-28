@@ -231,25 +231,26 @@ __attribute__((interrupt)) void KeyboardInt_handler(interrupt_frame* frame)
 #define MOUSE_V_BIT  0x08
 // https://github.com/stevej/osdev/blob/master/kernel/devices/mouse.c
 
+#include "../devices/mouse/mouse.h"
 
 __attribute__((interrupt)) void MouseInt_handler(interrupt_frame* frame)
 { 
     AddToStack();
-    // //Panic("GENERIC INTERRUPT BRUH", true);   
-    // //osStats.lastMouseCall = PIT::TimeSinceBootMS();
-    // //io_wait();
-    // //Mousewait();
+    //Panic("GENERIC INTERRUPT BRUH", true);   
+    //osStats.lastMouseCall = PIT::TimeSinceBootMS();
+    //io_wait();
+    //Mousewait();
 
-	// uint8_t status = inb(MOUSE_STATUS);
-	// while (status & MOUSE_BBIT) 
-    // {
-    //     int8_t mouse_in = inb(MOUSE_PORT);
-	// 	if (status & MOUSE_F_BIT)
-    //     {
-    //         HandlePS2Mouse(mouse_in);
-    //     }
-    //     status = inb(MOUSE_STATUS);
-    // }
+	uint8_t status = inb(MOUSE_STATUS);
+	while (status & MOUSE_BBIT) 
+    {
+        int8_t mouse_in = inb(MOUSE_PORT);
+		if (status & MOUSE_F_BIT)
+        {
+            Mouse::HandlePS2Mouse(mouse_in);
+        }
+        status = inb(MOUSE_STATUS);
+    }
 
 
     // //uint8_t mousedata = inb(0x60);
@@ -292,7 +293,7 @@ void TempPitRoutine(interrupt_frame* frame)
     //     osData.serialManager->DoStuff();
 
 
-    if (_pitCount++ >= 20)   
+    if (_pitCount++ >= 80)   
     {
         _pitCount = 0;
         
@@ -671,6 +672,7 @@ void IRQGenericDriverHandler(int irq, interrupt_frame* frame)
         PIC_EndMaster();
 }
 
+void* currentMappedTask = NULL;
 
 void MapMemoryOfCurrentTask(osTask* task)
 {
@@ -679,6 +681,10 @@ void MapMemoryOfCurrentTask(osTask* task)
     
     if (task->pageTableContext == NULL)
         return;
+
+    if (currentMappedTask == task)
+        return;
+    currentMappedTask = task;
 
     //GlobalPageTableManager.SwitchPageTable(GlobalPageTableManager.PML4);
 
@@ -695,6 +701,24 @@ void MapMemoryOfCurrentTask(osTask* task)
         //manager.MapMemory(virtPageAddr, (void*)realPageAddr, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_UserSuper);
     }
 }
+
+bool SendMessageToTask(GenericMessagePacket* oldPacket, uint64_t targetPid)
+{
+    if (oldPacket == NULL)
+        return false;
+    
+    osTask* otherTask = Scheduler::GetTask(targetPid);
+
+    if (otherTask == NULL)
+        return false;
+
+    GenericMessagePacket* newPacket = oldPacket->Copy();
+    otherTask->messages->Enqueue(newPacket);
+    return true;
+}
+
+#include <libm/msgPackets/keyPacket/keyPacket.h>
+#include <libm/msgPackets/mousePacket/mousePacket.h>
 
 bool InterruptGoingOn = false;
 int currentInterruptCount = 0;
@@ -776,7 +800,10 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
         }
 
         if (Scheduler::CurrentRunningTask != NULL)
+        {
+            Scheduler::CurrentRunningTask->active = false;
             Scheduler::CurrentRunningTask->removeMe = true;
+        }
         Scheduler::CurrentRunningTask = NULL;
 
         //Serial::Writelnf("> END OF INT (%X, %X)", frame->cr3, frame->cr0);
@@ -789,9 +816,64 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
         return;
     }
 
-    for (int i = 0; i < 20; i++)
-        if (!Keyboard::DoKey())
-            break;
+
+    if (Scheduler::DesktopTask != NULL && !Scheduler::DesktopTask->removeMe)
+    {
+        int keysToDo = min(50, Keyboard::KeysAvaiable());
+        for (int i = 0; i < keysToDo; i++)
+        {
+            Keyboard::MiniKeyInfo info = Keyboard::DoAndGetKey();
+            if (info.Scancode == 0)
+                continue;
+
+            KeyMessagePacketType keyType;
+            if (info.IsPressed)
+                keyType = KeyMessagePacketType::KEY_PRESSED;
+            else
+                keyType = KeyMessagePacketType::KEY_RELEASE;
+
+            KeyMessagePacket keyPacket = KeyMessagePacket(keyType, info.Scancode, info.AsciiChar);
+            
+            GenericMessagePacket* packet = new GenericMessagePacket(
+                MessagePacketType::KEY_EVENT,
+                (uint8_t*)&keyPacket,
+                sizeof(KeyMessagePacket)
+            );
+            
+            //Serial::Writelnf("INT> Sending key packet to desktop task");
+            SendMessageToTask(packet, Scheduler::DesktopTask->pid);
+            
+            packet->Free();
+            _Free(packet);
+        }
+
+        int mouseToDo = min(50, Mouse::MousePacketsAvailable());
+        for (int i = 0; i < mouseToDo; i++)
+        {
+            MousePacket mPacket = Mouse::mousePackets->Dequeue();
+            //Serial::Writelnf("INT> Doing mouse packet");
+            Mouse::MiniMousePacket packet = Mouse::ProcessMousePacket(mPacket);
+            if (!packet.Valid)
+                continue;
+
+
+            // TODO: add hold and release stuff here
+            MouseMessagePacket mousePacket = MouseMessagePacket(packet.X, packet.Y);
+            
+            GenericMessagePacket* packet2 = new GenericMessagePacket(
+                MessagePacketType::MOUSE_EVENT,
+                (uint8_t*)&mousePacket,
+                sizeof(MouseMessagePacket)
+            );
+            
+            //Serial::Writelnf("INT> Sending mouse packet to desktop task");
+            SendMessageToTask(packet2, Scheduler::DesktopTask->pid);
+            
+            packet2->Free();
+            _Free(packet2);
+        }
+    }
+    
 
     if (Scheduler::CurrentRunningTask == NULL)
     {
@@ -1041,6 +1123,7 @@ void Syscall_handler(interrupt_frame* frame)
     }
     else if (syscall == SYSCALL_YIELD)
     {
+        if (Scheduler::CurrentRunningTask != Scheduler::NothingDoerTask)
         Serial::Writelnf("> YIELDING TASK %X", Scheduler::CurrentRunningTask);
         Scheduler::CurrentRunningTask->justYielded = true;
 
@@ -1116,6 +1199,8 @@ void Syscall_handler(interrupt_frame* frame)
     }
     else if (syscall == SYSCALL_MSG_GET_MSG)
     {
+        MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
+        
         Queue<GenericMessagePacket*>* queue = Scheduler::CurrentRunningTask->messages;
         frame->rax = 0;
         if (queue != NULL && queue->GetCount() > 0)
@@ -1133,6 +1218,8 @@ void Syscall_handler(interrupt_frame* frame)
     }
     else if (syscall == SYSCALL_MSG_SEND_MSG)
     {
+        MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
+
         frame->rax = 0;
         GenericMessagePacket* oldPacket = (GenericMessagePacket*)frame->rbx;
         if (oldPacket != NULL)

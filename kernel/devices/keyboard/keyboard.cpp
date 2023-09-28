@@ -122,12 +122,44 @@ namespace Keyboard
         bool shift = Keyboard::IsKeyPressed(Key_GeneralShift);
         char chr = ScancodeTranslation::TranslateScancode(actualScancode, shift);
 
+        // if ((scancode & KEY_RELEASED) == 0)
+        //     Serial::Writelnf("> Key %d (%c) pressed", actualScancode, chr);
+        // else
+        //     Serial::Writelnf("> Key %d (%c) released", actualScancode, chr);
+
+        return true;
+    }
+
+    MiniKeyInfo DoAndGetKey()
+    {
+        if (!KeysAvaiable())
+            return NoKey;
+
+        keyboardQueue.Lock();
+        int scancode = keyboardQueue.obj->Dequeue();
+        keyboardQueue.Unlock();
+
+        int actualScancode = scancode & ~KEY_RELEASED;
+
+        if ((scancode & KEY_RELEASED) == 0)
+            KeyboardScancodeState[actualScancode] = true;
+        else
+            KeyboardScancodeState[actualScancode] = false;
+
+        bool shift = Keyboard::IsKeyPressed(Key_GeneralShift);
+        char chr = ScancodeTranslation::TranslateScancode(actualScancode, shift);
+
+        MiniKeyInfo info;
+        info.IsPressed = (scancode & KEY_RELEASED) == 0;
+        info.Scancode = actualScancode;
+        info.AsciiChar = chr;
+
         if ((scancode & KEY_RELEASED) == 0)
             Serial::Writelnf("> Key %d (%c) pressed", actualScancode, chr);
         else
             Serial::Writelnf("> Key %d (%c) released", actualScancode, chr);
 
-        return true;
+        return info;
     }
 
     bool IsKeyPressed(int scancode)
