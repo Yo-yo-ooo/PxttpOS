@@ -63,12 +63,12 @@ namespace AHCI{
     void Port::Configure(){
         StopCMD();
 
-        void* NewBase = GlobalAllocator.RequestPage();
+        void* NewBase = GlobalAllocator->RequestPage();
         HBAPortPtr->CommandListBase = (uint32_t)(uint64_t)NewBase;
         HBAPortPtr->CommandListBaseUpper = (uint32_t)((uint64_t)NewBase >> 32);
         _memset((void*)(HBAPortPtr->CommandListBase), 0, 1024);
 
-        void* FISBase = GlobalAllocator.RequestPage();
+        void* FISBase = GlobalAllocator->RequestPage();
         HBAPortPtr->FISBaseAddress = (uint32_t)(uint64_t)FISBase;
         HBAPortPtr->FISBaseAddressUpper = (uint32_t)((uint64_t)FISBase >> 32);
         Memset(FISBase, 0, 256);
@@ -78,7 +78,7 @@ namespace AHCI{
         for (int i = 0; i < 32; i++){
             CommandHeader[i].PRDTLength = 8;
 
-            void* CommandTableAddress = GlobalAllocator.RequestPage();
+            void* CommandTableAddress = GlobalAllocator->RequestPage();
             uint64_t Address = (uint64_t)CommandTableAddress + (i << 8);
             CommandHeader[i].CommandTableBaseAddress = (uint32_t)(uint64_t)Address;
             CommandHeader[i].CommandTableBaseAddressUpper = (uint32_t)((uint64_t)Address >> 32);
@@ -271,13 +271,11 @@ namespace AHCI{
 
             Port->Configure();
 
-            Port->Buffer = (uint8_t*)GlobalAllocator.RequestPage();
+            Port->Buffer = (uint8_t*)GlobalAllocator->RequestPage();
             _memset(Port->Buffer, 0, 0x1000);
 
             Port->Read(0, 4, Port->Buffer);
-            for (int t = 0; t < 1024; t++){
-                GlobalRenderer->putChar(Port->Buffer[t]);
-            }
+            
            // GlobalRenderer->Next();
         }
     }

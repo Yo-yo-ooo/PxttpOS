@@ -1,5 +1,7 @@
 #include "pci.h"
 #include "../../kernelStuff/IO/IO.h"
+#include "../../rendering/BasicRenderer.h"
+#include "../../kernelStuff/stuff/stackmacro.h"
 #include <stddef.h>
 
 
@@ -406,5 +408,163 @@ namespace PCI
             *(uint32_t*)(type.mem_address + field) = value;
         else if (type.type == PCI_BAR_TYPE_ENUM::IO)
             outl(type.io_address + field, value);
+    }
+
+    void EnumeratePCI(ACPI::MCFGHeader* mcfg)
+    {
+        AddToStack();
+        int entries = (mcfg->Header.Length - sizeof(ACPI::MCFGHeader)) / sizeof(ACPI::DeviceConfig);
+        RemoveFromStack();
+        
+        AddToStack();
+
+        for (int t = 0; t < entries; t++)
+        {
+            ACPI::DeviceConfig* newDeviceConfig = (ACPI::DeviceConfig*)((uint64_t)mcfg + sizeof(ACPI::MCFGHeader) + sizeof(ACPI::DeviceConfig) * t);
+            for (uint64_t bus = newDeviceConfig->StartBus; bus < newDeviceConfig->EndBus; bus++)
+                EnumerateBus(newDeviceConfig->BaseAddress, bus);
+        }
+        RemoveFromStack();
+    }
+
+    void EnumerateBus(uint64_t baseAddress, uint64_t bus)
+    {
+        AddToStack();
+        uint64_t offset = bus << 20;
+
+        uint64_t busAddress = baseAddress + offset;
+
+        //GlobalPageTableManager.MapMemory((void*)busAddress, (void*)busAddress);
+        
+        PCIDeviceHeader* pciDeviceHeader  = (PCIDeviceHeader*)busAddress;
+
+        if (pciDeviceHeader ->Device_ID == 0x0000) {RemoveFromStack(); return;}
+        if (pciDeviceHeader ->Device_ID == 0xFFFF) {RemoveFromStack(); return;}
+
+        for (uint64_t device = 0; device < 32; device++)
+        {
+            EnumerateDevice(busAddress, device);
+        }
+        RemoveFromStack();
+    }
+
+    void EnumerateDevice(uint64_t busAddress, uint64_t device) // Slot
+    {
+        AddToStack();
+        uint64_t offset = device << 15;
+
+        uint64_t deviceAddress = busAddress + offset;
+
+        //GlobalPageTableManager.MapMemory((void*)deviceAddress, (void*)deviceAddress);
+        
+        PCIDeviceHeader* pciDeviceHeader  = (PCIDeviceHeader*)deviceAddress;
+
+        if (pciDeviceHeader ->Device_ID == 0x0000) {RemoveFromStack(); return;}
+        if (pciDeviceHeader ->Device_ID == 0xFFFF) {RemoveFromStack(); return;}
+
+        for (uint64_t function = 0; function < 8; function++)
+        {
+            EnumerateFunction(deviceAddress, function);
+        }
+        RemoveFromStack();
+    }
+
+    void EnumerateFunction(uint64_t deviceAddress, uint64_t function)
+    {
+        AddToStack();
+        uint64_t offset = function << 12;
+
+        uint64_t functionAddress = deviceAddress + offset;
+
+        if (functionAddress == 0x0000000000000000) {RemoveFromStack(); return;}
+
+        //GlobalPageTableManager.MapMemory((void*)functionAddress, (void*)functionAddress);
+        
+        PCIDeviceHeader* pciDeviceHeader  = (PCIDeviceHeader*)functionAddress;
+
+        if (pciDeviceHeader ->Device_ID == 0x0000) {RemoveFromStack(); return;}
+        if (pciDeviceHeader ->Device_ID == 0xFFFF) {RemoveFromStack(); return;}
+
+        BasicRenderer* renderer = osData.debugTerminalWindow->renderer;
+        renderer->Print(" - ");
+
+        {
+            const char* vendorName = GetVendorName(pciDeviceHeader->Vendor_ID);
+            if (vendorName != unknownString)
+                renderer->Print(vendorName);
+            else
+            {
+                renderer->Print("<");
+                renderer->Print(ConvertHexToString(pciDeviceHeader->Vendor_ID));
+                renderer->Print(">");
+            }
+            renderer->Print(" / ");
+        }
+
+        {
+            const char* deviceName = GetDeviceName(pciDeviceHeader->Vendor_ID, pciDeviceHeader->Device_ID);
+            if (deviceName != unknownString)
+                renderer->Print(deviceName);
+            else
+            {
+                renderer->Print("<");
+                renderer->Print(ConvertHexToString(pciDeviceHeader->Device_ID));
+                renderer->Print(">");
+            }
+            renderer->Print(" / ");
+        }
+
+        {
+            const char* className = GetClassName(pciDeviceHeader->Class);
+            if (className != unknownString)
+                renderer->Print(className);
+            else
+            {
+                renderer->Print("<");
+                renderer->Print(ConvertHexToString(pciDeviceHeader->Class));
+                renderer->Print(">");
+            }
+            renderer->Print(" / ");
+        }
+
+        {
+            const char* subclassName = GetSubclassName(pciDeviceHeader->Class, pciDeviceHeader->SubClass);
+            if (subclassName != unknownString)
+                renderer->Print(subclassName);
+            else
+            {
+                renderer->Print("<");
+                renderer->Print(ConvertHexToString(pciDeviceHeader->SubClass));
+                renderer->Print(">");
+            }
+            renderer->Print(" / ");
+        }
+
+        {
+            const char* progIFName = GetProgIFName(pciDeviceHeader->Class, pciDeviceHeader->SubClass, pciDeviceHeader->Prog_IF);
+            if (progIFName != unknownString)
+                renderer->Print(progIFName);
+            else
+            {
+                renderer->Print("<");
+                renderer->Print(ConvertHexToString(pciDeviceHeader->Prog_IF));
+                renderer->Print(">");
+            }
+            //renderer->Print(" / ");
+        }
+        renderer->Println();
+
+        // osData.debugTerminalWindow->renderer->Println("> BARS:", Colors.yellow);
+        // for (int i = 0; i < 6; i++)
+        // {
+        //     osData.debugTerminalWindow->renderer->Print(" - BAR {}: ", to_string(i), Colors.orange);
+        //     osData.debugTerminalWindow->renderer->Println("{}", ConvertHexToString(*(((uint32_t*)&((PCI::PCIHeader0*)pciDeviceHeader)->BAR0) + i)), Colors.orange);
+        //     io_wait(1000);
+        // }
+
+
+        
+
+        RemoveFromStack();
     }
 }
