@@ -17,6 +17,7 @@
 #include "../../devices/keyboard/keyboard.h"
 #include "../../devices/mouse/mouse.h"
 #include "../../interrupts/panic.h"
+#include "../../devices/pci/pci.h"
 
 BasicRenderer tempRenderer = BasicRenderer(NULL, NULL);
 
