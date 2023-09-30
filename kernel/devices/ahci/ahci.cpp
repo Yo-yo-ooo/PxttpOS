@@ -1,8 +1,8 @@
-#include "AHCI.h"
-#include "../BasicRenderer.h"
-#include "../Paging/PageTableManager.h"
-#include "../Memory/Heap.h"
-#include "../Paging/PageFrameAllocator.h"
+#include "ahci.h"
+#include "../../rendering/BasicRenderer.h"
+#include "../../paging/PageTableManager.h"
+#include "../../memory/heap.h"
+#include "../../paging/PageFrameAllocator.h"
 
 #define Memset(a,b,c) _memset(a,b,c)
 
