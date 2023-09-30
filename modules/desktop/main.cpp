@@ -7,6 +7,7 @@
 #include <libm/msgPackets/keyPacket/keyPacket.h>
 #include <libm/msgPackets/windowBufferUpdatePacket/windowBufferUpdatePacket.h>
 #include <libm/queue/queue_windowBufferUpdate.h>
+#include <libm/graphic/color.h>
 
 TempRenderer* actualScreenRenderer;
 Framebuffer* actualScreenFramebuffer;
@@ -153,7 +154,7 @@ int main()
 
     activeWindow = window;
 
-    actualScreenRenderer->Clear(Colors.black);
+    actualScreenRenderer->Clear(RGB(12,108,108));
     actualScreenRenderer->Println("WINDOW 0x{}", ConvertHexToString((uint64_t)window->Buffer), Colors.yellow);
     
 
