@@ -2,7 +2,9 @@
 #include "../../kernelStuff/IO/IO.h"
 #include "../../rendering/BasicRenderer.h"
 #include "../../kernelStuff/stuff/stackmacro.h"
+#include "../ahci/ahci.h"
 #include <stddef.h>
+#include <libm/cstr.h>
 
 
 // //#include "../../paging/PageTableManager.h"
@@ -485,7 +487,7 @@ namespace PCI
         if (pciDeviceHeader ->Device_ID == 0x0000) {RemoveFromStack(); return;}
         if (pciDeviceHeader ->Device_ID == 0xFFFF) {RemoveFromStack(); return;}
 
-        BasicRenderer* renderer = osData.debugTerminalWindow->renderer;
+#define renderer GlobalRenderer
         renderer->Print(" - ");
 
         {
@@ -554,17 +556,12 @@ namespace PCI
         }
         renderer->Println();
 
-        // osData.debugTerminalWindow->renderer->Println("> BARS:", Colors.yellow);
-        // for (int i = 0; i < 6; i++)
-        // {
-        //     osData.debugTerminalWindow->renderer->Print(" - BAR {}: ", to_string(i), Colors.orange);
-        //     osData.debugTerminalWindow->renderer->Println("{}", ConvertHexToString(*(((uint32_t*)&((PCI::PCIHeader0*)pciDeviceHeader)->BAR0) + i)), Colors.orange);
-        //     io_wait(1000);
-        // }
-
-
-        
+        if (pciDeviceHeader->Class == 0x01 && pciDeviceHeader->SubClass == 0x06 && pciDeviceHeader->Prog_IF == 0x01)
+        {
+            new AHCI::AHCIDriver(pciDeviceHeader);
+        }
 
         RemoveFromStack();
     }
+#undef renderer
 }

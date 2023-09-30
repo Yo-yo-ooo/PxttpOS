@@ -16,8 +16,56 @@
 #include "../../devices/gdt/initialGdt.h"
 #include "../../devices/keyboard/keyboard.h"
 #include "../../devices/mouse/mouse.h"
+#include "../../interrupts/panic.h"
 
 BasicRenderer tempRenderer = BasicRenderer(NULL, NULL);
+
+void PrepareACPI(BootInfo* bootInfo){
+    AddToStack();   
+    ACPI::SDTHeader* rootThing = (ACPI::SDTHeader*)(uint64_t)(bootInfo->rsdp->firstPart.RSDTAddress);
+    int div = 1;
+    if (bootInfo->rsdp->firstPart.Revision == 0)
+    {
+        //osData.debugTerminalWindow->Log("ACPI Version: 1");
+        rootThing = (ACPI::SDTHeader*)(uint64_t)(bootInfo->rsdp->firstPart.RSDTAddress);
+        //osData.debugTerminalWindow->Log("RSDT Header Addr: {}", ConvertHexToString((uint64_t)rootThing));
+        div = 4;
+
+        if (rootThing == NULL)
+        {
+            Panic("RSDT Header is at NULL!", true);
+        }
+        else
+        {
+            //GlobalRenderer->Clear(Colors.black);
+            //PrintMsg("> Testing ACPI Loader...");
+
+            //InitAcpiShutdownThing(rootThing);
+            //while (true);
+        }
+    }
+    else
+    {
+        //osData.debugTerminalWindow->Log("ACPI Version: 2");
+        rootThing = (ACPI::SDTHeader*)(bootInfo->rsdp->XSDTAddress);
+        //osData.debugTerminalWindow->Log("XSDT Header Addr: {}", ConvertHexToString((uint64_t)rootThing));
+        div = 8;
+
+        if (rootThing == NULL)
+        {
+            Panic("XSDT Header is at NULL!", true);
+        }
+    }
+    
+    //PrintDebugTerminal();
+    RemoveFromStack();
+    AddToStack();
+    ACPI::MCFGHeader* mcfg = (ACPI::MCFGHeader*)ACPI::FindTable(rootThing, (char*)"MCFG", div);
+    RemoveFromStack();
+    AddToStack();
+    PCI::EnumeratePCI(mcfg);
+    RemoveFromStack();
+}
 
 void InitKernel(BootInfo* bootInfo)
 {
@@ -116,7 +164,9 @@ void InitKernel(BootInfo* bootInfo)
     PIT::Inited = true;
     StepDone();
 
-
+    PrintMsg("> Preparing ACPI");
+    PrepareACPI(bootInfo);
+    StepDone();
 //     PrintMsg("> Clearing Input Buffer (2/2)");
 //     {
 //         // Clear the input buffer.

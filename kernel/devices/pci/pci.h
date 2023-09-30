@@ -4,7 +4,7 @@
 
 namespace PCI
 {
-    const char* unknownString = "<UNKNOWN>";
+    //const char* unknownString = "<UNKNOWN>";
     struct PCIDeviceHeader
     {
         uint16_t Vendor_ID;
@@ -118,7 +118,7 @@ namespace PCI
 
     void EnumerateFunction(uint64_t deviceAddress, uint64_t function);
 
-    //extern const char* unknownString;
+    extern const char* unknownString;
 
     const char* GetVendorName(uint16_t vendorID);
 
