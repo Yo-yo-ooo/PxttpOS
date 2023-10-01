@@ -18,7 +18,7 @@ uint32_t defaultBackgroundColor = RGB(12,108,108);
 bool drawBackground = false;
 Framebuffer* backgroundImage = NULL;
 
-Framebuffer* taskbar;
+//Framebuffer* taskbar;
 
 List<Window*>* windows;
 Window* activeWindow;
@@ -58,7 +58,8 @@ void InitStuff()
                 pointerBuffer->BaseAddress[x + y * pointerBuffer->Width] = &defaultBackgroundColor;
     }
     
-    {
+    
+    /* {
         taskbar = new Framebuffer();
         taskbar->Width = actualScreenFramebuffer->Width;
         taskbar->Height = 24;
@@ -68,7 +69,7 @@ void InitStuff()
         for (int y = 0; y < taskbar->Height; y++)
             for (int x = 0; x < taskbar->Width; x++)
                 ((uint32_t*)taskbar->BaseAddress)[x + y * taskbar->PixelsPerScanLine] = Colors.dblue;
-    }
+    } */
 
     activeWindow = NULL;
     currentActionWindow = NULL;
@@ -86,7 +87,7 @@ void InitStuff()
 
 void PrintFPS(int fps, int frameTime, int breakTime, int totalTime)
 {
-    actualScreenRenderer->CursorPosition.x = 0;
+    /* actualScreenRenderer->CursorPosition.x = 0;
     actualScreenRenderer->CursorPosition.y = actualScreenFramebuffer->Height - 64;
     
     actualScreenRenderer->Clear(
@@ -114,7 +115,7 @@ void PrintFPS(int fps, int frameTime, int breakTime, int totalTime)
 
     actualScreenRenderer->CursorPosition.x = 300;
 
-    actualScreenRenderer->Print("MALLOC: {}", to_string(Heap::GlobalHeapManager->_usedHeapCount), Colors.yellow);  
+    actualScreenRenderer->Print("MALLOC: {}", to_string(Heap::GlobalHeapManager->_usedHeapCount), Colors.yellow);   */
 }
 
 
@@ -128,6 +129,12 @@ int main()
     programWait(100);
 
     InitStuff();
+
+    //actualScreenRenderer->Clear(Colors.black);
+    //rein();
+
+	
+
 
     Window* window = new Window(50, 30, 200, 200, "Test Window 1");
     windows->Add(window);
@@ -212,6 +219,27 @@ int main()
     return 0;
 }
 
+void rein(){
+    char* vram = (char *) 0xa0000;
+	int xsize = actualScreenFramebuffer->Width;
+	int ysize = actualScreenFramebuffer->Height;
+    boxfill8(vram, xsize, COL8_008484,  0,         0,          xsize -  1, ysize - 29);
+    boxfill8(vram, xsize, COL8_C6C6C6,  0,         ysize - 28, xsize -  1, ysize - 28);
+    boxfill8(vram, xsize, COL8_FFFFFF,  0,         ysize - 27, xsize -  1, ysize - 27);
+    boxfill8(vram, xsize, COL8_C6C6C6,  0,         ysize - 26, xsize -  1, ysize -  1);
+
+    boxfill8(vram, xsize, COL8_FFFFFF,  3,         ysize - 24, 59,         ysize - 24);
+    boxfill8(vram, xsize, COL8_FFFFFF,  2,         ysize - 24,  2,         ysize -  4);
+    boxfill8(vram, xsize, COL8_848484,  3,         ysize -  4, 59,         ysize -  4);
+    boxfill8(vram, xsize, COL8_848484, 59,         ysize - 23, 59,         ysize -  5);
+    boxfill8(vram, xsize, COL8_000000,  2,         ysize -  3, 59,         ysize -  3);
+    boxfill8(vram, xsize, COL8_000000, 60,         ysize - 24, 60,         ysize -  3);
+
+    boxfill8(vram, xsize, COL8_848484, xsize - 47, ysize - 24, xsize -  4, ysize - 24);
+    boxfill8(vram, xsize, COL8_848484, xsize - 47, ysize - 23, xsize - 47, ysize -  4);
+    boxfill8(vram, xsize, COL8_FFFFFF, xsize - 47, ysize -  3, xsize -  4, ysize -  3);
+    boxfill8(vram, xsize, COL8_FFFFFF, xsize -  3, ysize - 24, xsize -  3, ysize -  3);
+}
 
 
 void DrawFrame()
@@ -222,6 +250,8 @@ void DrawFrame()
 
     bool doUpdate = false;
     int msgCount = min(msgGetCount(), 10);
+    
+    
     for (int i = 0; i < msgCount; i++)
     {
         GenericMessagePacket* msg = msgGetMessage();
@@ -234,6 +264,7 @@ void DrawFrame()
             {
                 MousePosition.x = mouseMsg->MouseX;
                 MousePosition.y = mouseMsg->MouseY;
+                rein();
             }
         }
         else if (msg->Type == MessagePacketType::KEY_EVENT)

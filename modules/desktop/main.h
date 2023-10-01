@@ -23,7 +23,7 @@ extern uint32_t defaultBackgroundColor;
 extern Framebuffer* backgroundImage;
 extern bool drawBackground;
 
-extern Framebuffer* taskbar;
+//extern Framebuffer* taskbar;
 
 extern List<Window*>* windows;
 extern Window* activeWindow;
@@ -39,7 +39,7 @@ void PrintFPS(int fps, int frameTime, int breakTime, int totalTime);
 int main();
 
 void DrawFrame();
-
+void rein();
 
 
 

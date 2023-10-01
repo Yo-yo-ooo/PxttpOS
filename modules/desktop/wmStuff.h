@@ -5,7 +5,7 @@
 
 
 void DrawBGRect(int x1, int y1, int x2, int y2); //
-void DrawTaskbarRect(int x1, int y1, int x2, int y2); //
+//void DrawTaskbarRect(int x1, int y1, int x2, int y2); //
 void UpdatePointerRect(int x1, int y1, int x2, int y2); //
 void UpdateWindowRect(Window *window); //
 void RenderWindow(Window *window); // 

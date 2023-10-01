@@ -305,7 +305,7 @@ void TempPitRoutine(interrupt_frame* frame)
 
         uint32_t currCol = 0;
         
-        currCol = Colors.orange;
+        /* currCol = Colors.orange;
         GlobalRenderer->Print("DATE: ", currCol);
         GlobalRenderer->Print("{}.", to_string((int)RTC::Day), currCol);
         GlobalRenderer->Print("{}.", to_string((int)RTC::Month), currCol);
@@ -333,7 +333,7 @@ void TempPitRoutine(interrupt_frame* frame)
         GlobalRenderer->Print("  - ", Colors.white);
 
         currCol = Colors.lime;
-        GlobalRenderer->Print("Runnings Tasks: ", currCol);
+        GlobalRenderer->Print("Runnings Tasks: ", currCol); */
         if (!Scheduler::osTasks.IsLocked())
         {
             Scheduler::osTasks.Lock();

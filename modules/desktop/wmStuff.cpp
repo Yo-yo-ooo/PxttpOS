@@ -36,7 +36,7 @@ void UpdatePointerRect(int x1, int y1, int x2, int y2)
     for (int i = 0; i < count; i++)
         RenderWindowRect(windows->ElementAt(i), x1, y1, x2, y2);
 
-    DrawTaskbarRect(x1, y1, x2, y2);
+    //DrawTaskbarRect(x1, y1, x2, y2);
 }
 
 
@@ -346,7 +346,7 @@ void RenderWindowRect(Window* window, int x1, int y1, int x2, int y2)
 
 
 
-void DrawTaskbarRect(int x1, int y1, int x2, int y2)
+/* void DrawTaskbarRect(int x1, int y1, int x2, int y2)
 {
     int64_t ypos = pointerBuffer->Height - taskbar->Height;
 
@@ -362,7 +362,7 @@ void DrawTaskbarRect(int x1, int y1, int x2, int y2)
             int64_t index2 = x + (y-ypos) * pointerBuffer->Width;
             (((uint32_t**)pointerBuffer->BaseAddress)[index]) = &((uint32_t*)taskbar->BaseAddress)[index2];//&defaultBackgroundColor;
         }
-}
+} */
 
 void UpdateWindowRect(Window* window)
 {
@@ -381,7 +381,7 @@ void ActuallyRenderWindow(Window *window)
         x2, y2
     );
     
-    DrawTaskbarRect(x1, y1, x2, y2);
+    //DrawTaskbarRect(x1, y1, x2, y2);
 
     RenderActualSquare(
         x1, y1, 
@@ -401,7 +401,7 @@ void RenderWindow(Window* window)
         x2, y2
     );
     
-    DrawTaskbarRect(x1, y1, x2, y2);
+    //DrawTaskbarRect(x1, y1, x2, y2);
 }
 
 void RenderWindows()
@@ -416,7 +416,7 @@ void Clear(bool resetGlobal)
     if (resetGlobal)
         ClearFrameBuffer(actualScreenFramebuffer, defaultBackgroundColor);
     ClearFrameBuffer(mainBuffer, defaultBackgroundColor);
-    ClearFrameBuffer(taskbar, Colors.dblue);
+    //ClearFrameBuffer(taskbar, Colors.dblue);
 
     ClearPointerBuffer(pointerBuffer, &defaultBackgroundColor);
     //ClearPointerBuffer(copyOfVirtualBuffer, &defaultBackgroundColor);
