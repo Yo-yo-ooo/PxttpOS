@@ -14,7 +14,7 @@ Framebuffer* actualScreenFramebuffer;
 Framebuffer* mainBuffer;
 PointerBuffer* pointerBuffer;
 
-uint32_t defaultBackgroundColor = 0xFF202030;
+uint32_t defaultBackgroundColor = RGB(12,108,108);
 bool drawBackground = false;
 Framebuffer* backgroundImage = NULL;
 
@@ -154,7 +154,7 @@ int main()
 
     activeWindow = window;
 
-    actualScreenRenderer->Clear(RGB(12,108,108));
+    actualScreenRenderer->Clear(Colors.black);
     actualScreenRenderer->Println("WINDOW 0x{}", ConvertHexToString((uint64_t)window->Buffer), Colors.yellow);
     
 

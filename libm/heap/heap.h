@@ -96,6 +96,14 @@ namespace Heap
 #define _Free(address) Heap::GlobalHeapManager->_Xfree((void*)address, __PRETTY_FUNCTION__, __FILE__, __LINE__)
 #define _TryFree(address) Heap::GlobalHeapManager->_XtryFree((void*)address, __PRETTY_FUNCTION__, __FILE__, __LINE__)
 
+inline void* malloc(size_t size){
+    _Malloc1(size);
+}
+
+inline void free(void* address){
+    _Free(address);
+}
+
 
 #include "new.hpp"
 
