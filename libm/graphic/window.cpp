@@ -55,7 +55,7 @@ WMWindow::WMWindow(TempRenderer *renderer, int xsize, int ysize, char *title)
                 c = COL8_FFFFFF;
             }
             //vram[(5 + y) * xsize + (xsize - 21 + x)] = c;
-            uint32_t* pixPtr = (uint32_t*)renderer->BaseAddress;
+            uint32_t* pixPtr = (uint32_t*)renderer->framebuffer->BaseAddress;
             pixPtr[(5 + y) * xsize + (xsize - 21 + x)] = c;
         }
     }

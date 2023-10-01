@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "color.h"
+#include "../rendering/basicRenderer.h"
 
 class WMWindow
 {
