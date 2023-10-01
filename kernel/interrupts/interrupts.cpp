@@ -298,11 +298,11 @@ void TempPitRoutine(interrupt_frame* frame)
         _pitCount = 0;
         
         Point tempPoint = GlobalRenderer->CursorPosition;
-        GlobalRenderer->CursorPosition.x = 0;
+        /* GlobalRenderer->CursorPosition.x = 0;
         GlobalRenderer->CursorPosition.y = GlobalRenderer->framebuffer->Height - 16;
 
         GlobalRenderer->Clear(0, GlobalRenderer->CursorPosition.y, GlobalRenderer->framebuffer->Width - 1, GlobalRenderer->CursorPosition.y + 15, Colors.black);
-
+ */
         uint32_t currCol = 0;
         
         /* currCol = Colors.orange;
@@ -337,7 +337,7 @@ void TempPitRoutine(interrupt_frame* frame)
         if (!Scheduler::osTasks.IsLocked())
         {
             Scheduler::osTasks.Lock();
-            GlobalRenderer->Print("{}", to_string(Scheduler::osTasks.obj->GetCount()), currCol);
+            //GlobalRenderer->Print("{}", to_string(Scheduler::osTasks.obj->GetCount()), currCol);
             Scheduler::osTasks.Unlock();
         }
         //GlobalRenderer->Print("  - ", Colors.white);
