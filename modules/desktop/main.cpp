@@ -13,55 +13,6 @@
 
 
 
-
-void PutASCII(TempRenderer *renderer){
-    int msgCount = min(msgGetCount(), 10);
-    for (int i = 0; i < msgCount; i++)
-    {
-        GenericMessagePacket *msg = msgGetMessage();
-        if (msg == NULL)
-            break;
-        if(msg->Type == MessagePacketType::KEY_EVENT){
-            KeyMessagePacket *keyMsg = (KeyMessagePacket*)msg->Data;
-            bool IsLeftShiftPressed;
-            bool IsRightShiftPressed;
-            if(keyMsg->Type == KeyMessagePacketType::KEY_RELEASE){
-                switch (keyMsg->Scancode){
-                    case LeftShift:
-                        IsLeftShiftPressed = true;
-                        return;
-                    case LeftShift + 0x80:
-                        IsLeftShiftPressed = false;
-                        return;
-                    case RightShift:
-                        IsRightShiftPressed = true;
-                        return;
-                    case RightShift + 0x80:
-                        IsRightShiftPressed = false;
-                        return;
-                    case Enter:
-                        renderer->Println();
-                        return;
-                    case Spacebar:
-                        renderer->Print(' ');
-                        return;
-                    case Backspace:
-                        renderer->ClearChar();
-                        return;
-                }
-
-                char ASCII = Translate(keyMsg->Scancode, IsLeftShiftPressed | IsRightShiftPressed);
-
-                if (ASCII != 0){
-                    renderer->Print(ASCII);
-                }
-                msg->Free();
-                _Free(msg);
-            }
-        }
-    }
-}
-
 TempRenderer *render;
 
 int main(){
@@ -70,8 +21,29 @@ int main(){
     ENV_DATA *env = getEnvData();
     render = new TempRenderer(env->globalFrameBuffer,env->globalFont);
     render->Clear(Colors.black);
-    render->Println("Welcome to PxttpOS Termainal!");
+    char* vram = (char *) 0xa0000;/* 地址变量赋值 */
+	int xsize = render->framebuffer->Width;
+	int ysize = render->framebuffer->Height;
+
+	/* 根据 0xa0000 + x + y * 320 计算坐标 8*/
+	boxfill8(vram, xsize, COL8_008484,  0,         0,          xsize -  1, ysize - 29);
+	boxfill8(vram, xsize, COL8_C6C6C6,  0,         ysize - 28, xsize -  1, ysize - 28);
+	boxfill8(vram, xsize, COL8_FFFFFF,  0,         ysize - 27, xsize -  1, ysize - 27);
+	boxfill8(vram, xsize, COL8_C6C6C6,  0,         ysize - 26, xsize -  1, ysize -  1);
+
+	boxfill8(vram, xsize, COL8_FFFFFF,  3,         ysize - 24, 59,         ysize - 24);
+	boxfill8(vram, xsize, COL8_FFFFFF,  2,         ysize - 24,  2,         ysize -  4);
+	boxfill8(vram, xsize, COL8_848484,  3,         ysize -  4, 59,         ysize -  4);
+	boxfill8(vram, xsize, COL8_848484, 59,         ysize - 23, 59,         ysize -  5);
+	boxfill8(vram, xsize, COL8_000000,  2,         ysize -  3, 59,         ysize -  3);
+	boxfill8(vram, xsize, COL8_000000, 60,         ysize - 24, 60,         ysize -  3);
+
+	boxfill8(vram, xsize, COL8_848484, xsize - 47, ysize - 24, xsize -  4, ysize - 24);
+	boxfill8(vram, xsize, COL8_848484, xsize - 47, ysize - 23, xsize - 47, ysize -  4);
+	boxfill8(vram, xsize, COL8_FFFFFF, xsize - 47, ysize -  3, xsize -  4, ysize -  3);
+	boxfill8(vram, xsize, COL8_FFFFFF, xsize -  3, ysize - 24, xsize -  3, ysize -  3);
+
     while(true){
-        PutASCII(render);
+        
     }
 }
