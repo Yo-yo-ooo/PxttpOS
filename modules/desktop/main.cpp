@@ -23,7 +23,7 @@ int getInput(){
             //HandleKeyboard(keyMsg->Scancode);
             int key = keyMsg->Scancode;
             msg->Free();
-            _free(msg);
+            _Free(msg);
             return key;
         }
     }
