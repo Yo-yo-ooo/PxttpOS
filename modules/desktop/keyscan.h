@@ -75,3 +75,4 @@ const uint8_t Scancode2ToScancode1[] =
 #define Spacebar 0x39
 
 char Translate(uint8_t scancode, bool uppercase);
+void HandleKeyboard(uint8_t Scancode);

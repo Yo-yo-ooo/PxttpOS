@@ -10,17 +10,21 @@
 #include <libm/rendering/Cols.h>
 #include <libm/IO/io.h>
 #include <libm/msgPackets/keyPacket/keyPacket.h>
+#include "keyscan.h"
 
 TempRenderer *render;
 
-char *getInput(){
-    char *input;
+int getInput(){
+    //char *input;
     GenericMessagePacket *msg = msgGetMessage();
     if(msg->Type == MessagePacketType::KEY_EVENT){
-        KeyMessagePacket *keyMsg = (KeyMessagePacket*)msg;
-        if(keyMsg->Type == KeyMessagePacketType::KEY_PRESSED){
-            
-            return input;
+        KeyMessagePacket *keyMsg = (KeyMessagePacket*)msg->Data;
+        if(keyMsg->Type == KeyMessagePacketType::KEY_RELEASE){
+            //HandleKeyboard(keyMsg->Scancode);
+            int key = keyMsg->Scancode;
+            msg->Free();
+            _free(msg);
+            return key;
         }
     }
 }
@@ -33,7 +37,7 @@ int main(){
     render->Clear(Colors.black);
     render->Println("Welcome to PxttpOS Termainal!");
     while(true){
-        printf(">");
-        char *input = getInput();
+        //printf(">");
+        HandleKeyboard(getInput());
     }
 }

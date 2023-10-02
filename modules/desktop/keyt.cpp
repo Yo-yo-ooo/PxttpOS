@@ -62,7 +62,7 @@ void HandleKeyboard(uint8_t Scancode){
     char ASCII = Translate(Scancode, IsLeftShiftPressed | IsRightShiftPressed);
 
     if (ASCII != 0){
-        GlobalRenderer->PutChar(ASCII);
+        render->putChar(ASCII);
     }
 
 }
