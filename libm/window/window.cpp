@@ -35,9 +35,22 @@ Window::Window(int x, int y, int width, int height, const char* title)
     Updates = new List<WindowUpdate>();
     Buffer = NULL;
 
+    backbuffer = NULL;
+
     ID = RND::RandomInt();
 
     ResizeFramebuffer(width, height);
+}
+
+void Window::BlitBackbuffer(){
+    uint32_t* fb = (uint32_t*)Buffer->BaseAddress;
+    uint32_t* bbe = (uint32_t*)((uint64_t)backbuffer->BaseAddress + backbuffer->BufferSize);
+    for (uint32_t* bb = (uint32_t*)backbuffer->BaseAddress; bb < bbe;)
+    {
+        *fb = *bb;
+        fb++;
+        bb++;
+    }
 }
 
 

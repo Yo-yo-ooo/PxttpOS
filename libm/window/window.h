@@ -103,10 +103,12 @@ class Window
     List<WindowUpdate>* Updates;
 
     Framebuffer* Buffer;
+    Framebuffer* backbuffer;
 
     Window(int x, int y, int width, int height, const char* title);
 
     void ResizeFramebuffer(int width, int height);
+    void BlitBackbuffer();
 
     void _CheckDimensionChange();
 
