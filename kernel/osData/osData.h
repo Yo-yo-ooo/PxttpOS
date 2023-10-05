@@ -4,6 +4,10 @@
 #include "../kernelStuff/stuff/stackmacro.h"
 // #include "../kernelStuff/stuff/kernelUtil.h"
 
+typedef struct SmpData{
+    uint64_t cores;
+    bool IsDoSmpInit : 1;
+}SmpData;
 
 // #include "../WindowStuff/WindowManager/windowManager.h"
 
@@ -69,7 +73,7 @@ struct OSData
 
 //     GenericDisplay* fallbackOriginalDisplay = NULL;
 //     GenericDisplay* currentDisplay = NULL;
-
+    SmpData smpData;
 };
 
 
