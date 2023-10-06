@@ -12,3 +12,6 @@
 - GUI（Work）
 - Syscall
 - ......
+
+## build
+make ccar
