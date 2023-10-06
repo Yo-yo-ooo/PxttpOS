@@ -2,6 +2,7 @@
 #include "cpuid.h"
 
 #include "../../paging/paging.h"
+#include "../../kernelStuff/IO/IO.h"
 /** returns a 'true' value if the CPU supports APIC
  *  and if the local APIC hasn't been disabled in MSRs
  *  note that this requires CPUID to be supported.
@@ -46,5 +47,5 @@ void enable_apic() {
     cpu_set_apic_base(cpu_get_apic_base());
  
     /* Set the Spurious Interrupt Vector Register bit 8 to start receiving interrupts */
-    //write_reg(0xF0, ReadRegister(0xF0) | 0x100);
+    write_reg(0xF0, ReadRegister(0xF0) | 0x100);
 }

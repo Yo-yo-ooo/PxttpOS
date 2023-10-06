@@ -49,3 +49,7 @@ unsigned long IOAPIC_globalInterruptBase();
 uint32_t CpuReadIoApic(void *ioapicaddr, uint32_t reg);
 void CpuWriteIoApic(void *ioapicaddr, uint32_t reg, uint32_t value);
  
+void enable_apic();
+uintptr_t cpu_get_apic_base();
+void cpu_set_apic_base(uintptr_t apic);
+bool check_apic();
