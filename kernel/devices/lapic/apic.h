@@ -9,6 +9,21 @@
 #define IOAPICVER         0x01
 #define IOAPICARB         0x02
 #define IOAPICREDTBL(n)   (0x10 + 2 * n) // lower-32bits (add +1 for upper 32-bits)
+#define APIC_OFFSET(val) (val >> 2)
+#define APIC_LVT_TIMER_MODE_PERIODIC (1 << 17)
+#define APIC_REGISTER_APICID        APIC_OFFSET(0x20)
+#define APIC_REGISTER_EOI           APIC_OFFSET(0x0B0)
+#define APIC_REGISTER_SPURIOUS      APIC_OFFSET(0x0F0)
+#define APIC_REGISTER_LVT_TIMER     APIC_OFFSET(0x320)
+#define APIC_REGISTER_TIMER_INITCNT APIC_OFFSET(0x380)
+#define APIC_REGISTER_TIMER_CURRCNT APIC_OFFSET(0x390)
+#define APIC_REGISTER_TIMER_DIV     APIC_OFFSET(0x3E0)
+#define APIC_LVT_INT_MASKED 0x10000UL
+
+#define APIC_DISABLE                0x10000
+#define APIC_EOI_ACK                0
+#define APIC_SELECT_TMR_PERIODIC    0x20000
+#define APIC_SPURIOUS_ENABLE        0x100
 
 union RedirectionEntry
 {

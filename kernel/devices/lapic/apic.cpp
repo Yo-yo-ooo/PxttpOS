@@ -49,3 +49,4 @@ void enable_apic() {
     /* Set the Spurious Interrupt Vector Register bit 8 to start receiving interrupts */
     write_reg(0xF0, ReadRegister(0xF0) | 0x100);
 }
+

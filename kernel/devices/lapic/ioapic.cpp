@@ -1,6 +1,7 @@
 #include "apic.h"
 #include "../../paging/PageFrameAllocator.h"
 #include "../../paging/PageTableManager.h"
+#include "../pit/pit.h"
 
 unsigned long physRegs;
  
@@ -128,4 +129,20 @@ void CpuWriteIoApic(void *ioapicaddr, uint32_t reg, uint32_t value)
     uint32_t volatile *ioapic = (uint32_t volatile *)ioapicaddr;
     ioapic[0] = (reg & 0xff);
     ioapic[4] = value;
+}
+
+void start_apic_timer(){
+    write(APIC_REGISTER_TIMER_DIV,0x3);
+    PIT::Sleep(10);
+    write(APIC_REGISTER_TIMER_INITCNT, 0xFFFFFFFF);
+
+    write(APIC_REGISTER_LVT_TIMER, APIC_LVT_INT_MASKED);
+ 
+    // Now we know how often the APIC timer has ticked in 10ms
+    uint32_t ticksIn10ms = 0xFFFFFFFF - read(APIC_REGISTER_TIMER_CURRCNT);
+
+    // Start timer as periodic on IRQ 0, divider 16, with the number of ticks we counted
+    write(APIC_REGISTER_LVT_TIMER, 32 | APIC_LVT_TIMER_MODE_PERIODIC);
+    write(APIC_REGISTER_TIMER_DIV, 0x3);
+    write(APIC_REGISTER_TIMER_INITCNT, ticksIn10ms);
 }
