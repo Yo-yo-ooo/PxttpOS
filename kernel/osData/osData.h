@@ -6,6 +6,7 @@
 
 typedef struct SmpData{
     uint64_t cores;
+    uint32_t ApicId;
     bool IsDoSmpInit : 1;
 }SmpData;
 

@@ -42,6 +42,7 @@ void boot(void* _bootInfo)
         osData.smpData.IsDoSmpInit = false;
     }else{
         osData.smpData.cores = bootInfo->smpData->cpu_count;
+        osData.smpData.ApicId = bootInfo->smpData->bsp_lapic_id;
         osData.smpData.IsDoSmpInit = true;
     }
 
