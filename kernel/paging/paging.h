@@ -58,3 +58,6 @@ struct PageTable
 void* GetPhysAddr(void *virtualaddr);
 
 void doMagicWithPAT();
+
+void cpuSetMSR(uint32_t msr, uint32_t lo, uint32_t hi);
+void cpuGetMSR(uint32_t msr, uint32_t *lo, uint32_t *hi);
