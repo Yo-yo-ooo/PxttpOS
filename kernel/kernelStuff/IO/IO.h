@@ -52,12 +52,3 @@ inline void wrmsr(uint64_t msr, uint64_t value)
     );
 }
 
-inline void write_reg(uint32_t reg ,uint32_t value){
-    *(volatile uint32_t*)reg = value;
-}
-
-inline uint32_t ReadRegister(uint32_t registerNumber) {
-    uint32_t value;
-    asm volatile("mov %0, %1" : "=r" (value) : "r" (registerNumber));
-    return value;
-}

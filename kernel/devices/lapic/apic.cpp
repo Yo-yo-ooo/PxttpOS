@@ -3,6 +3,9 @@
 
 #include "../../paging/paging.h"
 #include "../../kernelStuff/IO/IO.h"
+
+unsigned long apic_base;
+
 /** returns a 'true' value if the CPU supports APIC
  *  and if the local APIC hasn't been disabled in MSRs
  *  note that this requires CPUID to be supported.
@@ -40,9 +43,19 @@ uintptr_t cpu_get_apic_base() {
 #endif
 }
  
+inline void write_reg(uint32_t reg ,uint32_t value){
+    *(volatile uint32_t*)(apic_base + reg) = value;
+}
+
+inline uint32_t ReadRegister(uint32_t registerNumber) {
+    uint32_t value;
+    asm volatile("mov %0, %1" : "=r" (value) : "r" (registerNumber));
+    return value;
+}
+
 void enable_apic() {
     /* Section 11.4.1 of 3rd volume of Intel SDM recommends mapping the base address page as strong uncacheable for correct APIC operation. */
- 
+    apic_base = (unsigned long)GlobalAllocator->RequestPage();
     /* Hardware enable the Local APIC if it wasn't enabled */
     cpu_set_apic_base(cpu_get_apic_base());
  

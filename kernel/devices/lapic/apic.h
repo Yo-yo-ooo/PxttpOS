@@ -68,3 +68,19 @@ void enable_apic();
 uintptr_t cpu_get_apic_base();
 void cpu_set_apic_base(uintptr_t apic);
 bool check_apic();
+
+inline void write_ioapic_register(const uintptr_t apic_base, const uint8_t offset, const uint32_t val) 
+{
+    /* tell IOREGSEL where we want to write to */
+    *(volatile uint32_t*)(apic_base) = offset;
+    /* write the value to IOWIN */
+    *(volatile uint32_t*)(apic_base + 0x10) = val; 
+}
+ 
+inline uint32_t read_ioapic_register(const uintptr_t apic_base, const uint8_t offset)
+{
+    /* tell IOREGSEL where we want to read from */
+    *(volatile uint32_t*)(apic_base) = offset;
+    /* return the data from IOWIN */
+    return *(volatile uint32_t*)(apic_base + 0x10);
+}
