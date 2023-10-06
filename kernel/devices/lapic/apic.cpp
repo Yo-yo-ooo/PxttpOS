@@ -2,6 +2,7 @@
 #include "cpuid.h"
 
 #include "../../paging/paging.h"
+#include "../../paging/PageFrameAllocator.h"
 #include "../../kernelStuff/IO/IO.h"
 
 unsigned long apic_base;
@@ -48,9 +49,7 @@ inline void write_reg(uint32_t reg ,uint32_t value){
 }
 
 inline uint32_t ReadRegister(uint32_t registerNumber) {
-    uint32_t value;
-    asm volatile("mov %0, %1" : "=r" (value) : "r" (registerNumber));
-    return value;
+    return *(volatile uint32_t*)(apic_base + registerNumber);
 }
 
 void enable_apic() {
