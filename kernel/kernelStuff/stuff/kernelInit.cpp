@@ -3,6 +3,7 @@
 #include <libm/cstr.h>
 #include <libm/cstrTools.h>
 #include "../../devices/serial/serial.h"
+#include "../../devices/lapic/apic.h"
 //#include "../../devices/gdt/gdt.h"
 #include "../../devices/gdt/gdt2.h"
 #include "../../devices/rtc/rtc.h"
@@ -167,6 +168,10 @@ void InitKernel(BootInfo* bootInfo)
 
     PrintMsg("> Preparing ACPI");
     PrepareACPI(bootInfo);
+    StepDone();
+
+    PrintMsg("> Preparing APIC");
+    enable_apic();
     StepDone();
 //     PrintMsg("> Clearing Input Buffer (2/2)");
 //     {

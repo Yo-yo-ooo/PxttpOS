@@ -84,3 +84,5 @@ inline uint32_t read_ioapic_register(const uintptr_t apic_base, const uint8_t of
     /* return the data from IOWIN */
     return *(volatile uint32_t*)(apic_base + 0x10);
 }
+
+void enable_apic();
