@@ -11,7 +11,8 @@
 - 内存管理
 - GUI（Work）
 - Syscall
-- ......
+- APIC/IOAPIC
+- ...
 
 ## build
 make ccar
