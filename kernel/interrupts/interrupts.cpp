@@ -298,14 +298,14 @@ void TempPitRoutine(interrupt_frame* frame)
         _pitCount = 0;
         
         Point tempPoint = GlobalRenderer->CursorPosition;
-        /* GlobalRenderer->CursorPosition.x = 0;
+        GlobalRenderer->CursorPosition.x = 0;
         GlobalRenderer->CursorPosition.y = GlobalRenderer->framebuffer->Height - 16;
 
         GlobalRenderer->Clear(0, GlobalRenderer->CursorPosition.y, GlobalRenderer->framebuffer->Width - 1, GlobalRenderer->CursorPosition.y + 15, Colors.black);
- */
+
         uint32_t currCol = 0;
         
-        /* currCol = Colors.orange;
+        currCol = Colors.orange;
         GlobalRenderer->Print("DATE: ", currCol);
         GlobalRenderer->Print("{}.", to_string((int)RTC::Day), currCol);
         GlobalRenderer->Print("{}.", to_string((int)RTC::Month), currCol);
@@ -333,11 +333,11 @@ void TempPitRoutine(interrupt_frame* frame)
         GlobalRenderer->Print("  - ", Colors.white);
 
         currCol = Colors.lime;
-        GlobalRenderer->Print("Runnings Tasks: ", currCol); */
+        GlobalRenderer->Print("Runnings Tasks: ", currCol);
         if (!Scheduler::osTasks.IsLocked())
         {
             Scheduler::osTasks.Lock();
-            //GlobalRenderer->Print("{}", to_string(Scheduler::osTasks.obj->GetCount()), currCol);
+            GlobalRenderer->Print("{}", to_string(Scheduler::osTasks.obj->GetCount()), currCol);
             Scheduler::osTasks.Unlock();
         }
         //GlobalRenderer->Print("  - ", Colors.white);
@@ -702,7 +702,7 @@ void MapMemoryOfCurrentTask(osTask* task)
     }
 }
 
-bool SendMessageToTask(GenericMessagePacket* oldPacket, uint64_t targetPid)
+bool SendMessageToTask(GenericMessagePacket* oldPacket, uint64_t targetPid, uint64_t sourcePid)
 {
     if (oldPacket == NULL)
         return false;
@@ -841,7 +841,7 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
             );
             
             //Serial::Writelnf("INT> Sending key packet to desktop task");
-            SendMessageToTask(packet, Scheduler::DesktopTask->pid);
+            SendMessageToTask(packet, Scheduler::DesktopTask->pid, 1);
             
             packet->Free();
             _Free(packet);
@@ -867,7 +867,7 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
             );
             
             //Serial::Writelnf("INT> Sending mouse packet to desktop task");
-            SendMessageToTask(packet2, Scheduler::DesktopTask->pid);
+            SendMessageToTask(packet2, Scheduler::DesktopTask->pid, 1);
             
             packet2->Free();
             _Free(packet2);
@@ -1124,7 +1124,7 @@ void Syscall_handler(interrupt_frame* frame)
     else if (syscall == SYSCALL_YIELD)
     {
         if (Scheduler::CurrentRunningTask != Scheduler::NothingDoerTask)
-        Serial::Writelnf("> YIELDING TASK %X", Scheduler::CurrentRunningTask);
+            ;//Serial::Writelnf("> YIELDING TASK %X", Scheduler::CurrentRunningTask);
         Scheduler::CurrentRunningTask->justYielded = true;
 
         Scheduler::SchedulerInterrupt(frame);
@@ -1155,6 +1155,13 @@ void Syscall_handler(interrupt_frame* frame)
     else if (syscall == SYSCALL_ENV_GET_TIME_MS)
     {
         frame->rax = PIT::TimeSinceBootMS();
+    }
+    else if (syscall == SYSCALL_ENV_GET_DESKTOP_PID)
+    {
+        if (Scheduler::DesktopTask != NULL)
+            frame->rax = Scheduler::DesktopTask->pid;
+        else
+            frame->rax = 0;
     }
     else if (syscall == SYSCALL_GET_PID)
     {
@@ -1243,6 +1250,7 @@ void Syscall_handler(interrupt_frame* frame)
                 if (allowSend)
                 {
                     GenericMessagePacket* newPacket = oldPacket->Copy();
+                    newPacket->FromPID = task->pid;
                     otherTask->messages->Enqueue(newPacket);
                     frame->rax = 1;
                 }

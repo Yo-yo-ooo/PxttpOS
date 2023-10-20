@@ -6,34 +6,6 @@
 //#include "../cStdLib/cstrTools.h"
 //#include "../memory/heap.h"
 
-void TempRenderer::ClearChar(){
-
-    if (CursorPosition.x == 0){
-        CursorPosition.x = framebuffer->Width;
-        CursorPosition.y -= 16;
-        if (CursorPosition.y < 0) CursorPosition.y = 0;
-    }
-
-    unsigned int XOffset = CursorPosition.x;
-    unsigned int YOffset = CursorPosition.y;
-
-    unsigned int* PixelPtr = (unsigned int*)framebuffer->BaseAddress;
-    for (unsigned long Y = YOffset; Y < YOffset + 16; Y++){
-        for (unsigned long X = XOffset - 8; X < XOffset; X++){
-                    *(unsigned int*)(PixelPtr + X + (Y * framebuffer->PixelsPerScanLine)) = Colors.black;
-        }
-    }
-
-    CursorPosition.x -= 8;
-
-    if (CursorPosition.x < 0){
-        CursorPosition.x = framebuffer->Width;
-        CursorPosition.y -= 16;
-        if (CursorPosition.y < 0) CursorPosition.y = 0;
-    }
-
-}
-
 
 void TempRenderer::putChar(char chr, int64_t xoff, int64_t yoff, uint32_t fg, uint32_t bg)
 {

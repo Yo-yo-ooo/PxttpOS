@@ -45,7 +45,6 @@ class TempRenderer
         void ClearDotted(uint32_t col, bool resetCursor);
         void ClearDotted(uint32_t col);
         void ClearButDont();
-        void ClearChar();
 
         void Cls();
         

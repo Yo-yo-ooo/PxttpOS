@@ -37,15 +37,6 @@ void boot(void* _bootInfo)
     osData.booting = true;
     osData.verboseBoot = true;
 
-    if(bootInfo->smpData->cpu_count == 1){
-        osData.smpData.cores = 1;
-        osData.smpData.IsDoSmpInit = false;
-    }else{
-        osData.smpData.cores = bootInfo->smpData->cpu_count;
-        osData.smpData.ApicId = bootInfo->smpData->bsp_lapic_id;
-        osData.smpData.IsDoSmpInit = true;
-    }
-
     osData.mouseSensitivity = 100;
 
     PrintAll = true;

@@ -7,6 +7,7 @@
 #include <libm/msgPackets/keyPacket/keyPacket.h>
 #include <libm/msgPackets/windowBufferUpdatePacket/windowBufferUpdatePacket.h>
 #include <libm/queue/queue_windowBufferUpdate.h>
+#include <libm/msgPackets/windowObjPacket/windowObjPacket.h>
 
 TempRenderer* actualScreenRenderer;
 Framebuffer* actualScreenFramebuffer;
@@ -83,7 +84,7 @@ void InitStuff()
     updateFramePackets = new Queue<WindowBufferUpdatePacket*>(5);
 }
 
-void PrintFPS(int fps, int frameTime, int breakTime, int totalTime)
+void PrintFPS(int fps, int aFps, int frameTime, int breakTime, int totalTime)
 {
     actualScreenRenderer->CursorPosition.x = 0;
     actualScreenRenderer->CursorPosition.y = actualScreenFramebuffer->Height - 64;
@@ -97,7 +98,8 @@ void PrintFPS(int fps, int frameTime, int breakTime, int totalTime)
         Colors.black
     );
 
-    actualScreenRenderer->Print("FPS: {}", to_string(fps), Colors.yellow);
+    actualScreenRenderer->Print("FPS: {}", to_string(aFps), Colors.yellow);
+    actualScreenRenderer->Print(" ({})", to_string(fps), Colors.yellow);
     actualScreenRenderer->Print(" ({} /", to_string(frameTime), Colors.yellow);
     actualScreenRenderer->Print(" {} /", to_string(breakTime), Colors.yellow);
     actualScreenRenderer->Print(" {})", to_string((totalTime)), Colors.yellow);
@@ -128,9 +130,8 @@ int main()
 
     InitStuff();
 
-    Window* window = new Window(50, 30, 200, 200, "Test Window 1");
+    Window* window = new Window(50, 30, 200, 200, "Test Window 1", RND::RandomInt(), getPid());
     windows->Add(window);
-
     _memset(window->Buffer->BaseAddress, 0x80, window->Buffer->BufferSize);
 
     {
@@ -184,7 +185,8 @@ int main()
 
             frameTime += endTime - startTime;
 
-            programWait(10);
+            //programWait(10);
+            programYield();
 
             uint64_t endTime2 = envGetTimeMs();
 
@@ -199,13 +201,20 @@ int main()
 
         if (frameTime == 0)
             frameTime = 1;
+        if (totalTime == 0)
+            totalTime = 1;
         int fps = (int)((frameCount * 1000) / frameTime);
+        int aFps = (int)((frameCount * 1000) / totalTime);
 
         frameTime = (frameTime * 1000) / frameCount;
         breakTime = (breakTime * 1000) / frameCount;
         totalTime = (totalTime * 1000) / frameCount;
 
-        PrintFPS(fps, frameTime, breakTime, totalTime);
+        PrintFPS(fps, aFps, frameTime, breakTime, totalTime);
+
+        // Check for mem leaks
+        // serialPrint("B> Used Heap Count: ");
+        // serialPrintLn(to_string(Heap::GlobalHeapManager->_usedHeapCount));
     }
 
     return 0;
@@ -271,12 +280,178 @@ void DrawFrame()
 
             updateFramePackets->Enqueue(windowBufferUpdatePacket);
         }
+        else if (msg->Type == MessagePacketType::WINDOW_CREATE_EVENT && msg->Size == 0)
+        {
+            uint64_t pidFrom = msg->FromPID;
+            uint64_t newWindowId = RND::RandomInt();
+
+            Window* window = new Window(350, 30, 400, 200, "Created Test Window", newWindowId, pidFrom);
+            windows->Add(window);
+            _memset(window->Buffer->BaseAddress, 0x20, window->Buffer->BufferSize);
+
+            //Clear(true);
+            //RenderWindows();
+            ActuallyRenderWindow(window);
+
+            if (pidFrom != getPid())
+            {
+                serialPrintLn("Sending Window ID");
+                serialPrint("Win ID: ");
+                serialPrintLn(ConvertHexToString(newWindowId));
+                serialPrint("From PID: ");
+                serialPrintLn(to_string(getPid()));
+                serialPrint("To PID: ");
+                serialPrintLn(to_string(pidFrom));
+                GenericMessagePacket* response = new GenericMessagePacket(MessagePacketType::WINDOW_CREATE_EVENT, (uint8_t*)&newWindowId, 8);
+                msgSendMessage(response, pidFrom);
+                response->Free();
+                _Free(response);
+            }
+        }
+        else if (msg->Type == MessagePacketType::WINDOW_GET_EVENT)
+        {
+            WindowObjectPacket* winObjPacketFrom = new WindowObjectPacket(msg);
+            Window* fromWind = winObjPacketFrom->PartialWindow;
+            uint64_t winId = 0;
+            if (fromWind != NULL)
+            {
+                winId = fromWind->ID;   
+            }
+
+            // serialPrint("> WIN ID: ");
+            // serialPrintLn(ConvertHexToString(winId));
+
+            if (!winObjPacketFrom->Set)
+            {
+                Window* win = NULL;
+                for (int i = 0; i < windows->GetCount(); i++)
+                {
+                    Window* tWin = windows->ElementAt(i);
+                    if (tWin->ID == winId)
+                    {
+                        win = tWin;
+                        break;
+                    }
+                }
+
+                if (win != NULL)
+                {
+                    // serialPrintLn("> WIN GET EVENT");
+                    WindowObjectPacket* winObjPacketTo = new WindowObjectPacket(win, false);
+                    GenericMessagePacket* sendMsg = winObjPacketTo->ToGenericMessagePacket();
+
+                    // serialPrintLn("> Sending Window");
+                    msgSendMessage(sendMsg, msg->FromPID);
+                    
+                    sendMsg->Free();
+                    _Free(sendMsg);
+
+                    winObjPacketTo->Free();
+                    _Free(winObjPacketTo);
+                }
+                else
+                {
+                    // serialPrintLn("> Window not found");
+                }
+            }
+
+            if (fromWind != NULL)
+            {
+                fromWind->Free();
+                _Free(fromWind);
+            }
+
+            winObjPacketFrom->Free();
+            _Free(winObjPacketFrom);
+        }
+        else if (msg->Type == MessagePacketType::WINDOW_SET_EVENT)
+        {
+            WindowObjectPacket* winObjPacketFrom = new WindowObjectPacket(msg);
+            Window* fromWind = winObjPacketFrom->PartialWindow;
+            uint64_t winId = 0;
+            if (fromWind != NULL)
+            {
+                winId = fromWind->ID;   
+            }
+
+            // serialPrint("> WIN ID: ");
+            // serialPrintLn(ConvertHexToString(winId));
+
+            if (winObjPacketFrom->Set)
+            {
+                Window* win = NULL;
+                for (int i = 0; i < windows->GetCount(); i++)
+                {
+                    Window* tWin = windows->ElementAt(i);
+                    if (tWin->ID == winId)
+                    {
+                        win = tWin;
+                        break;
+                    }
+                }
+
+                if (win != NULL)
+                {
+                    // serialPrintLn("> WIN SET EVENT");
+                    win->UpdateUsingPartialWindow(fromWind, false);
+                    win->UpdateCheck();
+                }
+                else
+                {
+                    // serialPrintLn("> Window not found");
+                }
+            }
+
+            if (fromWind != NULL)
+            {
+                fromWind->Free();
+                _Free(fromWind);
+            }
+
+            winObjPacketFrom->Free();
+            _Free(winObjPacketFrom);
+        }
 
         msg->Free();
         _Free(msg);
     }
 
     doUpdate |= updateFramePackets->GetCount() > 0;
+
+    // check for window updates
+    for (int i = 0; i < windows->GetCount(); i++)
+    {
+        Window* window = windows->ElementAt(i);
+        window->UpdateCheck();
+
+        if (window->Updates->GetCount() > 0)
+        {
+            doUpdate = true;
+
+            for (int j = 0; j < window->Updates->GetCount(); j++)
+            {
+                WindowUpdate update = window->Updates->ElementAt(j);
+
+                UpdatePointerRect(
+                    window->Dimensions.x + update.x1, 
+                    window->Dimensions.y + update.y1, 
+                    
+                    window->Dimensions.x + update.x2, 
+                    window->Dimensions.y + update.y2
+                );
+
+                RenderActualSquare(
+                    window->Dimensions.x + update.x1, 
+                    window->Dimensions.y + update.y1, 
+                    
+                    window->Dimensions.x + update.x2, 
+                    window->Dimensions.y + update.y2
+                );
+            }
+
+            window->Updates->Clear();
+        }
+    }
 
     //Taskbar::RenderTaskbar();
 

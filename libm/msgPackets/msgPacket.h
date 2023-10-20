@@ -11,8 +11,10 @@ enum MessagePacketType : uint8_t
     GENERIC_MESSAGE,
     KEY_EVENT,
     MOUSE_EVENT,
-    WINDOW_EVENT,
-    WINDOW_BUFFER_EVENT
+    WINDOW_BUFFER_EVENT,
+    WINDOW_CREATE_EVENT,
+    WINDOW_GET_EVENT,
+    WINDOW_SET_EVENT
 };
 
 class GenericMessagePacket
@@ -21,6 +23,7 @@ public:
     MessagePacketType Type;
     uint8_t* Data;
     uint64_t Size;
+    uint64_t FromPID;
 
     GenericMessagePacket(MessagePacketType type, uint8_t* data, uint64_t size);
     GenericMessagePacket* Copy();

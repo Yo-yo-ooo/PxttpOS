@@ -6,7 +6,35 @@
 #include <libm/rendering/Cols.h>
 #include <libm/rnd/rnd.h>
 
-Window::Window(int x, int y, int width, int height, const char* title)
+Window::Window()
+{
+    Title = NULL;
+    OldTitle = NULL;
+
+    Dimensions = WindowDimension();
+    OldDimensions = Dimensions;
+
+    ShowTitleBar = true;
+    ShowBorder = true;
+    Hidden = false;
+    Moveable = true;
+    Resizeable = true;
+    Closeable = true;
+
+    DefaultBorderColor = Colors.dgray;
+    SelectedBorderColor = Colors.bgreen;
+    DefaultTitleColor = Colors.gray;
+    SelectedTitleColor = Colors.white;
+    DefaultTitleBackgroundColor = Colors.dgray;
+
+    Updates = NULL;
+    Buffer = NULL;
+
+    ID = 0;
+    PID = 0;
+}
+
+Window::Window(int x, int y, int width, int height, const char* title, uint64_t id, uint64_t pid)
 {
     Title = StrCopy(title);
     OldTitle = StrCopy(Title);
@@ -35,22 +63,10 @@ Window::Window(int x, int y, int width, int height, const char* title)
     Updates = new List<WindowUpdate>();
     Buffer = NULL;
 
-    backbuffer = NULL;
-
-    ID = RND::RandomInt();
+    ID = id;
+    PID = pid;
 
     ResizeFramebuffer(width, height);
-}
-
-void Window::BlitBackbuffer(){
-    uint32_t* fb = (uint32_t*)Buffer->BaseAddress;
-    uint32_t* bbe = (uint32_t*)((uint64_t)backbuffer->BaseAddress + backbuffer->BufferSize);
-    for (uint32_t* bb = (uint32_t*)backbuffer->BaseAddress; bb < bbe;)
-    {
-        *fb = *bb;
-        fb++;
-        bb++;
-    }
 }
 
 
@@ -94,12 +110,65 @@ void Window::_CheckDimensionChange()
 
 void Window::_CheckTitleChange()
 {
+    if (!StrEquals(Title, OldTitle))
+    {
+        _Free(OldTitle);
+        OldTitle = StrCopy(Title);
 
+        Updates->Add(WindowUpdate(0, -23, Dimensions.width, 1));
+    }
 }
 
 void Window::UpdateCheck()
 {
+    _CheckTitleChange();
+}
 
+void Window::UpdateUsingPartialWindow(Window* window, bool updateIdAndPid)
+{
+    // TODO apply the changes
+
+    // Title
+    if (window->Title != NULL)
+    {
+        _Free((void*)Title);
+        Title = StrCopy(window->Title);
+    }
+
+    // Dimensions
+    Dimensions = window->Dimensions;
+
+    // ShowTitleBar
+    ShowTitleBar = window->ShowTitleBar;
+    // ShowBorder
+    ShowBorder = window->ShowBorder;
+    // Hidden
+    Hidden = window->Hidden;
+    // Moveable
+    Moveable = window->Moveable;
+    // Resizeable
+    Resizeable = window->Resizeable;
+    // Closeable
+    Closeable = window->Closeable;
+
+    // DefaultBorderColor
+    DefaultBorderColor = window->DefaultBorderColor;
+    // SelectedBorderColor
+    SelectedBorderColor = window->SelectedBorderColor;
+    // DefaultTitleColor
+    DefaultTitleColor = window->DefaultTitleColor;
+    // SelectedTitleColor
+    SelectedTitleColor = window->SelectedTitleColor;
+    // DefaultTitleBackgroundColor
+    DefaultTitleBackgroundColor = window->DefaultTitleBackgroundColor;
+
+    if (updateIdAndPid)
+    {
+        // ID
+        ID = window->ID;
+        // PID
+        PID = window->PID;
+    }
 }
 
 // void Window::DrawToFramebuffer(Framebuffer* framebuffer, Framebuffer* backbuffer, WindowUpdate update, int x, int y)

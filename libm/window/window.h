@@ -99,22 +99,24 @@ class Window
     uint32_t DefaultTitleBackgroundColor;
 
     uint64_t ID;
+    uint64_t PID;
     
     List<WindowUpdate>* Updates;
 
     Framebuffer* Buffer;
-    Framebuffer* backbuffer;
 
-    Window(int x, int y, int width, int height, const char* title);
+    Window();
+    Window(int x, int y, int width, int height, const char* title, uint64_t id, uint64_t pid);
+
+    void UpdateUsingPartialWindow(Window* window, bool updateIdAndPid);
 
     void ResizeFramebuffer(int width, int height);
-    void BlitBackbuffer();
 
     void _CheckDimensionChange();
 
     void _CheckTitleChange();
 
     void UpdateCheck();
-
+    
     void Free();
 };
