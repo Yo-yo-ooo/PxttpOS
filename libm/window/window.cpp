@@ -27,6 +27,19 @@ Window::Window()
     SelectedTitleColor = Colors.white;
     DefaultTitleBackgroundColor = Colors.dgray;
 
+
+    OldShowTitleBar = ShowTitleBar;
+    OldShowBorder = ShowBorder;
+    OldHidden = Hidden;
+
+    CurrentBorderColor = DefaultBorderColor;
+    CurrentTitleColor = DefaultTitleColor;
+    CurrentTitleBackgroundColor = DefaultTitleBackgroundColor;
+
+    OldBorderColor = CurrentBorderColor;
+    OldTitleColor = CurrentTitleColor;
+    OldTitleBackgroundColor = CurrentTitleBackgroundColor;
+
     Updates = NULL;
     Buffer = NULL;
 
@@ -60,6 +73,19 @@ Window::Window(int x, int y, int width, int height, const char* title, uint64_t 
     SelectedTitleColor = Colors.white;
     DefaultTitleBackgroundColor = Colors.dgray;
 
+    OldShowTitleBar = ShowTitleBar;
+    OldShowBorder = ShowBorder;
+    OldHidden = Hidden;
+
+    CurrentBorderColor = DefaultBorderColor;
+    CurrentTitleColor = DefaultTitleColor;
+    CurrentTitleBackgroundColor = DefaultTitleBackgroundColor;
+
+    OldBorderColor = CurrentBorderColor;
+    OldTitleColor = CurrentTitleColor;
+    OldTitleBackgroundColor = CurrentTitleBackgroundColor;
+
+    
     Updates = new List<WindowUpdate>();
     Buffer = NULL;
 
@@ -96,8 +122,8 @@ void Window::ResizeFramebuffer(int width, int height)
             for (int x = 0; x < minX; x++)
                 newData[x + y * Buffer->PixelsPerScanLine] = oldData[x + y * oldBuffer->PixelsPerScanLine];
 
-        _Free(Buffer->BaseAddress);
-        _Free(Buffer);
+        _Free(oldBuffer->BaseAddress);
+        _Free(oldBuffer);
     }
 
     Updates->Add(WindowUpdate(0, 0, width, height));
@@ -105,7 +131,67 @@ void Window::ResizeFramebuffer(int width, int height)
 
 void Window::_CheckDimensionChange()
 {
-    
+    if (Dimensions.x != OldDimensions.x ||
+        Dimensions.y != OldDimensions.y)
+    {
+        int x1 = OldDimensions.x;
+        int y1 = OldDimensions.y;
+
+        int x2 = OldDimensions.x + OldDimensions.width;
+        int y2 = OldDimensions.y + OldDimensions.height;
+
+        int x3 = Dimensions.x;
+        int y3 = Dimensions.y;
+
+        int x4 = Dimensions.x + Dimensions.width;
+        int y4 = Dimensions.y + Dimensions.height;
+
+
+        // Apparently virtual box crashes here because of a page fault
+        // with some code commented out its either a page fault due to an instruction fetch
+        // without code commented out its apparently due to error code 6 -> Some reserved bit was set to 1 (in userspace)
+        int minX = min(x1, x3);
+        int minY = min(y1, y3);
+
+        int maxX = max(x2, x4);
+        int maxY = max(y2, y4);
+
+        minX -= 1;
+        minY -= 23;
+        maxX += 1;
+        maxY += 1;
+
+        if (minX < 0)
+            minX = 0;
+        if (minY < 0)
+            minY = 0;
+
+        int width = maxX - minX + 1;
+        int height = maxY - minY + 1;
+
+        if (Dimensions.width != OldDimensions.width ||
+            Dimensions.height != OldDimensions.height)
+        {
+            ResizeFramebuffer(Dimensions.width, Dimensions.height);
+            OldDimensions.width = Dimensions.width;
+            OldDimensions.height = Dimensions.height;
+        }
+
+        Updates->Clear();
+        Updates->Add(WindowUpdate(minX - Dimensions.x, minY - Dimensions.y, width, height, true));
+
+        OldDimensions.x = Dimensions.x;
+        OldDimensions.y = Dimensions.y;
+    }
+
+
+    if (Dimensions.width != OldDimensions.width ||
+        Dimensions.height != OldDimensions.height)
+    {
+        ResizeFramebuffer(Dimensions.width, Dimensions.height);
+        OldDimensions.width = Dimensions.width;
+        OldDimensions.height = Dimensions.height;
+    }
 }
 
 void Window::_CheckTitleChange()
@@ -115,13 +201,80 @@ void Window::_CheckTitleChange()
         _Free(OldTitle);
         OldTitle = StrCopy(Title);
 
-        Updates->Add(WindowUpdate(0, -23, Dimensions.width, 1));
+        Updates->Add(WindowUpdate(0, -23, Dimensions.width, 1, true));
+    }
+}
+
+void Window::_CheckBorderChange()
+{
+    if (CurrentBorderColor != OldBorderColor)
+    {
+        // top
+        Updates->Add(WindowUpdate(0, -23, Dimensions.width, 0, true));
+
+        // left
+        Updates->Add(WindowUpdate(-1, -23, -1, Dimensions.height, true));
+
+        // bottom
+        Updates->Add(WindowUpdate(0, Dimensions.height, Dimensions.width, Dimensions.height, true));
+
+        // right
+        Updates->Add(WindowUpdate(Dimensions.width, -23, Dimensions.width, Dimensions.height, true));
+
+        OldBorderColor = CurrentBorderColor;
+    }
+
+    if (CurrentTitleBackgroundColor != OldTitleBackgroundColor || 
+        CurrentTitleColor != OldTitleColor)
+    {
+        Updates->Add(WindowUpdate(-1, -23, Dimensions.width, 1, true));
+
+        OldTitleBackgroundColor = CurrentTitleBackgroundColor;
+        OldTitleColor = CurrentTitleColor;
+    }
+}
+
+void Window::_CheckVisChange()
+{
+    if (ShowTitleBar != OldShowTitleBar)
+    {
+        Updates->Add(WindowUpdate(-1, -23, Dimensions.width, 0, true));
+        OldShowTitleBar = ShowTitleBar;
+    }
+    if (ShowBorder != OldShowBorder)
+    {
+        // top
+        Updates->Add(WindowUpdate(0, -23, Dimensions.width, 0, true));
+
+        // left
+        Updates->Add(WindowUpdate(-1, -23, -1, Dimensions.height, true));
+
+        // bottom
+        Updates->Add(WindowUpdate(0, Dimensions.height, Dimensions.width, Dimensions.height, true));
+
+        // right
+        Updates->Add(WindowUpdate(Dimensions.width, -23, Dimensions.width, Dimensions.height, true));
+
+        OldShowBorder = ShowBorder;
+    }
+    if (Hidden != OldHidden)
+    {
+        Updates->Clear();
+        Updates->Add(WindowUpdate(-1, -23, Dimensions.width + 1, Dimensions.height + 1, true));
+
+        OldHidden = Hidden;
     }
 }
 
 void Window::UpdateCheck()
 {
+    _CheckBorderChange();
+
     _CheckTitleChange();
+
+    _CheckDimensionChange();
+
+    _CheckVisChange();
 }
 
 void Window::UpdateUsingPartialWindow(Window* window, bool updateIdAndPid)
@@ -169,6 +322,8 @@ void Window::UpdateUsingPartialWindow(Window* window, bool updateIdAndPid)
         // PID
         PID = window->PID;
     }
+
+    UpdateCheck();
 }
 
 // void Window::DrawToFramebuffer(Framebuffer* framebuffer, Framebuffer* backbuffer, WindowUpdate update, int x, int y)

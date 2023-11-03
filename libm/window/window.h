@@ -10,6 +10,7 @@ struct WindowUpdate
     int y1;
     int x2;
     int y2;
+    bool outsideWindow;
 
     WindowUpdate()
     {
@@ -17,6 +18,7 @@ struct WindowUpdate
         y1 = 0; 
         x2 = 0; 
         y2 = 0;
+        outsideWindow = false;
     }
 
     WindowUpdate(int x1, int y1, int x2, int y2)
@@ -25,16 +27,26 @@ struct WindowUpdate
         this->y1 = y1; 
         this->x2 = x2; 
         this->y2 = y2;
+        this->outsideWindow = false;
+    }
+
+    WindowUpdate(int x1, int y1, int x2, int y2, bool outsideWindow)
+    {
+        this->x1 = x1; 
+        this->y1 = y1; 
+        this->x2 = x2; 
+        this->y2 = y2;
+        this->outsideWindow = outsideWindow;
     }
 
     bool operator ==(const WindowUpdate& other)
     {
-        return x1 == other.x1 && y1 == other.y1 && x2 == other.x2 && y2 == other.y2;
+        return x1 == other.x1 && y1 == other.y1 && x2 == other.x2 && y2 == other.y2 && outsideWindow == other.outsideWindow;
     }
 
     bool operator !=(const WindowUpdate& other)
     {
-        return x1 != other.x1 || y1 != other.y1 || x2 != other.x2 || y2 != other.y2;
+        return x1 != other.x1 || y1 != other.y1 || x2 != other.x2 || y2 != other.y2 || outsideWindow != other.outsideWindow;
     }
 };
 
@@ -92,11 +104,23 @@ class Window
     bool Resizeable;
     bool Closeable;
 
+    bool OldShowTitleBar;
+    bool OldShowBorder;
+    bool OldHidden;
+
     uint32_t DefaultBorderColor;
     uint32_t SelectedBorderColor;
     uint32_t DefaultTitleColor;
     uint32_t SelectedTitleColor;
     uint32_t DefaultTitleBackgroundColor;
+
+    uint32_t CurrentBorderColor;
+    uint32_t CurrentTitleColor;
+    uint32_t CurrentTitleBackgroundColor;
+
+    uint32_t OldBorderColor;
+    uint32_t OldTitleColor;
+    uint32_t OldTitleBackgroundColor;
 
     uint64_t ID;
     uint64_t PID;
@@ -115,6 +139,10 @@ class Window
     void _CheckDimensionChange();
 
     void _CheckTitleChange();
+
+    void _CheckBorderChange();
+
+    void _CheckVisChange();
 
     void UpdateCheck();
     

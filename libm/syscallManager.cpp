@@ -37,6 +37,15 @@ uint64_t getPid()
     return pid;
 }
 
+bool pidExists(uint64_t pid)
+{
+    int syscall = SYSCALL_PID_EXISTS;
+    bool exists;
+
+    asm("int $0x31" : "=a"(exists): "a"(syscall), "b"(pid));
+    return exists;
+}
+
 uint64_t envGetDesktopPid()
 {
     int syscall = SYSCALL_ENV_GET_DESKTOP_PID;
@@ -44,6 +53,25 @@ uint64_t envGetDesktopPid()
 
     asm("int $0x31" : "=a"(pid): "a"(syscall));
     return pid;
+}
+
+
+MouseState* envGetMouseState()
+{
+    int syscall = SYSCALL_ENV_GET_MOUSE_STATE;
+    MouseState* state;
+
+    asm("int $0x31" : "=a"(state): "a"(syscall));
+    return state;
+}
+
+bool envGetKeyState(int scancode)
+{
+    int syscall = SYSCALL_ENV_GET_KEY_STATE;
+    bool state;
+
+    asm("int $0x31" : "=a"(state): "a"(syscall), "b"(scancode));
+    return state;
 }
 
 #ifdef _KERNEL_SRC
@@ -66,7 +94,7 @@ void* requestNextPages(int count)
         osTask* task = Scheduler::CurrentRunningTask;
         PageTableManager manager = PageTableManager((PageTable*)task->pageTableContext);
 
-        char* newAddr = (char*)(MEM_AREA_USER_PROGRAM_REQUEST_START + 0x1000 * task->requestedPages->GetCount());
+        char* newAddr = (char*)((uint64_t)task->addrOfVirtPages + 0x1000 * task->requestedPages->GetCount());
         void* resAddr = (void*)newAddr;
 
         for (int i = 0; i < pageCount; i++)
@@ -82,23 +110,6 @@ void* requestNextPages(int count)
 
         Serial::Writelnf("K> Requested next %d pages to %X", pageCount, newAddr);
         return resAddr;
-        
-        // osTask* task = Scheduler::CurrentRunningTask;
-        // if (task == NULL)
-        //     Panic("REQUESTING PAGE BUT TASK IS NULL", true);
-        // void* tempPage = GlobalAllocator->RequestPage();
-        // int count = task->requestedPages->GetCount();
-
-        // task->requestedPages->Add(tempPage);
-        
-        // void* newAddr = (void*)(MEM_AREA_USER_PROGRAM_REQUEST_START + 0x1000 * count);
-        // PageTableManager manager = PageTableManager((PageTable*)task->pageTableContext);
-        // manager.MapMemory(newAddr, (void*)tempPage, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_UserSuper);
-        // GlobalPageTableManager.MapMemory(newAddr, (void*)tempPage, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_UserSuper);
-
-        // Serial::Writelnf("> KERNEL Requested page for task: %X", newAddr);
-
-        // return newAddr;
     #else
         int syscall = SYSCALL_REQUEST_NEXT_PAGES;
         void* page;

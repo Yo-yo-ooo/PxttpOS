@@ -674,33 +674,33 @@ void IRQGenericDriverHandler(int irq, interrupt_frame* frame)
 
 void* currentMappedTask = NULL;
 
-void MapMemoryOfCurrentTask(osTask* task)
-{
-    if (task == NULL)
-        return;
+// void MapMemoryOfCurrentTask(osTask* task)
+// {
+//     if (task == NULL)
+//         return;
     
-    if (task->pageTableContext == NULL)
-        return;
+//     if (task->pageTableContext == NULL)
+//         return;
 
-    if (currentMappedTask == task)
-        return;
-    currentMappedTask = task;
+//     if (currentMappedTask == task)
+//         return;
+//     currentMappedTask = task;
 
-    //GlobalPageTableManager.SwitchPageTable(GlobalPageTableManager.PML4);
+//     //GlobalPageTableManager.SwitchPageTable(GlobalPageTableManager.PML4);
 
-    Serial::Writelnf("INT> Mapping %d pages of task %X", task->requestedPages->GetCount(), (uint64_t)task);
-    //PageTableManager manager = PageTableManager((PageTable*)task->pageTableContext);
+//     Serial::Writelnf("INT> Mapping %d pages of task %X (Start %X)", task->requestedPages->GetCount(), (uint64_t)task, (uint64_t)task->addrOfVirtPages);
+//     // //PageTableManager manager = PageTableManager((PageTable*)task->pageTableContext);
 
-    // we map the requested pages into the global space so we can access em rn
-    for (int i = 0; i < task->requestedPages->GetCount(); i++)
-    {
-        void* realPageAddr = task->requestedPages->ElementAt(i);
-        void* virtPageAddr = (void*)(MEM_AREA_USER_PROGRAM_REQUEST_START + 0x1000 * i);
-        //Serial::Writelnf("    > Mapping %X to %X", (uint64_t)realPageAddr, (uint64_t)virtPageAddr);
-        GlobalPageTableManager.MapMemory(virtPageAddr, realPageAddr, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_UserSuper);
-        //manager.MapMemory(virtPageAddr, (void*)realPageAddr, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_UserSuper);
-    }
-}
+//     // // we map the requested pages into the global space so we can access em rn
+//     // for (int i = 0; i < task->requestedPages->GetCount(); i++)
+//     // {
+//     //     void* realPageAddr = task->requestedPages->ElementAt(i);
+//     //     void* virtPageAddr = (void*)((uint64_t)task->addrOfVirtPages + 0x1000 * i);
+//     //     //Serial::Writelnf("    > Mapping %X to %X", (uint64_t)realPageAddr, (uint64_t)virtPageAddr);
+//     //     GlobalPageTableManager.MapMemory(virtPageAddr, realPageAddr, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_UserSuper);
+//     //     //manager.MapMemory(virtPageAddr, (void*)realPageAddr, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_UserSuper);
+//     // }
+// }
 
 bool SendMessageToTask(GenericMessagePacket* oldPacket, uint64_t targetPid, uint64_t sourcePid)
 {
@@ -806,6 +806,11 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
         }
         Scheduler::CurrentRunningTask = NULL;
 
+        GlobalRenderer->Println();   
+        GlobalRenderer->Println("ERROR CODE: {}", to_string(frame->error_code), Colors.yellow);   
+
+        //while (true);
+
         //Serial::Writelnf("> END OF INT (%X, %X)", frame->cr3, frame->cr0);
         InterruptGoingOn = false;
         Scheduler::SchedulerInterrupt(frame);
@@ -819,7 +824,7 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
 
     if (Scheduler::DesktopTask != NULL && !Scheduler::DesktopTask->removeMe)
     {
-        int keysToDo = min(50, Keyboard::KeysAvaiable());
+        int keysToDo = min(150, Keyboard::KeysAvaiable());
         for (int i = 0; i < keysToDo; i++)
         {
             Keyboard::MiniKeyInfo info = Keyboard::DoAndGetKey();
@@ -847,7 +852,7 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
             _Free(packet);
         }
 
-        int mouseToDo = min(50, Mouse::MousePacketsAvailable());
+        int mouseToDo = min(150, Mouse::MousePacketsAvailable());
         for (int i = 0; i < mouseToDo; i++)
         {
             MousePacket mPacket = Mouse::mousePackets->Dequeue();
@@ -926,7 +931,7 @@ bool IsAddressValidForTask(void* addr, osTask* task)
     if (addr >= task->userStack && addr < task->userStack + USER_STACK_PAGE_SIZE * 0x1000)
         return true;
 
-    if (addr >= (void*)MEM_AREA_USER_PROGRAM_REQUEST_START && addr < (void*)(MEM_AREA_USER_PROGRAM_REQUEST_START + 0x1000 * task->requestedPages->GetCount()))
+    if (addr >= (void*)task->addrOfVirtPages && addr < (void*)((uint64_t)task->addrOfVirtPages + 0x1000 * task->requestedPages->GetCount()))
         return true;
 
     if (addr >= task->elfFile.offset && addr < (char*)task->elfFile.offset + task->elfFile.size * 0x1000)
@@ -940,6 +945,7 @@ bool IsAddressValidForTask(void* addr, osTask* task)
 
 #include <libm/heap/heap.h>
 #include <libm/cstrTools.h>
+#include <libm/mouseState.h>
 
 void Syscall_handler(interrupt_frame* frame)
 {
@@ -958,9 +964,9 @@ void Syscall_handler(interrupt_frame* frame)
     }
     else if (syscall == SYSCALL_GET_ARGV)
     {
-        MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
+        //MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
 
-        Heap::HeapManager* taskHeap = MEM_AREA_USER_PROGRAM_HEAP;
+        Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
         
         int argC = Scheduler::CurrentRunningTask->argC;
         char** argV = (char**)taskHeap->_Xmalloc(sizeof(const char*) * argC, "Malloc for argV");
@@ -987,16 +993,43 @@ void Syscall_handler(interrupt_frame* frame)
     }
     else if (syscall == SYSCALL_GET_ENV)
     {
-        MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
+        //MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
 
         if (!Scheduler::CurrentRunningTask->isKernelModule)
         {
-            frame->rax = 0;
-            Serial::Writelnf("> Get env (userspace prg) %X", frame->rax);
+            Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
+
+            Serial::Writelnf("> TASK HEAP: %X, (%X - %X)", taskHeap, taskHeap->_heapStart, taskHeap->_heapEnd);
+
+            ENV_DATA* env = (ENV_DATA*)taskHeap->_Xmalloc(sizeof(ENV_DATA), "Malloc for env");
+            if (env != NULL)
+            {
+                PSF1_FONT* font2 = (PSF1_FONT*)taskHeap->_Xmalloc(sizeof(PSF1_FONT), "Malloc for font");
+                if (font2 != NULL)
+                {
+                    font2->psf1_Header = (PSF1_HEADER*)taskHeap->_Xmalloc(sizeof(PSF1_HEADER), "Malloc for font header");
+                    if (font2->psf1_Header != NULL)
+                    {
+                        *font2->psf1_Header = *GlobalRenderer->psf1_font->psf1_Header;
+
+                        int amt = (font2->psf1_Header->mode + 1) * 256 * font2->psf1_Header->charsize;
+                        font2->glyphBuffer = (void*)taskHeap->_Xmalloc(amt, "Malloc for font glyph buffer");
+                        if (font2->glyphBuffer != NULL)
+                        {
+                            _memcpy(GlobalRenderer->psf1_font->glyphBuffer, font2->glyphBuffer, amt);
+                        }
+                    }
+                }
+                env->globalFont = font2;//GlobalRenderer->psf1_font;
+                env->globalFrameBuffer = NULL;//GlobalRenderer->framebuffer;
+            }
+
+            frame->rax = (uint64_t)env;
+            Serial::Writelnf("> Get env (user prog) %X", frame->rax);
         }
         else
         {
-            Heap::HeapManager* taskHeap = MEM_AREA_USER_PROGRAM_HEAP;
+            Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
 
             Serial::Writelnf("> TASK HEAP: %X, (%X - %X)", taskHeap, taskHeap->_heapStart, taskHeap->_heapEnd);
 
@@ -1006,19 +1039,20 @@ void Syscall_handler(interrupt_frame* frame)
                 env->globalFont = GlobalRenderer->psf1_font;
                 env->globalFrameBuffer = GlobalRenderer->framebuffer;
             }
+
             frame->rax = (uint64_t)env;
             Serial::Writelnf("> Get env (kernel module) %X", frame->rax);
         }
     }
     else if (syscall == SYSCALL_REQUEST_NEXT_PAGES)
     {
-        MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
+        //MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
 
         int pageCount = frame->rbx;
         osTask* task = Scheduler::CurrentRunningTask;
         PageTableManager manager = PageTableManager((PageTable*)task->pageTableContext);
 
-        char* newAddr = (char*)(MEM_AREA_USER_PROGRAM_REQUEST_START + 0x1000 * task->requestedPages->GetCount());
+        char* newAddr = (char*)((uint64_t)task->addrOfVirtPages + 0x1000 * task->requestedPages->GetCount());
         void* resAddr = (void*)newAddr;
         
         for (int i = 0; i < pageCount; i++)
@@ -1037,7 +1071,7 @@ void Syscall_handler(interrupt_frame* frame)
     }
     else if (syscall == SYSCALL_SERIAL_PRINT)
     {
-        MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
+        //MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
 
         char* str = (char*)frame->rbx;
         if (IsAddressValidForTask(str, Scheduler::CurrentRunningTask))
@@ -1047,7 +1081,7 @@ void Syscall_handler(interrupt_frame* frame)
     }
     else if (syscall == SYSCALL_SERIAL_PRINTLN)
     {
-        MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
+        //MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
 
         char* str = (char*)frame->rbx;
         if (IsAddressValidForTask(str, Scheduler::CurrentRunningTask))
@@ -1074,7 +1108,7 @@ void Syscall_handler(interrupt_frame* frame)
     }
     else if (syscall == SYSCALL_GLOBAL_PRINT)
     {
-        MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
+        //MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
         
         char* str = (char*)frame->rbx;
         if (IsAddressValidForTask(str, Scheduler::CurrentRunningTask))
@@ -1084,7 +1118,7 @@ void Syscall_handler(interrupt_frame* frame)
     }
     else if (syscall == SYSCALL_GLOBAL_PRINTLN)
     {
-        MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
+        //MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
 
         char* str = (char*)frame->rbx;
         if (IsAddressValidForTask(str, Scheduler::CurrentRunningTask))
@@ -1197,6 +1231,36 @@ void Syscall_handler(interrupt_frame* frame)
         //task->active = false;
         Scheduler::AddTask(task);
     }
+    else if (syscall == SYSCALL_PID_EXISTS)
+    {
+        uint64_t pid = frame->rbx;
+        
+        bool exists = Scheduler::GetTask(pid) != NULL;
+
+        frame->rax = exists;
+    }
+    else if (syscall == SYSCALL_ENV_GET_MOUSE_STATE)
+    {
+        Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
+
+        MouseState* packet = (MouseState*)taskHeap->_Xmalloc(sizeof(MouseState), "Malloc for mouse state");
+
+        if (packet != NULL)
+        {
+            packet->MouseX = Mouse::MousePosition.x;
+            packet->MouseY = Mouse::MousePosition.y;
+            packet->Left = Mouse::clicks[0];
+            packet->Right = Mouse::clicks[1];
+            packet->Middle = Mouse::clicks[2];
+        }
+
+        frame->rax = (uint64_t)packet;
+    }
+    else if (syscall == SYSCALL_ENV_GET_KEY_STATE)
+    {
+        int scancode = frame->rbx;
+        frame->rax = Keyboard::IsKeyPressed(scancode);
+    }
     else if (syscall == SYSCALL_MSG_GET_COUNT)
     {
         Queue<GenericMessagePacket*>* queue = Scheduler::CurrentRunningTask->messages;
@@ -1206,13 +1270,13 @@ void Syscall_handler(interrupt_frame* frame)
     }
     else if (syscall == SYSCALL_MSG_GET_MSG)
     {
-        MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
+        //MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
         
         Queue<GenericMessagePacket*>* queue = Scheduler::CurrentRunningTask->messages;
         frame->rax = 0;
         if (queue != NULL && queue->GetCount() > 0)
         {
-            Heap::HeapManager* taskHeap = MEM_AREA_USER_PROGRAM_HEAP;
+            Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
             GenericMessagePacket* oldPacket = queue->Dequeue();
             if (oldPacket != NULL && taskHeap != NULL)
             {
@@ -1225,7 +1289,7 @@ void Syscall_handler(interrupt_frame* frame)
     }
     else if (syscall == SYSCALL_MSG_SEND_MSG)
     {
-        MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
+        //MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
 
         frame->rax = 0;
         GenericMessagePacket* oldPacket = (GenericMessagePacket*)frame->rbx;

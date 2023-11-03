@@ -26,21 +26,25 @@ extern bool drawBackground;
 extern Framebuffer* taskbar;
 
 extern List<Window*>* windows;
+extern List<Window*>* windowsToDelete;
 extern Window* activeWindow;
 extern Window* currentActionWindow;
 
 extern MPoint MousePosition;
 
+#include <libm/queue/queue_window_update.h>
+
+extern Queue<WindowUpdate>* ScreenUpdates;
 
 void InitStuff();
 
-void PrintFPS(int fps, int aFps, int frameTime, int breakTime, int totalTime);
+void PrintFPS(int fps, int aFps, int frameTime, int breakTime, int totalTime, uint64_t totalPixelCount, int frameCount);
 
-int main();
+int main(int argc, char** argv);
 
-void DrawFrame();
+uint64_t DrawFrame();
 
-
+void CheckForDeadWindows();
 
 
 

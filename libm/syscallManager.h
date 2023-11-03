@@ -7,6 +7,7 @@ int getArgC();
 char** getArgV();
 ENV_DATA* getEnvData();
 uint64_t getPid();
+bool pidExists(uint64_t pid);
 void* requestNextPage();
 void* requestNextPages(int count);
 
@@ -36,6 +37,11 @@ uint64_t randomUint64();
 
 void launchTestElfUser();
 void launchTestElfKernel();
+
+#include "mouseState.h"
+
+MouseState* envGetMouseState();
+bool envGetKeyState(int scancode);
 
 #include "msgPackets/msgPacket.h"
 
