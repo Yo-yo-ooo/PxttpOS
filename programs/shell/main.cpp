@@ -126,7 +126,7 @@ int main(int argc, char** argv)
 void Cls()
 {
     outTxt->Clear();
-    outTxt->Println("MaslOS v2", Colors.bgreen);
+    outTxt->Println("System v2", Colors.bgreen);
     outTxt->scrollX = 0;
     outTxt->scrollY = 0;
 }
