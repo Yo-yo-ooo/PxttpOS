@@ -3,8 +3,7 @@
 #include <libm/syscallList.h>
 #include <libm/rendering/basicRenderer.h>
 #include <libm/rendering/Cols.h>
-#include <libm/experimental/RelocatableAllocator.h>
-#include <libm/experimental/AutoFree.h>
+
 #include <libm/cstr.h>
 #include <libm/cstrTools.h>
 #include <libm/wmStuff/wmStuff.h>
@@ -20,11 +19,11 @@
 #include <libm/gui/guiStuff/components/button/buttonComponent.h>
 #include <libm/gui/guiStuff/components/textField/textFieldComponent.h>
 
-
 char buffer[512];
 
 int main(int argc, char** argv)
 {
+    //return 0;
     initWindowManagerStuff();
     programWait(2000);
     
@@ -153,11 +152,12 @@ int main(int argc, char** argv)
 
         {
             GuiComponentStuff::ButtonComponent* btn = new GuiComponentStuff::ButtonComponent("CLICK\nME\nPLS", 
-            Colors.black, Colors.dgray, Colors.gray, 
-            Colors.bgreen, Colors.yellow, Colors.bred, 
-            GuiComponentStuff::ComponentSize(150, 80),
-            GuiComponentStuff::Position(210, 160), testGui->screen
+                Colors.black, Colors.dgray, Colors.gray, 
+                Colors.bgreen, Colors.yellow, Colors.bred, 
+                GuiComponentStuff::ComponentSize(150, 80),
+                GuiComponentStuff::Position(210, 160), testGui->screen
             );
+            
             //btn->mouseClickedCallBack = TestClickHandler;
             //btn->keyHitCallBack = TestKeyHandler;
 
@@ -213,29 +213,32 @@ int main(int argc, char** argv)
 
     //programWait(1000);
 
+
+
     while (true)
     {
         for (int i = 0; i < 5; i++)
         {
-            testGui->Render();
-            testRect->position.x += 5;
-            if (testRect->position.x > 300)
-                testRect->position.x = 0;
-            testRect->position.y += 3;
-            if (testRect->position.y > 100)
-                testRect->position.y = 0;
+            testGui->Render(true);
+            // testRect->position.x += 5;
+            // if (testRect->position.x > 300)
+            //     testRect->position.x = 0;
+            // testRect->position.y += 3;
+            // if (testRect->position.y > 100)
+            //     testRect->position.y = 0;
             
-            programYield();
+            //programYield();
+            programWaitMsg();
         }
 
-        MouseState* mState = envGetMouseState();
-        window->Dimensions.y = mState->MouseY;
-        _Free(mState);
+        // MouseState* mState = envGetMouseState();
+        // window->Dimensions.y = mState->MouseY;
+        // _Free(mState);
         
-        window->Dimensions.x += 10;
-        if (window->Dimensions.x > 500)
-            window->Dimensions.x = 300;
-        setWindow(window);
+        // window->Dimensions.x += 10;
+        // if (window->Dimensions.x > 500)
+        //     window->Dimensions.x = 300;
+        // setWindow(window);
 
         programWait(20);
     }

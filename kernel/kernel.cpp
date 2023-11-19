@@ -16,6 +16,7 @@
 #include "interrupts/interrupts.h"
 #include <libm/cstrTools.h>
 #include "paging/PageTableManager.h"
+#include "fsStuff/fsStuff.h"
 
 void boot(void* _bootInfo)
 {
@@ -23,6 +24,7 @@ void boot(void* _bootInfo)
 
     osData.NO_INTERRUPTS = false;
     osData.booting = false;
+    osData.inBootProcess = true;
     osData.maxNonFatalCrashCount = 5;
     MStackData::stackPointer = 0;
     for (int i = 0; i < 1000; i++)
@@ -35,13 +37,17 @@ void boot(void* _bootInfo)
     //
     //while(true);
     osData.booting = true;
-    osData.verboseBoot = true;
+    osData.verboseBoot = false;
 
     osData.mouseSensitivity = 100;
 
     PrintAll = true;
     
     InitKernel(bootInfo);
+
+    osData.booting = false;
+
+    osData.inBootProcess = false;
 
     PIT::Sleep(100);
 
@@ -62,8 +68,6 @@ void boot(void* _bootInfo)
         Scheduler::NothingDoerTask = task;
     }
 
-    const char* bleh = "BLEH TEST";
-
     {
         uint8_t* data = (uint8_t*)bootInfo->programs->fileData;
         //Serial::Writelnf("data: %X", data);
@@ -78,6 +82,11 @@ void boot(void* _bootInfo)
         {
             SAF::file_t* file = LoadFileFromNode(mount, (SAF::saf_node_file_t*)((uint64_t)topNode + (uint64_t)moduleNode->children[i]));
             Serial::Writelnf("MODULE> file: \"%s\" %d", file->name, file->size);
+
+            const char* combined = StrCombine("bruh:modules/", file->name);
+            if (!FS_STUFF::WriteFileToFullPath(combined, (char*)file->driver_specific_data, file->size, true))
+                Panic("ADDING FILE FAILED!", true);
+            _Free(combined);
 
             Elf::LoadedElfFile elf = Elf::LoadElf((uint8_t*)file->driver_specific_data);
             if (!elf.works)
@@ -111,15 +120,19 @@ void boot(void* _bootInfo)
             SAF::file_t* file = LoadFileFromNode(mount, (SAF::saf_node_file_t*)((uint64_t)topNode + (uint64_t)programNode->children[i]));
             Serial::Writelnf("PROGRAM> file: %d", file->size);
 
-            Elf::LoadedElfFile elf = Elf::LoadElf((uint8_t*)file->driver_specific_data);
-            if (!elf.works)
-                Panic("FILE NO WORK :(", true);
+            const char* combined = StrCombine("bruh:programs/", file->name);
+            if (!FS_STUFF::WriteFileToFullPath(combined, (char*)file->driver_specific_data, file->size, true))
+                Panic("ADDING FILE FAILED!", true);
+            _Free(combined);
 
-            Serial::Writelnf("> Adding ELF");
+            // Elf::LoadedElfFile elf = Elf::LoadElf((uint8_t*)file->driver_specific_data);
+            // if (!elf.works)
+            //     Panic("FILE NO WORK :(", true);
 
-            Scheduler::AddTask(Scheduler::CreateTaskFromElf(elf, 1, &bleh, true));
-            Serial::Writelnf("> ADDED PROGRAM");
+            // Serial::Writelnf("> Adding ELF");
 
+            // Scheduler::AddTask(Scheduler::CreateTaskFromElf(elf, 0, NULL, true));
+            // Serial::Writelnf("> ADDED PROGRAM");
         }
     }
 
@@ -140,7 +153,7 @@ void boot(void* _bootInfo)
 
 
  
-volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, SystemAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData)
+volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, MaslOsAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData)
 {
     //MStackData::BenchmarkEnabled = false;
     BootInfo tempBootInfo;

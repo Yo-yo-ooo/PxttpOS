@@ -4,6 +4,10 @@
 //#include "../../Window/window.h"
 //#include "../../../tasks/task.h"
 #include <libm/window/window.h>
+
+
+class GuiInstance;
+
 #include "guiStuff/components/screenComponent/screenComponent.h"
 
 
@@ -42,6 +46,8 @@ enum InstanceType
     TESTO_PGM
 };
 
+#include <libm/mouseState.h>
+
 class GuiInstance// : public DefaultInstance
 {
     private:
@@ -65,10 +71,13 @@ class GuiInstance// : public DefaultInstance
     // void* OnWaitTaskDoneHelp;
     // void (*OnWaitTaskDoneCallback)(void* bruh, Task* tsk);
 
+    MouseState mouseState = MouseState(0, 0, false, false, false);
+
     GuiInstance(Window* window);
     void Free();
     void Init();
-    void Render();
+    void Render(bool update);
+    void Update();
 
     GuiComponentStuff::BaseComponent* GetComponentFromId(uint64_t id);
     GuiComponentStuff::BaseComponent* GetChildFromComponentWithId(uint64_t id, int index);

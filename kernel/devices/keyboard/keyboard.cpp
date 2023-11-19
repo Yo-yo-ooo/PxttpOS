@@ -2,6 +2,7 @@
 #include "scancodeTranslation.h"
 #include <libm/queue/queue_basics.h>
 #include <libm/lock/lock.h>
+#include <libm/cstr.h>
 
 #include "../serial/serial.h"
 
@@ -58,7 +59,8 @@ namespace Keyboard
                 return;
             }
         }
-        
+
+
         keyboardQueue.Lock();
         keyboardQueue.obj->Enqueue(scancode);
         keyboardQueue.Unlock();
@@ -74,6 +76,17 @@ namespace Keyboard
                 finalKey = Key_RightControl;
             else if (SubScancodes[0] == 0x38)
                 finalKey = Key_RightAlt;
+            else if (SubScancodes[0] == 0x48)
+                finalKey = Key_ArrowUp;
+            else if (SubScancodes[0] == 0x50)
+                finalKey = Key_ArrowDown;
+            else if (SubScancodes[0] == 0x4B)
+                finalKey = Key_ArrowLeft;
+            else if (SubScancodes[0] == 0x4D)
+                finalKey = Key_ArrowRight;
+            else if (SubScancodes[0] == 0x2A)
+                finalKey = Key_RightShift;
+            
         }
         else if (SubScancodeMode == 2)
         {
@@ -81,7 +94,17 @@ namespace Keyboard
         }
 
         if (finalKey == 0)
+        {
+            Serial::Write("> Unhandled Key:");
+            for (int i = 0; i < SubScancodeStep; i++)
+            {
+                Serial::Write(ConvertHexToString(SubScancodes[i]));
+                if (i < SubScancodeStep - 1)
+                    Serial::Write(", ");
+            }
+            Serial::Writeln("");
             return;
+        }
 
         if (released)
             finalKey |= KEY_RELEASED;
@@ -172,8 +195,6 @@ namespace Keyboard
 
         if (scancode == Key_GeneralAlt)
             return KeyboardScancodeState[Key_LeftAlt] || KeyboardScancodeState[Key_RightAlt];
-
-
 
         if (scancode >= 0 && scancode < KeyboardScancodeStateSize)
             return KeyboardScancodeState[scancode];

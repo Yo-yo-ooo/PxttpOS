@@ -4,7 +4,7 @@
 
 namespace GuiComponentStuff
 {
-    ScreenComponent::ScreenComponent(Window* window)
+    ScreenComponent::ScreenComponent(Window* window, GuiInstance* guiInstance)
     {
         RenderFunc = (void (*)(void*, Field))&Render;
         CheckUpdatesFunc = (void (*)(void*))&CheckUpdates;
@@ -15,7 +15,8 @@ namespace GuiComponentStuff
         SetAttributeFunc = (bool (*)(void*, int32_t, uint64_t))&SetAttribute;
         GetAttributeFunc = (uint64_t (*)(void*, int32_t))&GetAttribute;
         GetAttributeSizeFunc = (int (*)(void*, int32_t))&GetAttributeSize;
-
+        
+        this->guiInstance = guiInstance;
         this->window = window;
         updateFields = new List<Field>(5);
         finalUpdatedFields = new List<Field>(5);
@@ -51,7 +52,7 @@ namespace GuiComponentStuff
         AddToStack();
         if (oldSize != tSize)
         {
-            renderer->Resize(tSize);
+            renderer->Resize(tSize, false);
             size = tSize;
             oldSize = tSize;
             update = true;
@@ -69,6 +70,7 @@ namespace GuiComponentStuff
 
         for (int i = 0; i < children->GetCount(); i++)
             children->ElementAt(i)->CheckUpdates();
+        
         {
             int cCount = children->GetCount();
             while (childrenFields->GetCount() > cCount)
@@ -83,6 +85,7 @@ namespace GuiComponentStuff
                 childrenHidden->Add(false);
             }
         }
+
         {
             for (int i = 0; i < childrenFields->GetCount(); i++)
             {

@@ -87,6 +87,12 @@ WindowObjectPacket::WindowObjectPacket(GenericMessagePacket* genericMessagePacke
     // bool Closeable;
     PartialWindow->Closeable = *(uint8_t*)tBuffer;
     tBuffer += 1;
+    // bool IsActive
+    PartialWindow->IsActive = *(uint8_t*)tBuffer;
+    tBuffer += 1;
+    // bool IsFrozen
+    PartialWindow->IsFrozen = *(uint8_t*)tBuffer;
+    tBuffer += 1;
 
     // uint32_t DefaultBorderColor;
     PartialWindow->DefaultBorderColor = *(uint32_t*)tBuffer;
@@ -112,12 +118,29 @@ WindowObjectPacket::WindowObjectPacket(GenericMessagePacket* genericMessagePacke
     // uint32_t CurrentTitleBackgroundColor
     PartialWindow->CurrentTitleBackgroundColor = *(uint32_t*)tBuffer;
     tBuffer += 4;
+    // uint32_t DefaultBackgroundColor
+    PartialWindow->DefaultBackgroundColor = *(uint32_t*)tBuffer;
+    tBuffer += 4;
 
     // uint64_t ID;
     PartialWindow->ID = *(uint64_t*)tBuffer;
     tBuffer += 8;
     // uint64_t PID;
     PartialWindow->PID = *(uint64_t*)tBuffer;
+    tBuffer += 8;
+
+    // uint64_t CONVO_ID_WM_MOUSE_STUFF
+    PartialWindow->CONVO_ID_WM_MOUSE_STUFF = *(uint64_t*)tBuffer;
+    tBuffer += 8;
+    // uint64_t CONVO_ID_WM_KB_STUFF
+    PartialWindow->CONVO_ID_WM_KB_STUFF = *(uint64_t*)tBuffer;
+    tBuffer += 8;
+    // uint64_t CONVO_ID_WM_WINDOW_UPDATE
+    PartialWindow->CONVO_ID_WM_WINDOW_UPDATE = *(uint64_t*)tBuffer;
+    tBuffer += 8;
+    // uint64_t CONVO_ID_WM_WINDOW_CLOSED
+    PartialWindow->CONVO_ID_WM_WINDOW_CLOSED = *(uint64_t*)tBuffer;
+    tBuffer += 8;
 }
 GenericMessagePacket* WindowObjectPacket::ToGenericMessagePacket()
 {
@@ -146,6 +169,10 @@ GenericMessagePacket* WindowObjectPacket::ToGenericMessagePacket()
     count += 1;
     // bool Closeable;
     count += 1;
+    // bool IsActive
+    count += 1;
+    // bool IsFrozen
+    count += 1;
     // uint32_t DefaultBorderColor;
     count += 4;
     // uint32_t SelectedBorderColor;
@@ -162,11 +189,22 @@ GenericMessagePacket* WindowObjectPacket::ToGenericMessagePacket()
     count += 4;
     // uint32_t CurrentTitleBackgroundColor
     count += 4;
+    // uint32_t DefaultBackgroundColor
+    count += 4;
 
 
     // uint64_t ID;
     count += 8;
     // uint64_t PID;
+    count += 8;
+
+    // uint64_t CONVO_ID_WM_MOUSE_STUFF
+    count += 8;
+    // uint64_t CONVO_ID_WM_KB_STUFF
+    count += 8;
+    // uint64_t CONVO_ID_WM_WINDOW_UPDATE
+    count += 8;
+    // uint64_t CONVO_ID_WM_WINDOW_CLOSED
     count += 8;
 
 
@@ -212,6 +250,12 @@ GenericMessagePacket* WindowObjectPacket::ToGenericMessagePacket()
     // bool Closeable;
     *(uint8_t*)tBuffer = PartialWindow->Closeable;
     tBuffer += 1;
+    // bool IsActive
+    *(uint8_t*)tBuffer = PartialWindow->IsActive;
+    tBuffer += 1;
+    // bool IsFrozen
+    *(uint8_t*)tBuffer = PartialWindow->IsFrozen;
+    tBuffer += 1;
 
     // uint32_t DefaultBorderColor;
     *(uint32_t*)tBuffer = PartialWindow->DefaultBorderColor;
@@ -237,12 +281,29 @@ GenericMessagePacket* WindowObjectPacket::ToGenericMessagePacket()
     // uint32_t CurrentTitleBackgroundColor
     *(uint32_t*)tBuffer = PartialWindow->CurrentTitleBackgroundColor;
     tBuffer += 4;
+    // uint32_t DefaultBackgroundColor
+    *(uint32_t*)tBuffer = PartialWindow->DefaultBackgroundColor;
+    tBuffer += 4;
 
     // uint64_t ID;
     *(uint64_t*)tBuffer = PartialWindow->ID;
     tBuffer += 8;
     // uint64_t PID;
     *(uint64_t*)tBuffer = PartialWindow->PID;
+    tBuffer += 8;
+    
+    // uint64_t CONVO_ID_WM_MOUSE_STUFF
+    *(uint64_t*)tBuffer = PartialWindow->CONVO_ID_WM_MOUSE_STUFF;
+    tBuffer += 8;
+    // uint64_t CONVO_ID_WM_KB_STUFF
+    *(uint64_t*)tBuffer = PartialWindow->CONVO_ID_WM_KB_STUFF;
+    tBuffer += 8;
+    // uint64_t CONVO_ID_WM_WINDOW_UPDATE
+    *(uint64_t*)tBuffer = PartialWindow->CONVO_ID_WM_WINDOW_UPDATE;
+    tBuffer += 8;
+    // uint64_t CONVO_ID_WM_WINDOW_CLOSED
+    *(uint64_t*)tBuffer = PartialWindow->CONVO_ID_WM_WINDOW_CLOSED;
+    tBuffer += 8;
 
 
     GenericMessagePacket* msg = NULL;

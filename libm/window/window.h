@@ -104,15 +104,21 @@ class Window
     bool Resizeable;
     bool Closeable;
 
+    bool IsActive;
+    bool IsFrozen;
+
     bool OldShowTitleBar;
     bool OldShowBorder;
     bool OldHidden;
+    bool OldIsActive;
+    bool OldIsFrozen;
 
     uint32_t DefaultBorderColor;
     uint32_t SelectedBorderColor;
     uint32_t DefaultTitleColor;
     uint32_t SelectedTitleColor;
     uint32_t DefaultTitleBackgroundColor;
+    uint32_t DefaultBackgroundColor;
 
     uint32_t CurrentBorderColor;
     uint32_t CurrentTitleColor;
@@ -124,15 +130,21 @@ class Window
 
     uint64_t ID;
     uint64_t PID;
+
+    uint64_t CONVO_ID_WM_MOUSE_STUFF;
+    uint64_t CONVO_ID_WM_KB_STUFF;
+    uint64_t CONVO_ID_WM_WINDOW_UPDATE;
+    uint64_t CONVO_ID_WM_WINDOW_CLOSED;
     
     List<WindowUpdate>* Updates;
 
     Framebuffer* Buffer;
 
     Window();
+    Window(uint64_t id);
     Window(int x, int y, int width, int height, const char* title, uint64_t id, uint64_t pid);
 
-    void UpdateUsingPartialWindow(Window* window, bool updateIdAndPid);
+    void UpdateUsingPartialWindow(Window* window, bool updateId, bool updatePid, bool updateActive);
 
     void ResizeFramebuffer(int width, int height);
 

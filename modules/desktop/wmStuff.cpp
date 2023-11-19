@@ -3,7 +3,6 @@
 #include <libm/rendering/virtualRenderer.h>
 #include <libm/cstrTools.h>
 
-
 void UpdatePointerRect(int x1, int y1, int x2, int y2)
 {
     if (x1 < 0)
@@ -31,7 +30,7 @@ void UpdatePointerRect(int x1, int y1, int x2, int y2)
 
     DrawBGRect(x1, y1, x2, y2);
     
-
+    currentActionWindow = NULL;
     int count = windows->GetCount();
     for (int i = 0; i < count; i++)
         RenderWindowRect(windows->ElementAt(i), x1, y1, x2, y2);
@@ -282,7 +281,7 @@ void RenderWindowRect(Window* window, int x1, int y1, int x2, int y2)
             if (state == 2)
                 currentActionWindow = window;
 
-            //VirtualRenderer::DrawImage(windowButtonIcons[windowButtonIconEnum.CLOSE_N + state], x - 20, y + 1, 1, 1, border, virtualScreenBuffer);
+            VirtualRenderer::DrawImage(windowButtonIcons[windowButtonIconEnum.CLOSE_N + state], x - 20, y + 1, 1, 1, border, pointerBuffer);
             x -= 20;
         }
         {
@@ -294,7 +293,7 @@ void RenderWindowRect(Window* window, int x1, int y1, int x2, int y2)
             if (state == 2)
                 currentActionWindow = window;
 
-            //VirtualRenderer::DrawImage(windowButtonIcons[windowButtonIconEnum.MIN_N + state], x - 20, y + 1, 1, 1, border, pointerBuffer);
+            VirtualRenderer::DrawImage(windowButtonIcons[windowButtonIconEnum.MIN_N + state], x - 20, y + 1, 1, 1, border, pointerBuffer);
             x -= 20;
         }
         {
@@ -306,7 +305,7 @@ void RenderWindowRect(Window* window, int x1, int y1, int x2, int y2)
             if (state == 2)
                 currentActionWindow = window;
 
-            //VirtualRenderer::DrawImage(windowButtonIcons[windowButtonIconEnum.HIDE_N + state], x - 20, y + 1, 1, 1, border, pointerBuffer);
+            VirtualRenderer::DrawImage(windowButtonIcons[windowButtonIconEnum.HIDE_N + state], x - 20, y + 1, 1, 1, border, pointerBuffer);
             x -= 20;
         }
 
@@ -881,4 +880,29 @@ uint64_t RenderActualSquare(int _x1, int _y1, int _x2, int _y2)
     }
 
     return counta;
+}
+
+
+WindowActionEnum GetCurrentAction(Window* window)
+{
+    if (window == NULL || window->Hidden)
+        return WindowActionEnum::_NONE;
+
+    int64_t x = window->Dimensions.x + window->Dimensions.width;
+    int64_t y = window->Dimensions.y - 22;
+
+    if (MousePosition.x >= x - 20 && MousePosition.x <= x && MousePosition.y >= y && MousePosition.y <= y + 20
+        && window->Closeable)
+        return WindowActionEnum::CLOSE;
+    x -= 20;
+
+    if (MousePosition.x >= x - 20 && MousePosition.x <= x && MousePosition.y >= y && MousePosition.y <= y + 20)
+        return WindowActionEnum::MIN_MAX;
+    x -= 20;
+
+    if (MousePosition.x >= x - 20 && MousePosition.x <= x && MousePosition.y >= y && MousePosition.y <= y + 20)
+        return WindowActionEnum::HIDE;
+    x -= 20;
+    
+    return WindowActionEnum::_NONE;
 }

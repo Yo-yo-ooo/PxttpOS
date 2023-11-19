@@ -236,6 +236,7 @@ __attribute__((interrupt)) void KeyboardInt_handler(interrupt_frame* frame)
 __attribute__((interrupt)) void MouseInt_handler(interrupt_frame* frame)
 { 
     AddToStack();
+    //Serial::Writelnf("INT> MOUSE START");
     //Panic("GENERIC INTERRUPT BRUH", true);   
     //osStats.lastMouseCall = PIT::TimeSinceBootMS();
     //io_wait();
@@ -262,6 +263,7 @@ __attribute__((interrupt)) void MouseInt_handler(interrupt_frame* frame)
 
     PIC_EndSlave();
     //PIC_EndMaster();
+    //Serial::Writelnf("INT> MOUSE END");
     RemoveFromStack();
 }
 
@@ -293,30 +295,30 @@ void TempPitRoutine(interrupt_frame* frame)
     //     osData.serialManager->DoStuff();
 
 
-    if (_pitCount++ >= 80)   
+    if (_pitCount++ >= 80 && true)   
     {
         _pitCount = 0;
         
         Point tempPoint = GlobalRenderer->CursorPosition;
         GlobalRenderer->CursorPosition.x = 0;
-        GlobalRenderer->CursorPosition.y = GlobalRenderer->framebuffer->Height - 16;
+        GlobalRenderer->CursorPosition.y = GlobalRenderer->framebuffer->Height - (osData.inBootProcess ? 16 : 80);
 
         GlobalRenderer->Clear(0, GlobalRenderer->CursorPosition.y, GlobalRenderer->framebuffer->Width - 1, GlobalRenderer->CursorPosition.y + 15, Colors.black);
 
         uint32_t currCol = 0;
         
-        currCol = Colors.orange;
-        GlobalRenderer->Print("DATE: ", currCol);
-        GlobalRenderer->Print("{}.", to_string((int)RTC::Day), currCol);
-        GlobalRenderer->Print("{}.", to_string((int)RTC::Month), currCol);
-        GlobalRenderer->Print("{}", to_string((int)RTC::Year), currCol);
-        GlobalRenderer->Print(" - ", Colors.white);
+        // currCol = Colors.orange;
+        // GlobalRenderer->Print("DATE: ", currCol);
+        // GlobalRenderer->Print("{}.", to_string((int)RTC::Day), currCol);
+        // GlobalRenderer->Print("{}.", to_string((int)RTC::Month), currCol);
+        // GlobalRenderer->Print("{}", to_string((int)RTC::Year), currCol);
+        // GlobalRenderer->Print(" - ", Colors.white);
 
-        currCol = Colors.yellow;
-        GlobalRenderer->Print("{}:", to_string((int)RTC::Hour), currCol);
-        GlobalRenderer->Print("{}:", to_string((int)RTC::Minute), currCol);
-        GlobalRenderer->Print("{}", to_string((int)RTC::Second), currCol);
-        GlobalRenderer->Print(" - ", Colors.white);
+        // currCol = Colors.yellow;
+        // GlobalRenderer->Print("{}:", to_string((int)RTC::Hour), currCol);
+        // GlobalRenderer->Print("{}:", to_string((int)RTC::Minute), currCol);
+        // GlobalRenderer->Print("{}", to_string((int)RTC::Second), currCol);
+        // GlobalRenderer->Print(" - ", Colors.white);
 
         currCol = Colors.bgreen;
         GlobalRenderer->Print("HEAP: ", currCol);
@@ -712,6 +714,7 @@ bool SendMessageToTask(GenericMessagePacket* oldPacket, uint64_t targetPid, uint
     if (otherTask == NULL)
         return false;
 
+    //Serial::Writelnf("> Sending2 %d from %X to %X", oldPacket->Size, sourcePid, otherTask->pid);
     GenericMessagePacket* newPacket = oldPacket->Copy();
     otherTask->messages->Enqueue(newPacket);
     return true;
@@ -722,6 +725,9 @@ bool SendMessageToTask(GenericMessagePacket* oldPacket, uint64_t targetPid, uint
 
 bool InterruptGoingOn = false;
 int currentInterruptCount = 0;
+int lastInt = 0;
+
+Mouse::MiniMousePacket lastMousePacket = Mouse::InvalidMousePacket;
 
 extern "C" void intr_common_handler_c(interrupt_frame* frame) 
 {
@@ -731,12 +737,11 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
     //Serial::Writelnf("INT> INT %d, (%X, %X)", frame->interrupt_number, frame->cr3, frame->cr0);
 
     AddToStack();
-    
-    
+
 
     if (InterruptGoingOn)
     {
-        Serial::Writelnf("WAAAA> INT %d IS INTERRUPTING INT!", frame->interrupt_number);
+        Serial::Writelnf("WAAAA> INT %d IS INTERRUPTING INT %d!", frame->interrupt_number, lastInt);
         //Panic("INT IN INT", true);
         
         for (int i = 0; i < 20; i++)
@@ -744,6 +749,7 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
 
         //return;
     }
+    lastInt = frame->interrupt_number;
     InterruptGoingOn = true;
 
     int rnd = RND::RandomInt();
@@ -752,7 +758,10 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
     if (frame->interrupt_number == 32)
         TempPitRoutine(frame);
     else if (frame->interrupt_number == 0x31)
+    {
         Syscall_handler(frame);
+        //Serial::Writeln("> SYS DONE");
+    }
     else if (frame->interrupt_number == 254)
         Serial::Writelnf("> Generic Interrupt");
     else
@@ -771,6 +780,17 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
         Serial::Writeln();
         PrintRegisterDump(GlobalRenderer);
         Serial::Writeln();
+
+        GlobalRenderer->Println();   
+        GlobalRenderer->Println("ERROR CODE: {}", to_string(frame->error_code), Colors.yellow);   
+        Serial::Writelnf("ERROR CODE: %d", frame->error_code);
+
+
+        if (osData.inBootProcess)
+        {
+            Serial::Writelnf("INT> CRASH IN BOOT IS FATAL -> HALT");
+            while (true);
+        }
 
         if (Scheduler::CurrentRunningTask != NULL)
         {
@@ -806,8 +826,8 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
         }
         Scheduler::CurrentRunningTask = NULL;
 
-        GlobalRenderer->Println();   
-        GlobalRenderer->Println("ERROR CODE: {}", to_string(frame->error_code), Colors.yellow);   
+        for (int i = 0; i < 20; i++)
+            GlobalRenderer->ClearButDont();
 
         //while (true);
 
@@ -821,7 +841,7 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
         return;
     }
 
-
+    //Serial::Write("<#");
     if (Scheduler::DesktopTask != NULL && !Scheduler::DesktopTask->removeMe)
     {
         int keysToDo = min(150, Keyboard::KeysAvaiable());
@@ -855,30 +875,65 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
         int mouseToDo = min(150, Mouse::MousePacketsAvailable());
         for (int i = 0; i < mouseToDo; i++)
         {
-            MousePacket mPacket = Mouse::mousePackets->Dequeue();
+            if (Mouse::mousePackets.IsLocked())
+                break;
+        
+            Mouse::mousePackets.Lock();
+            MousePacket mPacket = Mouse::mousePackets.obj->Dequeue();
+            Mouse::mousePackets.Unlock();
+
             //Serial::Writelnf("INT> Doing mouse packet");
             Mouse::MiniMousePacket packet = Mouse::ProcessMousePacket(mPacket);
             if (!packet.Valid)
                 continue;
 
 
-            // TODO: add hold and release stuff here
             MouseMessagePacket mousePacket = MouseMessagePacket(packet.X, packet.Y);
-            
+
+            mousePacket.Left = packet.LeftButton;
+            mousePacket.Right = packet.RightButton;
+            mousePacket.Middle = packet.MiddleButton;
+
+            mousePacket.PrevLeft = lastMousePacket.LeftButton;
+            mousePacket.PrevRight = lastMousePacket.RightButton;
+            mousePacket.PrevMiddle = lastMousePacket.MiddleButton;
+
+            bool clickDone = false;
+
+            if (packet.LeftButton && !lastMousePacket.LeftButton)
+                clickDone = true;
+            if (packet.RightButton && !lastMousePacket.RightButton)
+                clickDone = true;
+            if (packet.MiddleButton && !lastMousePacket.MiddleButton)
+                clickDone = true;
+
+            lastMousePacket = packet;
+
+            if (clickDone)
+            {
+                mousePacket.Type = MouseMessagePacketType::MOUSE_CLICK;
+                //Serial::Writelnf("INT> Sending mouse click packet to desktop task");
+            }
+
+            //Serial::Writelnf("INT> Sending mouse packet to desktop task 2");
             GenericMessagePacket* packet2 = new GenericMessagePacket(
                 MessagePacketType::MOUSE_EVENT,
                 (uint8_t*)&mousePacket,
                 sizeof(MouseMessagePacket)
             );
+            //Serial::Writelnf("INT> Sending mouse packet to desktop task 3");
             
             //Serial::Writelnf("INT> Sending mouse packet to desktop task");
             SendMessageToTask(packet2, Scheduler::DesktopTask->pid, 1);
+            //Serial::Writelnf("INT> Sending mouse packet to desktop task 4");
             
             packet2->Free();
             _Free(packet2);
+
+            //Serial::Writelnf("INT> Sending mouse packet to desktop task 5");
         }
     }
-    
+    //Serial::Write("#>");
 
     if (Scheduler::CurrentRunningTask == NULL)
     {
@@ -913,7 +968,20 @@ extern "C" void CloseCurrentTask()
 
 #include <libm/syscallList.h>
 
-bool IsAddressValidForTask(void* addr, osTask* task)
+uint64_t _tempGenericMessageConvoId = 0;
+bool _tempGenericMessageChecker(GenericMessagePacket* msg)
+{
+    if (msg == NULL)
+        return false;
+    
+    return msg->ConvoID == _tempGenericMessageConvoId;
+}
+
+bool IsAddressValidForTask(const void* addr)
+{
+    return IsAddressValidForTask(addr, Scheduler::CurrentRunningTask);
+}
+bool IsAddressValidForTask(const void* addr, osTask* task)
 {
     if (task == NULL)
         return false;
@@ -946,10 +1014,521 @@ bool IsAddressValidForTask(void* addr, osTask* task)
 #include <libm/heap/heap.h>
 #include <libm/cstrTools.h>
 #include <libm/mouseState.h>
+#include <libm/rtc/rtcInfo.h>
+#include <libm/fsStuff/extra/fsExtra.h>
+
+#include "../fsStuff/fsStuff.h"
+
+void FS_Syscall_handler(int syscall, interrupt_frame* frame)
+{
+    if (syscall == SYSCALL_FS_CREATE_FILE)
+    {
+        const char* path = (const char*)frame->rbx;
+        frame->rax = 0;
+        if (IsAddressValidForTask(path))
+        {
+            frame->rax = (bool)FS_STUFF::CreateFileIfNotExist(path);
+        }
+    }
+    else if (syscall == SYSCALL_FS_CREATE_FILE_WITH_SIZE)
+    {
+        const char* path = (const char*)frame->rbx;
+        frame->rax = 0;
+        if (IsAddressValidForTask(path))
+        {
+            uint64_t size = frame->rcx;
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFilePathFromFullPath(path);
+                if (path2 != NULL)
+                {
+                    frame->rax = (bool)(fs->CreateFile(path2, size) == FilesystemInterface::FSCommandResult.SUCCESS);
+                    _Free((void*)path2);
+                }
+            }
+        }
+    }
+    else if (syscall == SYSCALL_FS_CREATE_FOLDER)
+    {
+        const char* path = (const char*)frame->rbx;
+        frame->rax = 0;
+        if (IsAddressValidForTask(path))
+        {
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFilePathFromFullPath(path);
+                if (path2 != NULL)
+                {
+                    frame->rax = (bool)(fs->CreateFolder(path2) == FilesystemInterface::FSCommandResult.SUCCESS);
+                    _Free((void*)path2);
+                }
+            }
+        }       
+    }
+    else if (syscall == SYSCALL_FS_DELETE_FILE)
+    {
+        const char* path = (const char*)frame->rbx;
+        frame->rax = 0;
+        if (IsAddressValidForTask(path))
+        {
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFilePathFromFullPath(path);
+                if (path2 != NULL)
+                {
+                    frame->rax = (bool)(fs->DeleteFile(path2) == FilesystemInterface::FSCommandResult.SUCCESS);
+                    _Free((void*)path2);
+                }
+            }
+        } 
+    }
+    else if (syscall == SYSCALL_FS_DELETE_FOLDER)
+    {
+        const char* path = (const char*)frame->rbx;
+        frame->rax = 0;
+        if (IsAddressValidForTask(path))
+        {
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFilePathFromFullPath(path);
+                if (path2 != NULL)
+                {
+                    frame->rax = (bool)(fs->DeleteFolder(path2) == FilesystemInterface::FSCommandResult.SUCCESS);
+                    _Free((void*)path2);
+                }
+            }
+        } 
+    }
+    // TODO: RENAME/COPY BETWEEN DISKS
+    else if (syscall == SYSCALL_FS_RENAME_FILE)
+    {
+        const char* path = (const char*)frame->rbx;
+        const char* newPath = (const char*)frame->rcx;
+        frame->rax = 0;
+        if (IsAddressValidForTask(path) && IsAddressValidForTask(newPath))
+        {
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFilePathFromFullPath(path);
+                const char* newPath2 = FS_EXTRA::GetFilePathFromFullPath(newPath);
+                if (path2 != NULL && newPath2 != NULL)
+                {
+                    frame->rax = (bool)(fs->RenameFile(path2, newPath2) == FilesystemInterface::FSCommandResult.SUCCESS);
+                }
+                if (path2 != NULL)
+                    _Free((void*)path2);
+                if (newPath2 != NULL)
+                    _Free((void*)newPath2);
+            }
+        } 
+    }
+    else if (syscall == SYSCALL_FS_RENAME_FOLDER)
+    {
+        const char* path = (const char*)frame->rbx;
+        const char* newPath = (const char*)frame->rcx;
+        frame->rax = 0;
+        if (IsAddressValidForTask(path) && IsAddressValidForTask(newPath))
+        {
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFilePathFromFullPath(path);
+                const char* newPath2 = FS_EXTRA::GetFilePathFromFullPath(newPath);
+                if (path2 != NULL && newPath2 != NULL)
+                {
+                    frame->rax = (bool)(fs->RenameFolder(path2, newPath2) == FilesystemInterface::FSCommandResult.SUCCESS);
+                }
+                if (path2 != NULL)
+                    _Free((void*)path2);
+                if (newPath2 != NULL)
+                    _Free((void*)newPath2);
+            }
+        } 
+    }
+    else if (syscall == SYSCALL_FS_COPY_FILE)
+    {
+        const char* path = (const char*)frame->rbx;
+        const char* newPath = (const char*)frame->rcx;
+        frame->rax = 0;
+        if (IsAddressValidForTask(path) && IsAddressValidForTask(newPath))
+        {
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFilePathFromFullPath(path);
+                const char* newPath2 = FS_EXTRA::GetFilePathFromFullPath(newPath);
+                if (path2 != NULL && newPath2 != NULL)
+                {
+                    frame->rax = (bool)(fs->CopyFile(path2, newPath2) == FilesystemInterface::FSCommandResult.SUCCESS);
+                }
+                if (path2 != NULL)
+                    _Free((void*)path2);
+                if (newPath2 != NULL)
+                    _Free((void*)newPath2);
+            }
+        } 
+    }
+    else if (syscall == SYSCALL_FS_COPY_FOLDER)
+    {
+        const char* path = (const char*)frame->rbx;
+        const char* newPath = (const char*)frame->rcx;
+        frame->rax = 0;
+        if (IsAddressValidForTask(path) && IsAddressValidForTask(newPath))
+        {
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFilePathFromFullPath(path);
+                const char* newPath2 = FS_EXTRA::GetFilePathFromFullPath(newPath);
+                if (path2 != NULL && newPath2 != NULL)
+                {
+                    frame->rax = (bool)(fs->CopyFolder(path2, newPath2) == FilesystemInterface::FSCommandResult.SUCCESS);
+                }
+                if (path2 != NULL)
+                    _Free((void*)path2);
+                if (newPath2 != NULL)
+                    _Free((void*)newPath2);
+            }
+        } 
+    }
+    else if (syscall == SYSCALL_FS_FILE_EXISTS)
+    {
+        const char* path = (const char*)frame->rbx;
+        frame->rax = 0;
+        if (IsAddressValidForTask(path))
+        {
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFilePathFromFullPath(path);
+                if (path2 != NULL)
+                {
+                    frame->rax = (bool)(fs->FileExists(path2));
+                    _Free((void*)path2);
+                }
+            }
+        } 
+    }
+    else if (syscall == SYSCALL_FS_FOLDER_EXISTS)
+    {
+        const char* path = (const char*)frame->rbx;
+        frame->rax = 0;
+        if (IsAddressValidForTask(path))
+        {
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFilePathFromFullPath(path);
+                if (path2 != NULL)
+                {
+                    frame->rax = (bool)(fs->FolderExists(path2));
+                    _Free((void*)path2);
+                }
+            }
+        } 
+    }
+    else if (syscall == SYSCALL_FS_GET_FILES_IN_PATH)
+    {
+        const char* path = (const char*)frame->rbx;
+        frame->rax = 0;
+        frame->rbx = 0;
+        if (IsAddressValidForTask(path))
+        {
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFolderPathFromFullPath(path);
+                if (path2 != NULL)
+                {
+                    if (StrEquals(path2, ""))
+                    {
+                        _Free(path2);
+                        path2 = StrCopy("/");
+                    }
+
+                    uint64_t fileCount = 0;
+                    const char** res = fs->GetFiles(path2, &fileCount);
+                    
+                    if (res != NULL)
+                    {
+                        Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
+                        char** res2 = (char**)taskHeap->_Xmalloc(sizeof(char*) * fileCount, "Malloc for fsGetFiles");
+                        if (IsAddressValidForTask(res2))
+                        {
+                            for (int i = 0; i < fileCount; i++)
+                            {
+                                const char* cV = res[i];
+                                int len = StrLen(cV);
+                                res2[i] = (char*)taskHeap->_Xmalloc(len + 1, "Malloc for fsGetFiles Str");
+                                if (IsAddressValidForTask(res2[i]))
+                                {
+                                    _memcpy((void*)cV, (void*)res2[i], len);
+                                    res2[i][len] = 0;
+                                }
+                            }
+                        }
+
+                        frame->rax = (uint64_t)res2;
+                        frame->rbx = fileCount;
+
+                        for (int i = 0; i < fileCount; i++)
+                            _Free(res[i]);
+                        _Free(res);
+                    }
+
+                    _Free((void*)path2);
+                }
+            }
+        } 
+    }
+    else if (syscall == SYSCALL_FS_GET_FOLDERS_IN_PATH)
+    {
+        const char* path = (const char*)frame->rbx;
+        frame->rax = 0;
+        frame->rbx = 0;
+        if (IsAddressValidForTask(path))
+        {
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            //Serial::Writelnf("FS: %X", fs);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFolderPathFromFullPath(path);
+                //Serial::Writelnf("PATH: \"%s\"", path2);
+                if (path2 != NULL)
+                {
+                    if (StrEquals(path2, ""))
+                    {
+                        _Free(path2);
+                        path2 = StrCopy("/");
+                        //Serial::Writelnf("> PATH: \"%s\"", path2);
+                    }
+
+                    uint64_t folderCount = 0;
+                    const char** res = fs->GetFolders(path2, &folderCount);
+                    //Serial::Writelnf("RES: %X", res);
+                    
+                    if (res != NULL)
+                    {
+                        Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
+                        char** res2 = (char**)taskHeap->_Xmalloc(sizeof(char*) * folderCount, "Malloc for fsGetFolders");
+                        if (IsAddressValidForTask(res2))
+                        {
+                            for (int i = 0; i < folderCount; i++)
+                            {
+                                const char* cV = res[i];
+                                int len = StrLen(cV);
+                                res2[i] = (char*)taskHeap->_Xmalloc(len + 1, "Malloc for fsGetFolders Str");
+                                if (IsAddressValidForTask(res2[i]))
+                                {
+                                    _memcpy((void*)cV, (void*)res2[i], len);
+                                    res2[i][len] = 0;
+                                }
+                            }
+                        }
+
+                        frame->rax = (uint64_t)res2;
+                        frame->rbx = folderCount;
+
+                        for (int i = 0; i < folderCount; i++)
+                            _Free(res[i]);
+                        _Free(res);
+                    }
+
+                    _Free((void*)path2);
+                }
+            }
+        } 
+    }
+    else if (syscall == SYSCALL_FS_GET_DRIVES_IN_ROOT)
+    {
+        frame->rax = 0;
+        frame->rbx = 0;
+
+        int driveCount = 0;
+        for (int i = 0; i < osData.diskInterfaces.GetCount(); i++)
+        {
+            DiskInterface::GenericDiskInterface* diskInterface = osData.diskInterfaces[i];
+            if (diskInterface->partitionInterface == NULL)
+                continue;
+
+            PartitionInterface::GenericPartitionInterface* partInterface = (PartitionInterface::GenericPartitionInterface*)diskInterface->partitionInterface;
+            for (int i2 = 0; i2 < partInterface->partitionList.GetCount(); i2++)
+            {
+                PartitionInterface::PartitionInfo* partInfo = partInterface->partitionList[i2];
+                if (!partInfo->hidden && partInfo->type == PartitionInterface::PartitionType::Normal)
+                    driveCount++;
+            }
+        }
+
+        if (driveCount > 0)
+        {
+            Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
+
+            char** res2 = (char**)taskHeap->_Xmalloc(sizeof(char*) * driveCount, "Malloc for fsGetDisks");
+            if (IsAddressValidForTask(res2))
+            {
+                int i3 = 0;
+                for (int i = 0; i < osData.diskInterfaces.GetCount(); i++)
+                {
+                    DiskInterface::GenericDiskInterface* diskInterface = osData.diskInterfaces[i];
+                    if (diskInterface->partitionInterface == NULL)
+                        continue;
+
+                    PartitionInterface::GenericPartitionInterface* partInterface = (PartitionInterface::GenericPartitionInterface*)diskInterface->partitionInterface;
+                    for (int i2 = 0; i2 < partInterface->partitionList.GetCount(); i2++)
+                    {
+                        PartitionInterface::PartitionInfo* partInfo = partInterface->partitionList[i2];
+                        if (!partInfo->hidden && partInfo->type == PartitionInterface::PartitionType::Normal)
+                        {
+                            const char* driveName = partInfo->driveName;
+                            int len = StrLen(driveName);
+                            res2[i3] = (char*)taskHeap->_Xmalloc(len + 1, "Malloc for fsGetDisks Str");
+                            if (IsAddressValidForTask(res2[i3]))
+                            {
+                                _memcpy((void*)driveName, (void*)res2[i3], len);
+                                res2[i3][len] = 0;
+                            }
+                            i3++;
+                        }
+                    }
+                }
+
+                frame->rax = (uint64_t)res2;
+                frame->rbx = driveCount;
+            }
+        }
+    }
+    else if (syscall == SYSCALL_FS_GET_FILE_INFO)
+    {
+        const char* path = (const char*)frame->rbx;
+        frame->rax = 0;
+        if (IsAddressValidForTask(path))
+        {
+            FsInt::FileInfo* info = FS_STUFF::GetFileInfoFromFullPath(path);
+            if (info != NULL)
+            {
+                Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
+                FsInt::FileInfo* info2 = (FsInt::FileInfo*)taskHeap->_Xmalloc(sizeof(FsInt::FileInfo), "Malloc for fsGetFileInfo");
+                if (IsAddressValidForTask(info2))
+                {
+                    info2->baseInfo = (FsInt::BaseInfo*)taskHeap->_Xmalloc(sizeof(FsInt::BaseInfo), "Malloc for fsGetFileInfo baseInfo");
+                    if (IsAddressValidForTask(info2->baseInfo))
+                    {
+                        info2->baseInfo->hidden = info->baseInfo->hidden;
+                        info2->baseInfo->pathLen = info->baseInfo->pathLen;
+                        info2->baseInfo->systemFile = info->baseInfo->systemFile;
+                        info2->baseInfo->writeProtected = info->baseInfo->writeProtected;
+                        info2->baseInfo->path = (char*)taskHeap->_Xmalloc(info->baseInfo->pathLen + 1, "Malloc for fsGetFileInfo baseInfo path");
+                        if (IsAddressValidForTask(info2->baseInfo->path))
+                        {
+                            _memcpy((void*)info->baseInfo->path, (void*)info2->baseInfo->path, info->baseInfo->pathLen);
+                            ((char*)info2->baseInfo->path)[info->baseInfo->pathLen] = 0;
+
+                            info2->sizeInBytes = info->sizeInBytes;
+                            info2->locationInBytes = info->locationInBytes;
+
+                            frame->rax = (uint64_t)info2;
+                        }
+                    }
+                }
+            }
+        } 
+    }
+    else if (syscall == SYSCALL_FS_GET_FOLDER_INFO)
+    {
+        const char* path = (const char*)frame->rbx;
+        frame->rax = 0;
+        if (IsAddressValidForTask(path))
+        {
+            FsInt::FolderInfo* info = FS_STUFF::GetFolderInfoFromFullPath(path);
+            if (info != NULL)
+            {
+                Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
+                FsInt::FolderInfo* info2 = (FsInt::FolderInfo*)taskHeap->_Xmalloc(sizeof(FsInt::FolderInfo), "Malloc for fsGetFolderInfo");
+                if (IsAddressValidForTask(info2))
+                {
+                    info2->baseInfo = (FsInt::BaseInfo*)taskHeap->_Xmalloc(sizeof(FsInt::BaseInfo), "Malloc for fsGetFolderInfo baseInfo");
+                    if (IsAddressValidForTask(info2->baseInfo))
+                    {
+                        info2->baseInfo->hidden = info->baseInfo->hidden;
+                        info2->baseInfo->pathLen = info->baseInfo->pathLen;
+                        info2->baseInfo->systemFile = info->baseInfo->systemFile;
+                        info2->baseInfo->writeProtected = info->baseInfo->writeProtected;
+                        info2->baseInfo->path = (char*)taskHeap->_Xmalloc(info->baseInfo->pathLen + 1, "Malloc for fsGetFolderInfo baseInfo path");
+                        if (IsAddressValidForTask(info2->baseInfo->path))
+                        {
+                            _memcpy((void*)info->baseInfo->path, (void*)info2->baseInfo->path, info->baseInfo->pathLen);
+                            ((char*)info2->baseInfo->path)[info->baseInfo->pathLen] = 0;
+
+                            frame->rax = (uint64_t)info2;
+                        }
+                    }
+                }
+            }
+        } 
+    }
+    else if (syscall == SYSCALL_FS_READ_FILE_INTO_BUFFER)
+    {
+        const char* path = (const char*)frame->rbx;
+        char* buffer = (char*)frame->rcx;
+        uint64_t start = frame->rdx;
+        uint64_t byteCount = frame->rsi;
+
+        frame->rax = 0;
+        if (IsAddressValidForTask(path) && IsAddressValidForTask(buffer) && IsAddressValidForTask(buffer + byteCount))
+        {
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFilePathFromFullPath(path);
+                if (path2 != NULL)
+                {
+                    const char* res = fs->ReadFileBuffer(path2, start, byteCount, buffer);
+                    frame->rax = (bool)(res == FilesystemInterface::FSCommandResult.SUCCESS);
+
+                    _Free((void*)path2);
+                }
+            }
+        }
+    }
+    else if (syscall == SYSCALL_FS_WRITE_FILE_FROM_BUFFER)
+    {
+        const char* path = (const char*)frame->rbx;
+        char* buffer = (char*)frame->rcx;
+        uint64_t byteCount = frame->rdx;
+
+        frame->rax = 0;
+        if (IsAddressValidForTask(path) && IsAddressValidForTask(buffer) && IsAddressValidForTask(buffer + byteCount))
+        {
+            FilesystemInterface::GenericFilesystemInterface* fs = FS_STUFF::GetFsInterfaceFromFullPath(path);
+            if (fs != NULL)
+            {
+                const char* path2 = FS_EXTRA::GetFilePathFromFullPath(path);
+                if (path2 != NULL)
+                {
+                    frame->rax = (bool)(fs->WriteFile(path2, byteCount, buffer) == FilesystemInterface::FSCommandResult.SUCCESS);
+
+                    _Free((void*)path2);
+                }
+            }
+        }
+    }
+    else
+    {
+        Serial::Writelnf("Unknown FS syscall: %d", syscall);
+    }
+
+
+}
 
 void Syscall_handler(interrupt_frame* frame)
 {
-    //Serial::Writelnf("> Syscall: %d, task %X", frame->rax, (uint64_t)Scheduler::CurrentRunningTask);
+    //Serial::Writelnf("> Syscall: %d (%X, %X, %X, %X), task %X", frame->rax, frame->rbx, frame->rcx, frame->rdx, frame->rsi, (uint64_t)Scheduler::CurrentRunningTask);
     if (Scheduler::CurrentRunningTask == NULL)
         return;
 
@@ -971,7 +1550,7 @@ void Syscall_handler(interrupt_frame* frame)
         int argC = Scheduler::CurrentRunningTask->argC;
         char** argV = (char**)taskHeap->_Xmalloc(sizeof(const char*) * argC, "Malloc for argV");
         //Serial::Writelnf("> Malloced argV %X, (argc: %d, argv: %X)", argV, argC, Scheduler::CurrentRunningTask->argV);
-        if (argV != NULL)
+        if (IsAddressValidForTask(argV))
             for (int i = 0; i < argC; i++)
             {
                 const char* cV = Scheduler::CurrentRunningTask->argV[i];
@@ -980,7 +1559,7 @@ void Syscall_handler(interrupt_frame* frame)
 
                 argV[i] = (char*)taskHeap->_Xmalloc(len + 1, "Malloc argV Str");
                 //Serial::Writelnf("> Malloced argV %X", argV[i]);
-                if (argV[i] != NULL)
+                if (IsAddressValidForTask(argV[i]))
                 {
                     //Serial::Writelnf("> Copying argV %X", argV[i]);
                     _memcpy((void*)cV, (void*)argV[i], len);
@@ -1002,19 +1581,19 @@ void Syscall_handler(interrupt_frame* frame)
             Serial::Writelnf("> TASK HEAP: %X, (%X - %X)", taskHeap, taskHeap->_heapStart, taskHeap->_heapEnd);
 
             ENV_DATA* env = (ENV_DATA*)taskHeap->_Xmalloc(sizeof(ENV_DATA), "Malloc for env");
-            if (env != NULL)
+            if (IsAddressValidForTask(env))
             {
                 PSF1_FONT* font2 = (PSF1_FONT*)taskHeap->_Xmalloc(sizeof(PSF1_FONT), "Malloc for font");
-                if (font2 != NULL)
+                if (IsAddressValidForTask(font2))
                 {
                     font2->psf1_Header = (PSF1_HEADER*)taskHeap->_Xmalloc(sizeof(PSF1_HEADER), "Malloc for font header");
-                    if (font2->psf1_Header != NULL)
+                    if (IsAddressValidForTask(font2->psf1_Header))
                     {
                         *font2->psf1_Header = *GlobalRenderer->psf1_font->psf1_Header;
 
                         int amt = (font2->psf1_Header->mode + 1) * 256 * font2->psf1_Header->charsize;
                         font2->glyphBuffer = (void*)taskHeap->_Xmalloc(amt, "Malloc for font glyph buffer");
-                        if (font2->glyphBuffer != NULL)
+                        if (IsAddressValidForTask(font2->glyphBuffer))
                         {
                             _memcpy(GlobalRenderer->psf1_font->glyphBuffer, font2->glyphBuffer, amt);
                         }
@@ -1034,7 +1613,7 @@ void Syscall_handler(interrupt_frame* frame)
             Serial::Writelnf("> TASK HEAP: %X, (%X - %X)", taskHeap, taskHeap->_heapStart, taskHeap->_heapEnd);
 
             ENV_DATA* env = (ENV_DATA*)taskHeap->_Xmalloc(sizeof(ENV_DATA), "Malloc for env");
-            if (env != NULL)
+            if (IsAddressValidForTask(env))
             {
                 env->globalFont = GlobalRenderer->psf1_font;
                 env->globalFrameBuffer = GlobalRenderer->framebuffer;
@@ -1089,12 +1668,12 @@ void Syscall_handler(interrupt_frame* frame)
         else
             Serial::Writelnf("> Invalid address (%X) for task %X", (uint64_t)str, (uint64_t)Scheduler::CurrentRunningTask);
     }
-    else if(syscall ==SYSCALL_SERIAL_PRINT_CHAR)
+    else if (syscall == SYSCALL_SERIAL_PRINT_CHAR)
     {
         char ch = (char)frame->rbx;
         Serial::Write(ch);
     }
-    else if(syscall == SYSCALL_SERIAL_READ_CHAR)
+    else if (syscall == SYSCALL_SERIAL_READ_CHAR)
     {
         char chr = 0;
         if (Serial::CanRead())
@@ -1102,7 +1681,7 @@ void Syscall_handler(interrupt_frame* frame)
         
         frame->rax = chr;
     }
-    else if(syscall == SYSCALL_SERIAL_CAN_READ_CHAR)
+    else if (syscall == SYSCALL_SERIAL_CAN_READ_CHAR)
     {
         frame->rax = Serial::CanRead();
     }
@@ -1111,6 +1690,7 @@ void Syscall_handler(interrupt_frame* frame)
         //MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
         
         char* str = (char*)frame->rbx;
+        //Serial::Writelnf("> Global Print %X \"%s\" (%X)", str, str, Scheduler::CurrentRunningTask);
         if (IsAddressValidForTask(str, Scheduler::CurrentRunningTask))
             GlobalRenderer->Print(str);
         else
@@ -1121,10 +1701,13 @@ void Syscall_handler(interrupt_frame* frame)
         //MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
 
         char* str = (char*)frame->rbx;
+        //Serial::Writelnf("> Global Println %X \"%s\" (%X)", str, str, Scheduler::CurrentRunningTask);
+
         if (IsAddressValidForTask(str, Scheduler::CurrentRunningTask))
             GlobalRenderer->Println(str);
         else
             Serial::Writelnf("> Invalid address (%X) for task %X", (uint64_t)str, (uint64_t)Scheduler::CurrentRunningTask);
+        //Serial::Writelnf("< Global Println %X", str);
     }
     else if (syscall == SYSCALL_GLOBAL_PRINT_CHAR)
     {
@@ -1165,8 +1748,16 @@ void Syscall_handler(interrupt_frame* frame)
     }
     else if (syscall == SYSCALL_WAIT)
     {
-        Serial::Writelnf("> WAITING PROGRAM %d ms", frame->rbx);
+        //Serial::Writelnf("> WAITING PROGRAM %d ms", frame->rbx);
         Scheduler::CurrentRunningTask->taskTimeoutDone = PIT::TimeSinceBootMS() + frame->rbx;
+
+        Scheduler::SchedulerInterrupt(frame);
+    }
+    else if (syscall == SYSCALL_WAIT_MSG)
+    {
+        Scheduler::CurrentRunningTask->waitTillMessage = true;
+        Scheduler::CurrentRunningTask->taskTimeoutDone = PIT::TimeSinceBootMS() + 10;
+        Scheduler::CurrentRunningTask->justYielded = true;
 
         Scheduler::SchedulerInterrupt(frame);
     }
@@ -1189,6 +1780,25 @@ void Syscall_handler(interrupt_frame* frame)
     else if (syscall == SYSCALL_ENV_GET_TIME_MS)
     {
         frame->rax = PIT::TimeSinceBootMS();
+    }
+    else if (syscall == SYSCALL_ENV_GET_TIME_RTC)
+    {
+        Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
+
+        RTC_Info* info2 = (RTC_Info*)taskHeap->_Xmalloc(sizeof(RTC_Info), "Malloc for RTC_Info");
+        if (IsAddressValidForTask(info2))
+        {
+            RTC_Info info;
+            info.Day = RTC::Day;
+            info.Month = RTC::Month;
+            info.Year = RTC::Year;
+            info.Hour = RTC::Hour;
+            info.Minute = RTC::Minute;
+            info.Second = RTC::Second;
+
+            *info2 = info;
+            frame->rax = (uint64_t)info2;
+        }
     }
     else if (syscall == SYSCALL_ENV_GET_DESKTOP_PID)
     {
@@ -1245,7 +1855,7 @@ void Syscall_handler(interrupt_frame* frame)
 
         MouseState* packet = (MouseState*)taskHeap->_Xmalloc(sizeof(MouseState), "Malloc for mouse state");
 
-        if (packet != NULL)
+        if (IsAddressValidForTask(packet))
         {
             packet->MouseX = Mouse::MousePosition.x;
             packet->MouseY = Mouse::MousePosition.y;
@@ -1287,13 +1897,43 @@ void Syscall_handler(interrupt_frame* frame)
             }
         }
     }
+    else if (syscall == SYSCALL_MSG_GET_MSG_CONVO)
+    {
+        Queue<GenericMessagePacket*>* queue = Scheduler::CurrentRunningTask->messages;
+        frame->rax = 0;
+        uint64_t convoId = frame->rbx;
+        if (queue != NULL && queue->GetCount() > 0)
+        {
+            _tempGenericMessageConvoId = convoId;
+            GenericMessagePacket** oldPacketPtr = queue->First(_tempGenericMessageChecker);
+
+            if (oldPacketPtr != NULL)
+            {
+                AddToStack();
+                GenericMessagePacket* oldPacket = *oldPacketPtr;
+                queue->Remove(oldPacketPtr);
+                Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
+                if (oldPacket != NULL && taskHeap != NULL)
+                {
+                    AddToStack();
+                    //Serial::Writelnf("> %X: %d msgs left.", Scheduler::CurrentRunningTask, queue->GetCount());
+                    GenericMessagePacket* newPacket = oldPacket->Copy(taskHeap);
+                    oldPacket->Free();
+                    _Free(oldPacket);
+                    frame->rax = (uint64_t)newPacket;
+                    RemoveFromStack();
+                }
+                RemoveFromStack();
+            }
+        }
+    }
     else if (syscall == SYSCALL_MSG_SEND_MSG)
     {
         //MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
 
         frame->rax = 0;
         GenericMessagePacket* oldPacket = (GenericMessagePacket*)frame->rbx;
-        if (oldPacket != NULL)
+        if (IsAddressValidForTask(oldPacket, Scheduler::CurrentRunningTask))
         {
             osTask* task = Scheduler::CurrentRunningTask;
             if (task != NULL)
@@ -1305,19 +1945,123 @@ void Syscall_handler(interrupt_frame* frame)
                 if (allowSend && otherTask == NULL)
                     allowSend = false;
 
-                if (allowSend && oldPacket->Type == MessagePacketType::KEY_EVENT && !task->isKernelModule)
+                if (allowSend && (oldPacket->Type == MessagePacketType::KEY_EVENT && !task->isKernelModule))
                     allowSend = false;
 
-                if (allowSend && oldPacket->Type == MessagePacketType::MOUSE_EVENT && !task->isKernelModule)
+                if (allowSend && (oldPacket->Type == MessagePacketType::MOUSE_EVENT && !task->isKernelModule))
                     allowSend = false;
                 
                 if (allowSend)
                 {
+                    // Serial::Writelnf("> Sending %d from %X to %X", oldPacket->Size, task->pid, otherTask->pid);
                     GenericMessagePacket* newPacket = oldPacket->Copy();
                     newPacket->FromPID = task->pid;
                     otherTask->messages->Enqueue(newPacket);
                     frame->rax = 1;
                 }
+            }
+        }
+    }
+    else if (syscall >= 700 && syscall <= 999)
+    {
+        FS_Syscall_handler(syscall, frame);
+    }
+    else if (syscall == SYSCALL_CLOSE_PROCESS)
+    {
+        uint64_t pid = frame->rbx;
+        osTask* task = Scheduler::GetTask(pid);
+
+        // add checks if the process belongs to the current process
+        if (task != NULL)
+        {
+            task->removeMe = true;
+            frame->rax = 1;
+        }
+        else
+            frame->rax = 0;
+    }
+    else if (syscall == SYSCALL_START_PROCESS)
+    {
+        // asm("int $0x31" : "=a"(pid) : "a"(syscall), "b"(path), "c"(argc), "d"(argv));
+        frame->rax = 0;
+        const char* path = (const char*)frame->rbx;
+        int argc = frame->rcx;
+        const char** argv = (const char**)frame->rdx;
+
+        if (IsAddressValidForTask(path) && (IsAddressValidForTask(argv) || argc == 0))
+        {
+            bool ok = true;
+            for (int i = 0; i < argc; i++)
+                if (!IsAddressValidForTask(argv[i]))
+                    ok = false;
+            
+            if (ok)
+            {
+                char* resBuffer = NULL;
+                int resLen = 0;
+                if (FS_STUFF::ReadFileFromFullPath(path, &resBuffer, &resLen))
+                {
+                    Elf::LoadedElfFile elf = Elf::LoadElf((uint8_t*)resBuffer);
+                    if (elf.works)
+                    {
+                        osTask* task = Scheduler::CreateTaskFromElf(elf, argc, argv, true);
+                        Scheduler::AddTask(task);
+                        frame->rax = task->pid;
+                    }
+                    else
+                        Serial::Writelnf("> Elf file %s is invalid", path);
+                    _Free(resBuffer);
+                }
+                else
+                    Serial::Writelnf("> File %s does not exist", path);
+                {
+
+                }
+            }
+        }
+    }
+    else if (syscall == SYSCALL_START_FILE)
+    {
+        frame->rax = 0;
+        const char* path = (const char*)frame->rbx;
+
+        if (IsAddressValidForTask(path))
+        {
+            const char* actualPath = NULL;
+            if (StrEndsWith(path, ".txt"))
+                actualPath = "bruh:programs/notepad.elf";
+            if (StrEndsWith(path, ".maab"))
+                actualPath = "bruh:programs/maab.elf";
+            if (StrEndsWith(path, ".elf"))
+                actualPath = "bruh:modules/elfLauncher.elf";
+            if (StrEndsWith(path, ".mbif"))
+                actualPath = "bruh:programs/imgView.elf";
+
+            if (actualPath != NULL)
+            {
+                const char** tempArgV = (const char**)_Malloc(sizeof(const char**));
+                tempArgV[0] = StrCopy(path);
+
+                char* resBuffer = NULL;
+                int resLen = 0;
+                if (FS_STUFF::ReadFileFromFullPath(actualPath, &resBuffer, &resLen))
+                {
+                    Elf::LoadedElfFile elf = Elf::LoadElf((uint8_t*)resBuffer);
+                    if (elf.works)
+                    {
+                        osTask* task = Scheduler::CreateTaskFromElf(elf, 1, tempArgV, true);
+                        Scheduler::AddTask(task);
+                        frame->rax = task->pid;
+                    }
+                    else
+                        Serial::Writelnf("> Elf file %s is invalid", path);
+                    _Free(resBuffer);
+                }
+                else
+                    Serial::Writelnf("> File %s does not exist", path);
+
+                _Free(tempArgV[0]);
+                _Free(tempArgV);
             }
         }
     }

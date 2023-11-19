@@ -8,13 +8,14 @@
 #include <libm/msgPackets/windowBufferUpdatePacket/windowBufferUpdatePacket.h>
 #include <libm/queue/queue_windowBufferUpdate.h>
 #include <libm/msgPackets/windowObjPacket/windowObjPacket.h>
+#include <libm/images/bitmapImage.h>
 
 TempRenderer* actualScreenRenderer;
 Framebuffer* actualScreenFramebuffer;
 Framebuffer* mainBuffer;
 PointerBuffer* pointerBuffer;
 
-uint32_t defaultBackgroundColor = 0xFF202030;
+uint32_t defaultBackgroundColor = Colors.black;
 bool drawBackground = false;
 Framebuffer* backgroundImage = NULL;
 
@@ -22,8 +23,13 @@ Framebuffer* taskbar;
 
 List<Window*>* windows;
 List<Window*>* windowsToDelete;
+List<Window*>* windowsUpdated;
 Window* activeWindow;
 Window* currentActionWindow;
+
+ImageStuff::BitmapImage* windowButtonIcons[countOfButtonIcons];
+
+ImageStuff::BitmapImage* internalWindowIcons[countOfWindowIcons];
 
 MPoint MousePosition;
 MPoint oldMousePos;
@@ -31,6 +37,13 @@ MPoint oldMousePos;
 Queue<WindowBufferUpdatePacket*>* updateFramePackets;
 
 Queue<WindowUpdate>* ScreenUpdates;
+List<GenericMessagePacket*>* tempPackets;
+
+uint64_t lastFrameTime = 0;
+
+#include <libm/zips/basicZip.h>
+
+#include "taskbar.h"
 
 void InitStuff()
 {
@@ -64,7 +77,7 @@ void InitStuff()
     {
         taskbar = new Framebuffer();
         taskbar->Width = actualScreenFramebuffer->Width;
-        taskbar->Height = 24;
+        taskbar->Height = 40;
         taskbar->PixelsPerScanLine = taskbar->Width;
         taskbar->BufferSize = taskbar->Width * taskbar->Height * 4;
         taskbar->BaseAddress = _Malloc(taskbar->BufferSize, "Taskbar Buffer");
@@ -80,14 +93,119 @@ void InitStuff()
     MousePosition.y = 0;
 
     oldMousePos = MousePosition;
+    oldMousePos.x += 10;
     
 
     windows = new List<Window*>(5);
     windowsToDelete = new List<Window*>(3);
+    windowsUpdated = new List<Window*>(5);
+    tempPackets = new List<GenericMessagePacket*>(5);
 
     ScreenUpdates = new Queue<WindowUpdate>(20);
 
     updateFramePackets = new Queue<WindowBufferUpdatePacket*>(5);
+
+    startMenuWindow = NULL;
+
+    lastFrameTime = envGetTimeMs();
+
+
+
+    const char* bgPath = "bruh:wmStuff/background.mbif";
+
+    {
+        char* buf;
+        uint64_t size = 0;
+        if (fsReadFile(bgPath, (void**)&buf, &size))
+        {
+            ImageStuff::BitmapImage* img = ImageStuff::ConvertBufferToBitmapImage(buf, size);
+            if (img != NULL)
+            {
+                backgroundImage = new Framebuffer();
+                backgroundImage->Width = img->width;
+                backgroundImage->Height = img->height;
+                backgroundImage->PixelsPerScanLine = backgroundImage->Width;
+                backgroundImage->BufferSize = backgroundImage->Width * backgroundImage->Height * 4;
+                backgroundImage->BaseAddress = _Malloc(backgroundImage->BufferSize, "Background Image Buffer");
+                _memcpy(img->imageBuffer, backgroundImage->BaseAddress, backgroundImage->BufferSize);
+                _Free(img->imageBuffer);
+                _Free(img);
+                drawBackground = true;
+            }
+            _Free(buf);
+        }
+    }
+
+    const char* windowButtonPath = "bruh:wmStuff/windowButtons.mbzf";
+    {
+        char* buf;
+        uint64_t size = 0;
+        if (fsReadFile(windowButtonPath, (void**)&buf, &size))
+        {
+            ZipStuff::ZIPFile* zip = ZipStuff::ZIP::GetZIPFromBuffer(buf, size);
+
+            for (int i = 0; i < countOfButtonIcons; i++)
+                windowButtonIcons[i] = ImageStuff::ConvertFileToBitmapImage(ZipStuff::ZIP::GetFileFromFileName(zip, windowButtonIconNames[i]));
+        }
+        else
+        {
+            for (int i = 0; i < countOfButtonIcons; i++)    
+                windowButtonIcons[i] = NULL;
+        }
+    }
+
+    const char* windowIconsPath = "bruh:wmStuff/windowIcons.mbzf";
+    {
+        char* buf;
+        uint64_t size = 0;
+        if (fsReadFile(windowIconsPath, (void**)&buf, &size))
+        {
+            ZipStuff::ZIPFile* zip = ZipStuff::ZIP::GetZIPFromBuffer(buf, size);
+
+            for (int i = 0; i < countOfWindowIcons; i++)
+                internalWindowIcons[i] = ImageStuff::ConvertFileToBitmapImage(ZipStuff::ZIP::GetFileFromFileName(zip, windowIconNames[i]));
+        }
+        else
+        {
+            for (int i = 0; i < countOfWindowIcons; i++)    
+                internalWindowIcons[i] = NULL;
+        }
+    }
+
+    mouseZIP = NULL;
+    {
+        char* buf;
+        uint64_t size = 0;
+        if (fsReadFile("bruh:wmStuff/mouse.mbzf", (void**)&buf, &size))
+        {
+            mouseZIP = ZipStuff::ZIP::GetZIPFromBuffer(buf, size);
+            //_Free(buf);
+        }
+    }
+
+    ImageStuff::BitmapImage* mButton = NULL;
+    const char* mButtonPath = "bruh:wmStuff/MButton.mbif";
+    {
+        char* buf;
+        uint64_t size = 0;
+        if (fsReadFile(mButtonPath, (void**)&buf, &size))
+        {
+            mButton = ImageStuff::ConvertBufferToBitmapImage(buf, size);
+        }
+    }
+
+    ImageStuff::BitmapImage* mButtonS = NULL;
+    const char* mButtonSPath = "bruh:wmStuff/MButtonS.mbif";
+    {
+        char* buf;
+        uint64_t size = 0;
+        if (fsReadFile(mButtonSPath, (void**)&buf, &size))
+        {
+            mButtonS = ImageStuff::ConvertBufferToBitmapImage(buf, size);
+        }
+    }
+
+    Taskbar::InitTaskbar(mButton, mButtonS);
 }
 
 void PrintFPS(int fps, int aFps, int frameTime, int breakTime, int totalTime, uint64_t totalPixelCount, int frameCount)
@@ -151,49 +269,19 @@ void PrintFPS(int fps, int aFps, int frameTime, int breakTime, int totalTime, ui
 int main(int argc, char** argv)
 {
     serialPrintLn("Starting Desktop");
-
     programSetPriority(1);
-
-    programWait(100);
-
     InitStuff();
 
-    Window* window = new Window(50, 30, 200, 200, "Test Window 1", RND::RandomInt(), getPid());
-    windows->Add(window);
-    _memset(window->Buffer->BaseAddress, 0x80, window->Buffer->BufferSize);
+    activeWindow = NULL;
 
-    {
-        WindowBufferUpdatePacket* packet = new WindowBufferUpdatePacket(
-            0, 0, window->Buffer->Width, window->Buffer->Height, 
-            window->ID,
-            (uint32_t*)window->Buffer->BaseAddress
-        );
-
-        GenericMessagePacket* msg = packet->ToGenericMessagePacket();
-
-        msgSendMessage(msg, getPid());
-
-        msg->Free();
-        _Free(msg);
-
-        packet->Free();
-        _Free(packet);
-    }
-
-    activeWindow = window;
-
-    actualScreenRenderer->Clear(Colors.black);
-    actualScreenRenderer->Println("WINDOW 0x{}", ConvertHexToString((uint64_t)window->Buffer), Colors.yellow);
-    
-
-
+    // Clear and Redraw
     Clear(true);
+    UpdatePointerRect(0, 0, actualScreenFramebuffer->Width - 1, actualScreenFramebuffer->Height - 1);
     RenderWindows();
-    ActuallyRenderWindow(window, true);
+    RenderActualSquare(0, 0, actualScreenFramebuffer->Width - 1, actualScreenFramebuffer->Height - 1);
+
 
     DrawFrame();
-
-
 
     serialPrintLn("Starting Main Loop");
     
@@ -219,7 +307,8 @@ int main(int argc, char** argv)
             frameTime += endTime - startTime;
 
             //programWait(10);
-            programYield();
+            //programYield();
+            programWaitMsg();
 
             uint64_t endTime2 = envGetTimeMs();
 
@@ -259,13 +348,27 @@ void CheckForDeadWindows()
         Window* window = windows->ElementAt(i);
         if (!pidExists(window->PID))
         {
-            windows->RemoveAt(i);
-
-            windowsToDelete->Add(window);
+            AddWindowToBeRemoved(window);
 
             i--;
         }
     }   
+}
+
+void AddWindowToBeRemoved(Window* window)
+{
+    windowsToDelete->Add(window);
+
+    int idx = windows->GetIndexOf(window);
+    if (idx != -1)
+        windows->RemoveAt(idx);
+
+    if (activeWindow == window)
+        activeWindow = NULL;
+    if (Taskbar::activeTabWindow == window)
+        Taskbar::activeTabWindow = NULL;
+    if (currentActionWindow == window)
+        currentActionWindow = NULL;
 }
 
 uint64_t DrawFrame()
@@ -274,6 +377,7 @@ uint64_t DrawFrame()
     uint32_t rndCol = (uint32_t)RND::RandomInt();
 
     updateFramePackets->Clear();
+    windowsUpdated->Clear();
 
     bool doUpdate = false;
     int msgCount = min(msgGetCount(), 50);
@@ -284,57 +388,122 @@ uint64_t DrawFrame()
             break;
         if (msg->Type == MessagePacketType::MOUSE_EVENT)
         {
-            MouseMessagePacket* mouseMsg = (MouseMessagePacket*)msg->Data;
-            if (mouseMsg->Type == MouseMessagePacketType::MOUSE_MOVE)
+            if (msg->Size == sizeof(MouseMessagePacket) && msg->Data != NULL)
             {
+                MouseMessagePacket* mouseMsg = (MouseMessagePacket*)msg->Data;
                 MousePosition.x = mouseMsg->MouseX;
                 MousePosition.y = mouseMsg->MouseY;
+                
+                bool handled = HandleMouseClickPacket(mouseMsg);
+
+                if (mouseMsg->Type == MouseMessagePacketType::MOUSE_CLICK && !handled)
+                {   
+                    if (activeWindow != NULL)
+                    {
+                        GenericMessagePacket* msgNew = new GenericMessagePacket(MessagePacketType::MOUSE_EVENT, msg->Data, sizeof(MouseMessagePacket));
+                        msgSendConv(msgNew, activeWindow->PID, activeWindow->CONVO_ID_WM_MOUSE_STUFF);
+                        msgNew->Free();
+                        _Free(msgNew);
+                    }
+                }
+
+                if (handled && activeWindow != NULL)
+                {
+                    windowsUpdated->AddIfUnique(activeWindow);
+                }
             }
         }
         else if (msg->Type == MessagePacketType::KEY_EVENT)
         {
-            KeyMessagePacket* keyMsg = (KeyMessagePacket*)msg->Data;
-            if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED)
+            if (msg->Size == sizeof(KeyMessagePacket) && msg->Data != NULL)
             {
-                actualScreenRenderer->CursorPosition.x = 0;
-                actualScreenRenderer->CursorPosition.y = actualScreenFramebuffer->Height - 128;
+                KeyMessagePacket* keyMsg = (KeyMessagePacket*)msg->Data;
+                if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED && keyMsg->Scancode == 0x58) // F12
+                {
+                    uint64_t newPid = startProcess("bruh:programs/shell.elf", 0, NULL);
+                }
+                else if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED && keyMsg->Scancode == 0x57) // F11
+                {
+                    Clear(true);
+                    UpdatePointerRect(0, 0, actualScreenFramebuffer->Width - 1, actualScreenFramebuffer->Height - 1);
+                    RenderWindows();
+                    RenderActualSquare(0, 0, actualScreenFramebuffer->Width - 1, actualScreenFramebuffer->Height - 1);
+                }
+                else if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED && keyMsg->Scancode == 0x44) // F10
+                {
+                    uint64_t newPid = startProcess("bruh:programs/explorer.elf", 0, NULL);
+                }
+                else if (activeWindow != NULL)
+                {
+                    GenericMessagePacket* msgNew = new GenericMessagePacket(MessagePacketType::KEY_EVENT, msg->Data, sizeof(KeyMessagePacket));
+                    msgSendConv(msgNew, activeWindow->PID, activeWindow->CONVO_ID_WM_KB_STUFF);
+                    msgNew->Free();
+                    _Free(msgNew);
+                }
 
-                actualScreenRenderer->Clear(
-                    0, actualScreenRenderer->CursorPosition.y, 
-                    160, actualScreenRenderer->CursorPosition.y + 16, 
-                    Colors.black
-                );
+                if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED)
+                {
+                    actualScreenRenderer->CursorPosition.x = 0;
+                    actualScreenRenderer->CursorPosition.y = actualScreenFramebuffer->Height - 128;
 
-                actualScreenRenderer->Println("> KEY {} HELD", to_string((int)keyMsg->Scancode), Colors.white);
-            }
-            else if (keyMsg->Type == KeyMessagePacketType::KEY_RELEASE)
-            {
-                actualScreenRenderer->CursorPosition.x = 0;
-                actualScreenRenderer->CursorPosition.y = actualScreenFramebuffer->Height - 128;
+                    actualScreenRenderer->Clear(
+                        0, actualScreenRenderer->CursorPosition.y, 
+                        160, actualScreenRenderer->CursorPosition.y + 16, 
+                        Colors.black
+                    );
 
-                actualScreenRenderer->Clear(
-                    0, actualScreenRenderer->CursorPosition.y, 
-                    160, actualScreenRenderer->CursorPosition.y + 16, 
-                    Colors.black
-                );
+                    actualScreenRenderer->Println("> KEY {} HELD", to_string((int)keyMsg->Scancode), Colors.white);
+                }                
+                else if (keyMsg->Type == KeyMessagePacketType::KEY_RELEASE)
+                {
+                    actualScreenRenderer->CursorPosition.x = 0;
+                    actualScreenRenderer->CursorPosition.y = actualScreenFramebuffer->Height - 128;
 
-                actualScreenRenderer->Println("> KEY {} RELEASED", to_string((int)keyMsg->Scancode), Colors.white);
+                    actualScreenRenderer->Clear(
+                        0, actualScreenRenderer->CursorPosition.y, 
+                        160, actualScreenRenderer->CursorPosition.y + 16, 
+                        Colors.black
+                    );
+
+                    actualScreenRenderer->Println("> KEY {} RELEASED", to_string((int)keyMsg->Scancode), Colors.white);
+                }
             }
         }
-        else if (msg->Type == MessagePacketType::WINDOW_BUFFER_EVENT)
+        else
+        {
+            tempPackets->Add(msg);
+            continue;
+        }
+
+        msg->Free();
+        _Free(msg);
+    }
+
+    for (int i = 0; i < tempPackets->GetCount(); i++)
+    {
+        GenericMessagePacket* msg = tempPackets->ElementAt(i);
+
+        if (msg->Type == MessagePacketType::WINDOW_BUFFER_EVENT)
         {
             WindowBufferUpdatePacket* windowBufferUpdatePacket = new WindowBufferUpdatePacket(msg);
 
             updateFramePackets->Enqueue(windowBufferUpdatePacket);
         }
-        else if (msg->Type == MessagePacketType::WINDOW_CREATE_EVENT && msg->Size == 0)
+        else if (msg->Type == MessagePacketType::WINDOW_CREATE_EVENT && msg->Size == 0 || msg->Size == 8)
         {
             uint64_t pidFrom = msg->FromPID;
-            uint64_t newWindowId = RND::RandomInt();
+            uint64_t newWindowId = 0;
+            if (msg->Size == 8)
+                newWindowId = *(uint64_t*)msg->Data;
+                
+            if (newWindowId == 0)
+                newWindowId = RND::RandomInt();
 
-            Window* window = new Window(350, 30, 400, 200, "Created Test Window", newWindowId, pidFrom);
+            Window* window = new Window(100 + RND::RandomInt() % 100, 100 + RND::RandomInt() % 100, 400, 300, "Window", newWindowId, pidFrom);
             windows->Add(window);
             _memset(window->Buffer->BaseAddress, 0x20, window->Buffer->BufferSize);
+
+            activeWindow = window;
 
             //Clear(true);
             //RenderWindows();
@@ -356,7 +525,7 @@ uint64_t DrawFrame()
                 serialPrint("To PID: ");
                 serialPrintLn(to_string(pidFrom));
                 GenericMessagePacket* response = new GenericMessagePacket(MessagePacketType::WINDOW_CREATE_EVENT, (uint8_t*)&newWindowId, 8);
-                msgSendMessage(response, pidFrom);
+                msgRespondConv(msg, response);
                 response->Free();
                 _Free(response);
             }
@@ -381,10 +550,7 @@ uint64_t DrawFrame()
             {
                 if (window->PID == pidFrom)
                 {
-                    windowsToDelete->Add(window);
-
-                    int idx = windows->GetIndexOf(window);
-                    windows->RemoveAt(idx);
+                    AddWindowToBeRemoved(window);
                 }
             }
 
@@ -423,7 +589,8 @@ uint64_t DrawFrame()
                     GenericMessagePacket* sendMsg = winObjPacketTo->ToGenericMessagePacket();
 
                     // serialPrintLn("> Sending Window");
-                    msgSendMessage(sendMsg, msg->FromPID);
+                    //msgSendMessage(sendMsg, msg->FromPID);
+                    msgRespondConv(msg, sendMsg);
                     
                     sendMsg->Free();
                     _Free(sendMsg);
@@ -475,8 +642,8 @@ uint64_t DrawFrame()
                 if (win != NULL)
                 {
                     // serialPrintLn("> WIN SET EVENT");
-                    win->UpdateUsingPartialWindow(fromWind, false);
-                    win->UpdateCheck();
+                    win->UpdateUsingPartialWindow(fromWind, true, false, false);
+                    //win->UpdateCheck();
                 }
                 else
                 {
@@ -498,6 +665,8 @@ uint64_t DrawFrame()
         _Free(msg);
     }
 
+    tempPackets->Clear();
+
     //doUpdate |= updateFramePackets->GetCount() > 0;
 
     // check for window updates
@@ -507,6 +676,10 @@ uint64_t DrawFrame()
 
         {
             window->CurrentTitleBackgroundColor = window->DefaultTitleBackgroundColor;
+            bool oldActive = window->IsActive;
+            window->IsActive = (window == activeWindow);
+            if (oldActive != window->IsActive)
+                windowsUpdated->AddIfUnique(window);
             if (window == activeWindow)
             {
                 window->CurrentTitleColor = window->SelectedTitleColor;
@@ -548,7 +721,24 @@ uint64_t DrawFrame()
             }
 
             window->Updates->Clear();
+
+            if (windowsUpdated->Contains(window))
+            {
+                WindowObjectPacket* winObjPacketTo = new WindowObjectPacket(window, false);
+                GenericMessagePacket* sendMsg = winObjPacketTo->ToGenericMessagePacket();
+
+                msgSendConv(sendMsg, window->PID, window->CONVO_ID_WM_WINDOW_UPDATE);
+                //programWait(100);
+
+                sendMsg->Free();
+                _Free(sendMsg);
+
+                winObjPacketTo->Free();
+                _Free(winObjPacketTo);
+            }
         }
+
+        
     }
 
 
@@ -557,7 +747,7 @@ uint64_t DrawFrame()
         Window* window = windowsToDelete->ElementAt(i);
 
         UpdatePointerRect(
-        window->Dimensions.x - 1,
+            window->Dimensions.x - 1,
             window->Dimensions.y - 24,
             window->Dimensions.x + window->Dimensions.width + 1,
             window->Dimensions.y + window->Dimensions.height + 1
@@ -570,21 +760,14 @@ uint64_t DrawFrame()
             window->Dimensions.y + window->Dimensions.height + 1
             ));
 
+        if (activeWindow == window)
+            activeWindow = NULL;
+
         window->Free();
         _Free(window);
     }
     windowsToDelete->Clear();
 
-    //Taskbar::RenderTaskbar();
-
-
-
-    // Handle mouse
-    //ProcessMousePackets();
-    //MousePosition.x = (MousePosition.x + 5) % 600;
-    //MousePosition.y = (MousePosition.y + 7) % 400;
-
-    //doUpdate = true;
 
     doUpdate = updateFramePackets->GetCount() != 0;
 
@@ -592,14 +775,18 @@ uint64_t DrawFrame()
 
     doUpdate |= ScreenUpdates->GetCount() != 0;
 
+    uint64_t currTime = envGetTimeMs();
+    if (lastFrameTime + 500 < currTime)
+    {
+        lastFrameTime = currTime;
+        doUpdate = true;
+        Taskbar::Scounter = 10000;
+    }
+
     if (!doUpdate)
         return 0;
 
-    // Draw Mouse
-    MPoint tempMousePos = MousePosition;
-    DrawMousePointer(tempMousePos, pointerBuffer);
-    
-    //Render();
+    bool taskbarRendered = Taskbar::RenderTaskbar();
 
     while (updateFramePackets->GetCount() > 0)
     {
@@ -649,17 +836,43 @@ uint64_t DrawFrame()
         _Free(packet);
     }
 
+
+
+    
+    if (taskbarRendered)
+        totalPixelCount += RenderActualSquare(
+            0, 
+            mainBuffer->Height - taskbar->Height, 
+            
+            mainBuffer->Width - 1, 
+            mainBuffer->Height - 1
+        );
+
+
+
+    // Draw Mouse
+    MPoint tempMousePos = MousePosition;
+    DrawMousePointerNew(tempMousePos, pointerBuffer);
+    
     totalPixelCount += RenderActualSquare(
-        oldMousePos.x, 
-        oldMousePos.y, 
+        oldMousePos.x - 32, 
+        oldMousePos.y - 32, 
         
-        oldMousePos.x + 16, 
-        oldMousePos.y + 16
+        oldMousePos.x + 48, 
+        oldMousePos.y + 48
     );
 
+    totalPixelCount += RenderActualSquare(
+        tempMousePos.x - 32, 
+        tempMousePos.y - 32, 
+        
+        tempMousePos.x + 48, 
+        tempMousePos.y + 48
+    );
+    oldMousePos = tempMousePos;
 
     int pixelSum = 0;
-    int maxPixelsPerFrame = 3000;
+    int maxPixelsPerFrame = 10000;
     
     while (ScreenUpdates->GetCount() > 0)
     {
@@ -678,19 +891,11 @@ uint64_t DrawFrame()
         if ((pixelSum > maxPixelsPerFrame) && ScreenUpdates->GetCount() < 5)
             break;
     }
-    // serialPrint("UPDATES LEFT: ");
-    // serialPrintLn(to_string(ScreenUpdates->GetCount()));
-    // //ScreenUpdates->Clear();
+    //serialPrint("UPDATES LEFT: ");
+    //serialPrintLn(to_string(ScreenUpdates->GetCount()));
+    //ScreenUpdates->Clear();
 
 
-    totalPixelCount += RenderActualSquare(
-        tempMousePos.x, 
-        tempMousePos.y, 
-        
-        tempMousePos.x + 16, 
-        tempMousePos.y + 16
-    );
-    oldMousePos = tempMousePos;
 
     // Remove Mouse
     UpdatePointerRect(tempMousePos.x - 32, tempMousePos.y - 32, tempMousePos.x + 64, tempMousePos.y + 64);
@@ -702,6 +907,46 @@ uint64_t DrawFrame()
     return totalPixelCount;
 }
 
+#include <libm/math.h>
+
+Window* getWindowAtMousePosition(int dis)
+{
+    if (MousePosition.y >= mainBuffer->Height - taskbar->Height)
+        return NULL;
+    
+    //GlobalRenderer->Println("Mouse POS Check");
+    for (int64_t i = windows->GetCount() - 1; i >= 0; i--)
+    {
+        if (windows->ElementAt(i)->Hidden)
+            continue;
+
+        WindowDimension dim = windows->ElementAt(i)->Dimensions;
+        MPoint tl = MPoint(dim.x, dim.y);
+        MPoint br = MPoint(dim.x + dim.width, dim.y + dim.height);
+        
+        tl.x--;
+        tl.y--;
+        if (windows->ElementAt(i)->ShowTitleBar)
+            tl.y -= 21;
+        br.x++;
+        br.y++;
+
+        tl.x -= dis;
+        tl.y -= dis;
+        br.x += dis;
+        br.y += dis;
+
+
+        if (MousePosition.x >= tl.x && MousePosition.x <= br.x && MousePosition.y >= tl.y && MousePosition.y <=br.y)
+            return windows->ElementAt(i);
+    }
+    return NULL;   
+}
+
+Window* getWindowAtMousePosition()
+{
+    return getWindowAtMousePosition(8);
+}
 
 /*
 HandleKeyboardList(20);

@@ -20,6 +20,8 @@ Window::Window()
     Moveable = true;
     Resizeable = true;
     Closeable = true;
+    IsActive = false;
+    IsFrozen = false;
 
     DefaultBorderColor = Colors.dgray;
     SelectedBorderColor = Colors.bgreen;
@@ -31,10 +33,13 @@ Window::Window()
     OldShowTitleBar = ShowTitleBar;
     OldShowBorder = ShowBorder;
     OldHidden = Hidden;
+    OldIsActive = IsActive;
+    OldIsFrozen = IsFrozen;
 
     CurrentBorderColor = DefaultBorderColor;
     CurrentTitleColor = DefaultTitleColor;
     CurrentTitleBackgroundColor = DefaultTitleBackgroundColor;
+    DefaultBackgroundColor = Colors.black;
 
     OldBorderColor = CurrentBorderColor;
     OldTitleColor = CurrentTitleColor;
@@ -45,6 +50,61 @@ Window::Window()
 
     ID = 0;
     PID = 0;
+
+    CONVO_ID_WM_MOUSE_STUFF = 0;
+    CONVO_ID_WM_KB_STUFF = 0;
+    CONVO_ID_WM_WINDOW_UPDATE = 0;
+    CONVO_ID_WM_WINDOW_CLOSED = 0;
+}
+
+Window::Window(uint64_t id)
+{
+    Title = StrCopy("");
+    OldTitle = StrCopy(Title);
+
+    Dimensions = WindowDimension();
+    OldDimensions = Dimensions;
+
+    ShowTitleBar = true;
+    ShowBorder = true;
+    Hidden = false;
+    Moveable = true;
+    Resizeable = true;
+    Closeable = true;
+    IsActive = false;
+    IsFrozen = false;
+
+    DefaultBorderColor = Colors.dgray;
+    SelectedBorderColor = Colors.bgreen;
+    DefaultTitleColor = Colors.gray;
+    SelectedTitleColor = Colors.white;
+    DefaultTitleBackgroundColor = Colors.dgray;
+
+    OldShowTitleBar = ShowTitleBar;
+    OldShowBorder = ShowBorder;
+    OldHidden = Hidden;
+    OldIsActive = IsActive;
+    OldIsFrozen = IsFrozen;
+
+    CurrentBorderColor = DefaultBorderColor;
+    CurrentTitleColor = DefaultTitleColor;
+    CurrentTitleBackgroundColor = DefaultTitleBackgroundColor;
+    DefaultBackgroundColor = Colors.black;
+
+    OldBorderColor = CurrentBorderColor;
+    OldTitleColor = CurrentTitleColor;
+    OldTitleBackgroundColor = CurrentTitleBackgroundColor;
+
+    Updates = new List<WindowUpdate>();
+    Buffer = NULL;
+
+    ID = id;
+    PID = 0;
+
+    CONVO_ID_WM_MOUSE_STUFF = 0;
+    CONVO_ID_WM_KB_STUFF = 0;
+    CONVO_ID_WM_WINDOW_UPDATE = 0;
+    CONVO_ID_WM_WINDOW_CLOSED = 0;
 }
 
 Window::Window(int x, int y, int width, int height, const char* title, uint64_t id, uint64_t pid)
@@ -66,16 +126,21 @@ Window::Window(int x, int y, int width, int height, const char* title, uint64_t 
     Moveable = true;
     Resizeable = true;
     Closeable = true;
+    IsActive = false;
+    IsFrozen = false;
 
     DefaultBorderColor = Colors.dgray;
     SelectedBorderColor = Colors.bgreen;
     DefaultTitleColor = Colors.gray;
     SelectedTitleColor = Colors.white;
     DefaultTitleBackgroundColor = Colors.dgray;
+    DefaultBackgroundColor = Colors.black;
 
     OldShowTitleBar = ShowTitleBar;
     OldShowBorder = ShowBorder;
     OldHidden = Hidden;
+    OldIsActive = IsActive;
+    OldIsFrozen = IsFrozen;
 
     CurrentBorderColor = DefaultBorderColor;
     CurrentTitleColor = DefaultTitleColor;
@@ -92,6 +157,11 @@ Window::Window(int x, int y, int width, int height, const char* title, uint64_t 
     ID = id;
     PID = pid;
 
+    CONVO_ID_WM_MOUSE_STUFF = RND::RandomInt();
+    CONVO_ID_WM_KB_STUFF = RND::RandomInt();
+    CONVO_ID_WM_WINDOW_UPDATE = RND::RandomInt();
+    CONVO_ID_WM_WINDOW_CLOSED = RND::RandomInt();
+
     ResizeFramebuffer(width, height);
 }
 
@@ -107,9 +177,6 @@ void Window::ResizeFramebuffer(int width, int height)
     Buffer->BufferSize = width * height * 4;
     Buffer->BaseAddress = _Malloc(Buffer->BufferSize, "Framebuffer Data");
 
-    // possibly optimize by only doing a memset if buffer is null and if it isnt then only clear the empty data
-    _memset(Buffer->BaseAddress, 0, Buffer->BufferSize);
-
     if (oldBuffer != NULL)
     {
         int minX = min(oldBuffer->Width, Buffer->Width);
@@ -122,12 +189,30 @@ void Window::ResizeFramebuffer(int width, int height)
             for (int x = 0; x < minX; x++)
                 newData[x + y * Buffer->PixelsPerScanLine] = oldData[x + y * oldBuffer->PixelsPerScanLine];
 
+        // right area
+        for (int y = 0; y < Buffer->Height; y++)
+            for (int x = minX; x < Buffer->Width; x++)
+                newData[x + y * Buffer->PixelsPerScanLine] = DefaultBackgroundColor;
+
+        // bottom area
+        for (int y = minY; y < Buffer->Height; y++)
+            for (int x = 0; x < minX; x++)
+                newData[x + y * Buffer->PixelsPerScanLine] = DefaultBackgroundColor;
+
         _Free(oldBuffer->BaseAddress);
         _Free(oldBuffer);
+    }
+    else
+    {
+        uint32_t* data = (uint32_t*)Buffer->BaseAddress;
+        for (int y = 0; y < Buffer->Height; y++)
+            for (int x = 0; x < Buffer->Width; x++)
+                data[x + y * Buffer->PixelsPerScanLine] = DefaultBackgroundColor;
     }
 
     Updates->Add(WindowUpdate(0, 0, width, height));
 }
+
 
 void Window::_CheckDimensionChange()
 {
@@ -146,10 +231,6 @@ void Window::_CheckDimensionChange()
         int x4 = Dimensions.x + Dimensions.width;
         int y4 = Dimensions.y + Dimensions.height;
 
-
-        // Apparently virtual box crashes here because of a page fault
-        // with some code commented out its either a page fault due to an instruction fetch
-        // without code commented out its apparently due to error code 6 -> Some reserved bit was set to 1 (in userspace)
         int minX = min(x1, x3);
         int minY = min(y1, y3);
 
@@ -161,10 +242,10 @@ void Window::_CheckDimensionChange()
         maxX += 1;
         maxY += 1;
 
-        if (minX < 0)
-            minX = 0;
-        if (minY < 0)
-            minY = 0;
+        // if (minX < 0)
+        //     minX = 0;
+        // if (minY < 0)
+        //     minY = 0;
 
         int width = maxX - minX + 1;
         int height = maxY - minY + 1;
@@ -189,8 +270,14 @@ void Window::_CheckDimensionChange()
         Dimensions.height != OldDimensions.height)
     {
         ResizeFramebuffer(Dimensions.width, Dimensions.height);
+
+        int maxW = max(Dimensions.width, OldDimensions.width);
+        int maxH = max(Dimensions.height, OldDimensions.height);
+
         OldDimensions.width = Dimensions.width;
         OldDimensions.height = Dimensions.height;
+
+        Updates->Add(WindowUpdate(-1, -23, maxW, maxH, true));
     }
 }
 
@@ -277,9 +364,10 @@ void Window::UpdateCheck()
     _CheckVisChange();
 }
 
-void Window::UpdateUsingPartialWindow(Window* window, bool updateIdAndPid)
+void Window::UpdateUsingPartialWindow(Window* window, bool updateId, bool updatePid, bool updateActive)
 {
-    // TODO apply the changes
+    if (window == NULL)
+        return;
 
     // Title
     if (window->Title != NULL)
@@ -314,16 +402,40 @@ void Window::UpdateUsingPartialWindow(Window* window, bool updateIdAndPid)
     SelectedTitleColor = window->SelectedTitleColor;
     // DefaultTitleBackgroundColor
     DefaultTitleBackgroundColor = window->DefaultTitleBackgroundColor;
-
-    if (updateIdAndPid)
+    // DefaultBackgroundColor
+    DefaultBackgroundColor = window->DefaultBackgroundColor;
+    // IsFrozen
+    IsFrozen = window->IsFrozen;
+    
+    // CONVO_ID_WM_MOUSE_STUFF
+    CONVO_ID_WM_MOUSE_STUFF = window->CONVO_ID_WM_MOUSE_STUFF;
+    // CONVO_ID_WM_KB_STUFF
+    CONVO_ID_WM_KB_STUFF = window->CONVO_ID_WM_KB_STUFF;
+    // CONVO_ID_WM_WINDOW_UPDATE
+    CONVO_ID_WM_WINDOW_UPDATE = window->CONVO_ID_WM_WINDOW_UPDATE;
+    // CONVO_ID_WM_WINDOW_CLOSED
+    CONVO_ID_WM_WINDOW_CLOSED = window->CONVO_ID_WM_WINDOW_CLOSED;
+    
+    if (updateId)
     {
         // ID
         ID = window->ID;
+    }
+
+    if (updatePid)
+    {
         // PID
         PID = window->PID;
     }
 
-    UpdateCheck();
+    if (updateActive)
+    {
+        // IsActive
+        IsActive = window->IsActive;
+    }
+
+    // if (doUpdateCheck)
+    //     UpdateCheck();
 }
 
 // void Window::DrawToFramebuffer(Framebuffer* framebuffer, Framebuffer* backbuffer, WindowUpdate update, int x, int y)

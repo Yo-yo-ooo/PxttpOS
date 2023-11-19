@@ -196,6 +196,12 @@ void programWait(int timeMs)
     asm("int $0x31" : : "a"(syscall), "b"(timeMs));
 }
 
+void programWaitMsg()
+{
+    int syscall = SYSCALL_WAIT_MSG;
+    asm("int $0x31" : : "a"(syscall));
+}
+
 void programYield()
 {
     int syscall = SYSCALL_YIELD;
@@ -216,6 +222,14 @@ uint64_t envGetTimeMs()
     uint64_t timeMs;
     asm("int $0x31" : "=a"(timeMs) : "a"(syscall));
     return timeMs;
+}
+
+RTC_Info* envGetTimeRTC()
+{
+    int syscall = SYSCALL_ENV_GET_TIME_RTC;
+    RTC_Info* info;
+    asm("int $0x31" : "=a"(info) : "a"(syscall));
+    return info;
 }
 
 uint64_t randomUint64()
@@ -260,4 +274,257 @@ bool msgSendMessage(GenericMessagePacket* packet, uint64_t targetPid)
     bool success;
     asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(packet), "c"(targetPid));
     return success;
+}
+
+GenericMessagePacket* msgGetConv(uint64_t convoId)
+{
+    int syscall = SYSCALL_MSG_GET_MSG_CONVO;
+    GenericMessagePacket* packet;
+    asm("int $0x31" : "=a"(packet) : "a"(syscall), "b"(convoId));
+    return packet;
+}
+
+#include <libm/cstr.h>
+
+GenericMessagePacket* msgWaitConv(uint64_t convoId, uint64_t timeoutMs)
+{
+    int64_t endTime = envGetTimeMs() + timeoutMs;
+    while ((int64_t)envGetTimeMs() < endTime)
+    {
+        GenericMessagePacket* packet = msgGetConv(convoId);
+        if (packet != NULL)
+            return packet;
+        programYield();
+    }
+
+    return NULL;
+}
+
+#include <libm/rnd/rnd.h>
+
+uint64_t msgSendConv(GenericMessagePacket* packet, uint64_t targetPid)
+{
+    uint64_t convoId = RND::RandomInt();
+    return msgSendConv(packet, targetPid, convoId);
+}
+
+uint64_t msgSendConv(GenericMessagePacket* packet, uint64_t targetPid, uint64_t convoId)
+{
+    packet->ConvoID = convoId;
+    msgSendMessage(packet, targetPid);
+    return convoId;
+}
+
+uint64_t msgRespondConv(GenericMessagePacket* og, GenericMessagePacket* reply)
+{
+    reply->ConvoID = og->ConvoID;
+    msgSendMessage(reply, og->FromPID);
+    return og->ConvoID;
+}
+
+#include "stubs.h"
+
+
+bool fsCreateFile(const char* path)
+{
+    int syscall = SYSCALL_FS_CREATE_FILE;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(path));
+    return success;
+}
+
+bool fsCreateFileWithSize(const char* path, uint64_t size)
+{
+    int syscall = SYSCALL_FS_CREATE_FILE_WITH_SIZE;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(path), "c"(size));
+    return success;
+}
+
+bool fsCreateFolder(const char* path)
+{
+    int syscall = SYSCALL_FS_CREATE_FOLDER;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(path));
+    return success;
+}
+
+
+bool fsDeleteFile(const char* path)
+{
+    int syscall = SYSCALL_FS_DELETE_FILE;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(path));
+    return success;
+}
+
+bool fsDeleteFolder(const char* path)
+{
+    int syscall = SYSCALL_FS_DELETE_FOLDER;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(path));
+    return success;
+}
+
+
+bool fsRenameFile(const char* path, const char* newPath)
+{
+    int syscall = SYSCALL_FS_RENAME_FILE;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(path), "c"(newPath));
+    return success;
+}
+
+bool fsRenameFolder(const char* path, const char* newPath)
+{
+    int syscall = SYSCALL_FS_RENAME_FOLDER;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(path), "c"(newPath));
+    return success;
+}
+
+
+bool fsCopyFile(const char* path, const char* newPath)
+{
+    int syscall = SYSCALL_FS_COPY_FILE;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(path), "c"(newPath));
+    return success;
+}
+
+bool fsCopyFolder(const char* path, const char* newPath)
+{
+    int syscall = SYSCALL_FS_COPY_FOLDER;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(path), "c"(newPath));
+    return success;
+}
+
+
+bool fsFileExists(const char* path)
+{
+    int syscall = SYSCALL_FS_FILE_EXISTS;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(path));
+    return success;
+}
+
+bool fsFolderExists(const char* path)
+{
+    int syscall = SYSCALL_FS_FOLDER_EXISTS;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(path));
+    return success;
+}
+
+
+const char** fsGetFilesInPath(const char* path, uint64_t* count)
+{
+    int syscall = SYSCALL_FS_GET_FILES_IN_PATH;
+    const char** files;
+    uint64_t tCount;
+    asm("int $0x31" : "=a"(files), "=b"(tCount) : "a"(syscall), "b"(path));
+    *count = tCount;
+    return files;
+}
+
+const char** fsGetFoldersInPath(const char* path, uint64_t* count)
+{
+    int syscall = SYSCALL_FS_GET_FOLDERS_IN_PATH;
+    const char** folders;
+    uint64_t tCount;
+    asm("int $0x31" : "=a"(folders), "=b"(tCount) : "a"(syscall), "b"(path));
+    *count = tCount;
+    return folders;
+}
+
+const char** fsGetDrivesInRoot(uint64_t* count)
+{
+    int syscall = SYSCALL_FS_GET_DRIVES_IN_ROOT;
+    const char** drives;
+    uint64_t tCount;
+    asm("int $0x31" : "=a"(drives), "=b"(tCount) : "a"(syscall));
+    *count = tCount;
+    return drives;
+}
+
+
+FsInt::FileInfo* fsGetFileInfo(const char* path)
+{
+    int syscall = SYSCALL_FS_GET_FILE_INFO;
+    FsInt::FileInfo* info;
+    asm("int $0x31" : "=a"(info) : "a"(syscall), "b"(path));
+    return info;
+}
+
+FsInt::FolderInfo* fsGetFolderInfo(const char* path)
+{
+    int syscall = SYSCALL_FS_GET_FOLDER_INFO;
+    FsInt::FolderInfo* info;
+    asm("int $0x31" : "=a"(info) : "a"(syscall), "b"(path));
+    return info;
+}
+
+
+bool fsReadFileIntoBuffer(const char* path, void* buffer, uint64_t start, uint64_t byteCount)
+{
+    int syscall = SYSCALL_FS_READ_FILE_INTO_BUFFER;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(path), "c"(buffer), "d"(start), "S"(byteCount));
+    return success;
+}
+
+bool fsReadFileIntoBuffer(const char* path, void* buffer, uint64_t byteCount)
+{
+    return fsReadFileIntoBuffer(path, buffer, 0, byteCount);
+}
+
+bool fsWriteFileFromBuffer(const char* path, void* buffer, uint64_t byteCount)
+{
+    int syscall = SYSCALL_FS_WRITE_FILE_FROM_BUFFER;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(path), "c"(buffer), "d"(byteCount));
+    return success;
+}
+
+#include <libm/memStuff.h>
+
+bool fsReadFile(const char* path, void** buffer, uint64_t* byteCount)
+{
+    FsInt::FileInfo* info = fsGetFileInfo(path);
+    if (info == NULL)
+        return false;
+
+    *byteCount = info->sizeInBytes;
+    info->Destroy();
+    *buffer = _Malloc(*byteCount);
+    _memset(*buffer, 0, *byteCount);
+
+    return fsReadFileIntoBuffer(path, *buffer, *byteCount); 
+}
+
+
+
+bool closeProcess(uint64_t pid)
+{
+    int syscall = SYSCALL_CLOSE_PROCESS;
+    bool success;
+    asm("int $0x31" : "=a"(success) : "a"(syscall), "b"(pid));
+    return success;
+}
+
+uint64_t startProcess(const char* path, int argc, const char** argv)
+{
+    int syscall = SYSCALL_START_PROCESS;
+    uint64_t pid;
+    asm("int $0x31" : "=a"(pid) : "a"(syscall), "b"(path), "c"(argc), "d"(argv));
+    return pid;
+}
+
+uint64_t startFile(const char* path)
+{
+    int syscall = SYSCALL_START_FILE;
+    uint64_t pid;
+    asm("int $0x31" : "=a"(pid) : "a"(syscall), "b"(path));
+    return pid;
 }

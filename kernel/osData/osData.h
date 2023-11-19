@@ -18,17 +18,21 @@
 
 // #include "../cStdLib/queue/queue_all.h"
 
+#include "../diskStuff/Disk_Interfaces/generic/genericDiskInterface.h"
+#include <libm/list/list_genDiskInterface.h>
+
 struct OSData
 {
     bool exit;
     bool booting;
     bool verboseBoot;
+    bool inBootProcess;
 //     KernelInfo* kernelInfo;
 //     List<Window*> windows;
 //     Queue<Window*> windowsToGetActive;
 //     List<Task*> osTasks;
-//     kernelFiles::ZIPFile* windowButtonZIP;
-//     kernelFiles::ZIPFile* windowIconZIP;
+//    kernelFiles::ZIPFile* windowButtonZIP;
+//    kernelFiles::ZIPFile* windowIconZIP;
 //     //Window* realMainWindow;
 //     //Window* realMainWindow2;
 //     //Window* mainTerminalWindow;
@@ -49,7 +53,7 @@ struct OSData
 //     bool bgTaskRun = true;
 //     WindowManager::WindowPointerBufferThing* windowPointerThing;
 
-//     List<DiskInterface::GenericDiskInterface*> diskInterfaces;
+    List<DiskInterface::GenericDiskInterface*> diskInterfaces;
 //     //List<Audio::BasicAudioDestination*> audioDestinations;
 
 //     List<Audio::AudioInputDevice*> audioInputDevices;
@@ -74,4 +78,4 @@ struct OSData
 
 
 
-extern volatile OSData osData;
+extern OSData osData;

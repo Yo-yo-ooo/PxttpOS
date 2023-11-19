@@ -71,9 +71,9 @@ namespace Elf
             Serial::Writelnf("ELF> DATA IS NULL!");
             return borkedElfFile;
         }
-        if(__builtin_bswap32(header->e_ident.i) != MAGIC) 
+        if(header->e_ident.i != MAGIC) 
         {
-            Serial::Writelnf("ELF> NUMBER IS %x and not %x", __builtin_bswap32(header->e_ident.i), MAGIC);
+            Serial::Writelnf("ELF> NUMBER IS %x and not %x", header->e_ident.i, MAGIC);
             Serial::Writelnf("ELF> (NUMBER IS %x)", header->e_ident.i);
             Serial::Writelnf("ELF> NOT AN ELF!");
             return borkedElfFile; // not an elf
@@ -100,17 +100,18 @@ namespace Elf
             if (ph->p_type != PT_LOAD) 
                 continue;
     
-            void* tempDest = (void*) ((uint64_t) ph->p_vaddr + ph->p_memsz);
-            if (last_dest == NULL || last_dest < tempDest)
+            void* tempDest = (void*) ((uint64_t) ph->p_vaddr + max(ph->p_offset, max(ph->p_memsz, ph->p_filesz)));
+            if (last_dest == NULL || ((int64_t)last_dest < (int64_t)tempDest))
                 last_dest = tempDest;
         }
 
-        void* offset = GlobalAllocator->RequestPages((uint64_t) last_dest / 0x1000 + 1);
+        // + 10 bc we cool
+        uint64_t pageCount = (uint64_t) last_dest / 0x1000 + 10;
+        void* offset = GlobalAllocator->RequestPages(pageCount);
         // TODO: might make a check here for kernel modules, so ya cant run or see it as userspace
-        GlobalPageTableManager.MapMemories((void*)((uint64_t)offset + MEM_AREA_ELF_MAP_OFFSET), (void*)offset, (uint64_t) last_dest / 0x1000 + 1, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_UserSuper);
+        GlobalPageTableManager.MapMemories((void*)((uint64_t)offset + MEM_AREA_ELF_MAP_OFFSET), (void*)offset, pageCount, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_UserSuper);
         offset = (void*)((uint64_t)offset + MEM_AREA_ELF_MAP_OFFSET);
-        //Serial::Writelnf("offset: %x\n", offset);
-        _memset(offset, 0, (uint64_t) last_dest / 0x1000 + 1);
+        _memset(offset, 0, pageCount * 0x1000);
 
         ph = (Elf64_Phdr*) (((char*) data) + header->e_phoff);
         for (int i = 0; i < header->e_phnum; i++, ph++)
@@ -133,7 +134,7 @@ namespace Elf
         file.entryPoint = (void*) (header->e_entry + (uint64_t) offset);
         file.offset = offset;
         file.data = data;
-        file.size = (uint64_t) last_dest / 0x1000 + 1;
+        file.size = pageCount;
         file.works = true;
 
         return file;

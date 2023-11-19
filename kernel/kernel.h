@@ -9,19 +9,19 @@
 
 #include <libm/rendering/S-Font.h>
 
-struct SystemAssetStruct
+struct MaslOsAssetStruct
 {
     // Images
-    kernelFiles::ImageFile* bgImage;
-    kernelFiles::ImageFile* testImage;
-	kernelFiles::ImageFile* bootImage;
-	kernelFiles::ImageFile* MButton;
-	kernelFiles::ImageFile* MButtonS;
+    kernelFiles::DefaultFile* bgImage;
+    kernelFiles::DefaultFile* testImage;
+	kernelFiles::DefaultFile* bootImage;
+	kernelFiles::DefaultFile* MButton;
+	kernelFiles::DefaultFile* MButtonS;
 
     // Zips
-    kernelFiles::ZIPFile* mouseZIP;
-	kernelFiles::ZIPFile* windowButtonZIP;
-	kernelFiles::ZIPFile* windowIconsZIP;
+    kernelFiles::DefaultFile* mouseZIP;
+	kernelFiles::DefaultFile* windowButtonZIP;
+	kernelFiles::DefaultFile* windowIconsZIP;
 
     kernelFiles::ZIPFile* maabZIP;
     kernelFiles::ZIPFile* otherZIP;
@@ -53,7 +53,7 @@ struct limineSmpResponse {
 void boot(void* bootInfo);
 
 
-volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, SystemAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData);
+volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, MaslOsAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData);
 
 // void RenderLoop();
 // void RecoverDed();

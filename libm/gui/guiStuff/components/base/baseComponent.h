@@ -11,6 +11,7 @@ namespace GuiComponentStuff
 
 #include <libm/list/list_guiField.h>
 
+
 namespace GuiComponentStuff
 {
     enum ComponentType : uint8_t
@@ -24,6 +25,7 @@ namespace GuiComponentStuff
         TEXTFIELD = 6,
         IMAGE_RECT = 7,
         CANVAS = 8,
+        ADVANCED_TEXT = 9
     };
 
 
@@ -66,7 +68,7 @@ namespace GuiComponentStuff
         BaseComponent();
         ComponentSize GetActualComponentSize();
         Position GetAbsoluteComponentPosition();
-        void* GetWindow();
+        void* GetGuiInstance();
         void* GetScreen();
         bool IsVisible();
         //BaseComponent* GetComponentFromId(uint64_t id);

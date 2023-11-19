@@ -5,6 +5,7 @@
 #include "guiStuff/components/imageRect/imageRectangleComponent.h"
 #include "guiStuff/components/textField/textFieldComponent.h"
 #include "guiStuff/components/canvas/canvasComponent.h"
+#include "guiStuff/components/advancedText/advancedTextComponent.h"
 #include <libm/rendering/Cols.h>
 #include <libm/wmStuff/wmStuff.h>
 
@@ -32,7 +33,7 @@ void GuiInstance::Init()
 {
     //window->renderer->Clear(Colors.white);
     allComponents = new List<GuiComponentStuff::BaseComponent*>(10);
-    screen = new GuiComponentStuff::ScreenComponent(window);
+    screen = new GuiComponentStuff::ScreenComponent(window, this);
     allComponents->Add(screen);
     screen->id = 1234;
     //window->renderer->Clear(Colors.white);
@@ -56,6 +57,8 @@ void GuiInstance::Init()
         &bruhus
     );
 
+    window->DefaultBackgroundColor = screen->backgroundColor;
+    setWindow(window);
 }
 
 int GetBaseComponentAttributeSize(GuiInstanceBaseAttributeType type)
@@ -91,71 +94,145 @@ int GetBaseComponentAttributeSize(GuiInstanceBaseAttributeType type)
     return 0;
 }
 
+#ifndef _KERNEL_SRC
+#include <libm/heap/heap.h>
+#endif
+#ifdef _KERNEL_SRC
+#include "../../kernel/memory/heap.h"
+#endif
+
 #include <libm/syscallManager.h>
 #include <libm/cstr.h>
+#include <libm/msgPackets/mousePacket/mousePacket.h>
+#include <libm/msgPackets/keyPacket/keyPacket.h>
+#include <libm/msgPackets/windowObjPacket/windowObjPacket.h>
 
-void GuiInstance::Render()
+void GuiInstance::Update()
 {
     if (screen == NULL)
         return;
 
-    // TODO: IMPLEMENT ONCE TASKS EXIST (IF I DECIDE TO USE THEM)
-    // if (waitTask == NULL && !waitingForTask && waitTask2 != NULL)
-    // {
-    //     //Serial::Writeln("Switching to Task2");
-    //     waitTask = waitTask2;
-    //     waitTask2 = NULL;
-    // }
+    // Window Updates
+    if (true)
+    {
+        bool updateEverHappened = false;
+        for (int i = 0; i < 500; i++)
+        {
+            GenericMessagePacket* wPacket = msgGetConv(window->CONVO_ID_WM_WINDOW_UPDATE);
+            if (wPacket != NULL)
+            {
+                if (wPacket->FromPID == desktopPID)
+                {
+                    WindowObjectPacket* gotObj = new WindowObjectPacket(wPacket);
+                    Window* partialWindow = gotObj->PartialWindow;
+                    gotObj->Free();
+                    _Free(gotObj);
 
-    // if (waitTask != NULL)
-    // {
-    //     DoTask(waitTask);
-    //     if (waitTask->GetDone())
-    //     {
-    //         if (OnWaitTaskDoneCallback != NULL)
-    //             OnWaitTaskDoneCallback(OnWaitTaskDoneHelp, waitTask);
+                    if (partialWindow != NULL)
+                    {
+                        window->UpdateUsingPartialWindow(partialWindow, true, true, true);
+                        updateEverHappened = true;
+                        partialWindow->Free();
+                        _Free(partialWindow);
+                    }
+                }
+                
+                wPacket->Free();
+                _Free(wPacket);
+            }
+            else
+                break;
+        }
+        if (updateEverHappened)
+        {
+            window->UpdateCheck();
+            window->Updates->Clear();
+        }
+    }
+    else
+    {
+        updateWindow(window);
+    }
 
-    //         FreeTask(waitTask);
-    //         waitTask = NULL;
+    // Update Mouse Position
+    {
+        MouseState* temp = envGetMouseState();
+        if (temp != NULL)
+        {
+            mouseState = *temp;
+            mouseState.MouseX -= window->Dimensions.x;
+            mouseState.MouseY -= window->Dimensions.y;
+            _Free(temp);
+        }
+    }
+    
+    // Keyboard Events
+    for (int i = 0; i < 500; i++)
+    {
+        GenericMessagePacket* mPacket = msgGetConv(window->CONVO_ID_WM_KB_STUFF);
+        if (mPacket != NULL)
+        {
+            if (mPacket->Size >= sizeof(KeyMessagePacket))
+            {
+                KeyMessagePacket* kbMsg = (KeyMessagePacket*)mPacket->Data;
+                
+                if (kbMsg->Type == KeyMessagePacketType::KEY_PRESSED)
+                    screen->KeyHit(GuiComponentStuff::KeyHitEventInfo(kbMsg->Scancode, kbMsg->KeyChar));
+            }
 
+            mPacket->Free();
+            _Free(mPacket);
+        }
+        else
+            break;
+    }
 
-    //         GuiComponentStuff::ComponentFramebuffer bruhus = GuiComponentStuff::ComponentFramebuffer
-    //         (
-    //             window->framebuffer->Width,
-    //             window->framebuffer->Height,
-    //             (uint32_t*)window->framebuffer->BaseAddress
-    //         );
+    // Mouse Events
+    for (int i = 0; i < 500; i++)
+    {
+        GenericMessagePacket* mPacket = msgGetConv(window->CONVO_ID_WM_MOUSE_STUFF);
+        if (mPacket != NULL)
+        {
+            if (mPacket->Size >= sizeof(MouseMessagePacket))
+            {
+                MouseMessagePacket* mouseMsg = (MouseMessagePacket*)mPacket->Data;
+                if (mouseMsg->Type == MouseMessagePacketType::MOUSE_CLICK)
+                {
+                    GuiComponentStuff::MouseClickEventInfo info = GuiComponentStuff::MouseClickEventInfo(
+                        GuiComponentStuff::Position(
+                            mouseMsg->MouseX - window->Dimensions.x, 
+                            mouseMsg->MouseY - window->Dimensions.y
+                        ),
+                        mouseMsg->Left, mouseMsg->Right, mouseMsg->Middle
+                    );
+                    screen->MouseClicked(info);
+                }
+            }
 
-    //         screen->renderer->Render(
-    //             screen->position, 
-    //             GuiComponentStuff::Field(
-    //                 GuiComponentStuff::Position(), 
-    //                 screen->GetActualComponentSize()
-    //             ), 
-    //             &bruhus
-    //         );
-    //         window->resizeable = oldResizeable;
-    //         window->closeable = true;
-    //     }
-    //     else
-    //     {
-    //         if (waitingForTask)
-    //             return;
-    //         waitingForTask = true;
-    //         window->renderer->ClearDotted(Colors.black);
-    //         window->closeable = false;
-    //         oldResizeable = window->resizeable;
-    //         window->resizeable = false;
-    //         return;
-    //     }
-    // }
-    // else
-    //     waitingForTask = false;
-    // //window->renderer->Clear(Colors.orange);
+            mPacket->Free();
+            _Free(mPacket);
+        }
+        else
+            break;
+    }
+}
+
+void GuiInstance::Render(bool update)
+{
+    if (screen == NULL)
+        return;
+    
+    if (update)
+        Update();
 
     screen->CheckUpdates();
-    //window->Updates->Clear();
 
+    //serialPrint("> Updates: ");
+    //serialPrintLn(to_string(screen->finalUpdatedFields->GetCount()));
+
+    int x1, y1, x2, y2;
+    bool set = false;
+    int counter = 0;
     while (screen->finalUpdatedFields->GetCount() > 0)
     {
         GuiComponentStuff::Field bruh = screen->finalUpdatedFields->LastElement();
@@ -170,27 +247,42 @@ void GuiInstance::Render()
 
         screen->renderer->Render(screen->position, bruh, &bruhus);
 
-        // serialPrint("> Sending Update: (");
-        // serialPrint(to_string(bruh.TL.x));
-        // serialPrint(", ");
-        // serialPrint(to_string(bruh.TL.y));
-        // serialPrint(") - (");
-        // serialPrint(to_string(bruh.BR.x));
-        // serialPrint(", ");
-        // serialPrint(to_string(bruh.BR.y));
-        // serialPrintLn(")");
-
-
-        // send update
-        SendWindowFrameBufferUpdate(window, bruh.TL.x, bruh.TL.y, bruh.BR.x, bruh.BR.y);
+        if (true)
+        {
+            if (!set || x1 > bruh.TL.x)
+                x1 = bruh.TL.x;
+            if (!set || y1 > bruh.TL.y)
+                y1 = bruh.TL.y;
+            if (!set || x2 < bruh.BR.x)
+                x2 = bruh.BR.x;
+            if (!set || y2 < bruh.BR.y)
+                y2 = bruh.BR.y;
+            set = true;
+        }
+        else
+        {
+            //send update
+            SendWindowFrameBufferUpdate(window, bruh.TL.x, bruh.TL.y, bruh.BR.x, bruh.BR.y);
+        }
+        
+        if (++counter > 10)
+        {
+            counter = 0;
+            if (set)
+            {
+                SendWindowFrameBufferUpdate(window, x1, y1, x2, y2);
+                set = false;
+            }
+        }
     }
-    
-    //screen->Render(GuiComponentStuff::Field(GuiComponentStuff::Position(), GuiComponentStuff::Position(window->size.width - 1, window->size.height - 1)));
-    // long t = window->size.height * (long)window->size.width;
 
-    // for (long i = 0; i < t; i++)
-    //     ((uint32_t*)window->framebuffer->BaseAddress)[i] = screen->renderer->componentFrameBuffer->pixels[i];
+    if (set)
+    {
+        SendWindowFrameBufferUpdate(window, x1, y1, x2, y2);
+        set = false;
+    }
 }
+
 
 GuiComponentStuff::BaseComponent* GuiInstance::GetComponentFromId(uint64_t id)
 {
@@ -375,6 +467,11 @@ bool GuiInstance::DeleteComponentWithId(int64_t id, bool destroyChildren)
     if (screen == base)
         return false;
     currentInst = this;
+
+    if (screen->tempSelectedComponent == base)
+        screen->tempSelectedComponent = NULL;
+    if (screen->selectedComponent == base)
+        screen->selectedComponent = NULL;
   
     bool res = base->Destroy(destroyChildren, RemoveThingFromList);
     RemoveThingFromList(base);
@@ -642,7 +739,7 @@ bool GuiInstance::CreateComponentWithIdAndParent(int64_t id, GuiComponentStuff::
 
     if (type == GuiComponentStuff::ComponentType::SCREEN)
     {
-        GuiComponentStuff::ScreenComponent* scr = new GuiComponentStuff::ScreenComponent(window);
+        GuiComponentStuff::ScreenComponent* scr = new GuiComponentStuff::ScreenComponent(window, this);
         scr->parent = parentComp;
 
         allComponents->Add(scr);
@@ -694,20 +791,33 @@ bool GuiInstance::CreateComponentWithIdAndParent(int64_t id, GuiComponentStuff::
         allComponents->Add(comp);
         return ComponentAddChild(parentId, comp);
     }
-    // TODO: ADD ONCE IMAGE COMPONENT EXISTS
-    // if (type == GuiComponentStuff::ComponentType::IMAGE_RECT)
-    // {
-    //     GuiComponentStuff::ImageRectangleComponent* comp =
-    //     new GuiComponentStuff::ImageRectangleComponent(
-    //         "",
-    //         GuiComponentStuff::ComponentSize(50, 50),
-    //         parentComp 
-    //     );
-    //     comp->id = id;
+    if (type == GuiComponentStuff::ComponentType::ADVANCED_TEXT)
+    {
+        GuiComponentStuff::AdvancedTextComponent* comp =
+        new GuiComponentStuff::AdvancedTextComponent(
+            Colors.white,
+            Colors.black,
+            GuiComponentStuff::ComponentSize(50, 50),
+            parentComp 
+        );
+        comp->id = id;
 
-    //     allComponents->Add(comp);
-    //     return ComponentAddChild(parentId, comp);
-    // }
+        allComponents->Add(comp);
+        return ComponentAddChild(parentId, comp);
+    }
+    if (type == GuiComponentStuff::ComponentType::IMAGE_RECT)
+    {
+        GuiComponentStuff::ImageRectangleComponent* comp =
+        new GuiComponentStuff::ImageRectangleComponent(
+            "",
+            GuiComponentStuff::ComponentSize(50, 50),
+            parentComp 
+        );
+        comp->id = id;
+
+        allComponents->Add(comp);
+        return ComponentAddChild(parentId, comp);
+    }
     if (type == GuiComponentStuff::ComponentType::TEXT)
     {
         GuiComponentStuff::TextComponent* comp =

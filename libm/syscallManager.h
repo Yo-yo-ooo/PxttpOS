@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "env/env.h"
+#include "rtc/rtcInfo.h"
 
 int getArgC();
 char** getArgV();
@@ -29,9 +30,11 @@ void programCrash();
 void programWait(int timeMs);
 void programYield();
 int programSetPriority(int priority);
+void programWaitMsg();
 
 uint64_t envGetTimeMs();
 uint64_t envGetDesktopPid();
+RTC_Info* envGetTimeRTC();
 
 uint64_t randomUint64();
 
@@ -48,3 +51,53 @@ bool envGetKeyState(int scancode);
 int msgGetCount();
 GenericMessagePacket* msgGetMessage();
 bool msgSendMessage(GenericMessagePacket* packet, uint64_t targetPid);
+
+
+GenericMessagePacket* msgGetConv(uint64_t convoId);
+GenericMessagePacket* msgWaitConv(uint64_t convoId, uint64_t timeoutMs);
+uint64_t msgSendConv(GenericMessagePacket* packet, uint64_t targetPid, uint64_t convoId);
+uint64_t msgSendConv(GenericMessagePacket* packet, uint64_t targetPid);
+uint64_t msgRespondConv(GenericMessagePacket* og, GenericMessagePacket* reply);
+
+
+
+
+#include <libm/fsStuff/fsInfo/fileSystemStructs.h>
+
+bool fsCreateFile(const char* path);
+bool fsCreateFileWithSize(const char* path, uint64_t size);
+bool fsCreateFolder(const char* path);
+
+bool fsDeleteFile(const char* path);
+bool fsDeleteFolder(const char* path);
+
+bool fsRenameFile(const char* path, const char* newPath);
+bool fsRenameFolder(const char* path, const char* newPath);
+
+bool fsCopyFile(const char* path, const char* newPath);
+bool fsCopyFolder(const char* path, const char* newPath);
+
+bool fsFileExists(const char* path);
+bool fsFolderExists(const char* path);
+
+const char** fsGetFilesInPath(const char* path, uint64_t* count);
+const char** fsGetFoldersInPath(const char* path, uint64_t* count);
+const char** fsGetDrivesInRoot(uint64_t* count);
+
+FsInt::FileInfo* fsGetFileInfo(const char* path);
+FsInt::FolderInfo* fsGetFolderInfo(const char* path);
+
+bool fsReadFileIntoBuffer(const char* path, void* buffer, uint64_t start, uint64_t byteCount);
+
+bool fsReadFileIntoBuffer(const char* path, void* buffer, uint64_t byteCount);
+bool fsWriteFileFromBuffer(const char* path, void* buffer, uint64_t byteCount);
+
+bool fsReadFile(const char* path, void** buffer, uint64_t* byteCount);
+
+
+
+
+
+bool closeProcess(uint64_t pid);
+uint64_t startProcess(const char* path, int argc, const char** argv);
+uint64_t startFile(const char* path);
