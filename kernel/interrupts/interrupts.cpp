@@ -294,7 +294,7 @@ void TempPitRoutine(interrupt_frame* frame)
     // if (osData.serialManager != NULL)
     //     osData.serialManager->DoStuff();
 
-
+/*
     if (_pitCount++ >= 80 && true)   
     {
         _pitCount = 0;
@@ -373,7 +373,7 @@ void TempPitRoutine(interrupt_frame* frame)
         // TestSetSpeakerPosition(speakA);
         // speakA = !speakA;
     }
-
+*/
 
     RemoveFromStack();
 

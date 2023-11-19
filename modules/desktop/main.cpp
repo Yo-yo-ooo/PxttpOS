@@ -331,7 +331,7 @@ int main(int argc, char** argv)
         int aFps = (int)((frameCount * 1000) / totalTime);
 
 
-        PrintFPS(fps, aFps, frameTime, breakTime, totalTime, totalPixelCount, frameCount);
+        //PrintFPS(fps, aFps, frameTime, breakTime, totalTime, totalPixelCount, frameCount);
 
         // Check for mem leaks
         // serialPrint("B> Used Heap Count: ");
