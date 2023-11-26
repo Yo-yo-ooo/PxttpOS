@@ -6,12 +6,8 @@ CC = gcc
 LD = ld
 
     
-LDFLAGS += -m elf_x86_64 -pic -unresolved-symbols=ignore-all --gc-sections
+LDFLAGS += -m elf_x86_64 -pic -unresolved-symbols=ignore-all --gc-sections 
 
-# Check if the linker supports -no-pie and enable it if it does
-ifeq ($(shell $(LD) --help 2>&1 | grep 'no-pie' >/dev/null 2>&1; echo $$?),0)
-    override LDFLAGS += -no-pie
-endif
 
 
 NASMFLAGS ?= -F dwarf -g -f elf64

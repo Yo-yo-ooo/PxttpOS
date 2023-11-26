@@ -177,12 +177,11 @@ namespace Keyboard
         info.Scancode = actualScancode;
         info.AsciiChar = chr;
 
-/*
         if ((scancode & KEY_RELEASED) == 0)
             Serial::Writelnf("> Key %d (%c) pressed", actualScancode, chr);
         else
             Serial::Writelnf("> Key %d (%c) released", actualScancode, chr);
-*/
+
         return info;
     }
 
