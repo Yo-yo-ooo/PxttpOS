@@ -33,7 +33,12 @@ System.iso:
 		if [ -d "$$i" ]; \
 		then \
 			echo "$$(basename "$$i")"; \
-			cp "$$i/$$(basename "$$i").elf" objects/external/modules/$$(basename "$$i").elf; \
+			mkdir -p objects/external/modules/$$(basename "$$i")/assets; \
+			cp "$$i/$$(basename "$$i").elf" objects/external/modules/$$(basename "$$i")/$$(basename "$$i").elf; \
+			\
+			if [ -d "./modules/$$(basename "$$i")/assets" ]; then \
+				cp -r "./modules/$$(basename "$$i")/assets" objects/external/modules/$$(basename "$$i"); \
+			fi; \
 		fi \
 	done
 	
@@ -41,10 +46,16 @@ System.iso:
 		if [ -d "$$i" ]; \
 		then \
 			echo "$$(basename "$$i")"; \
-			cp "$$i/$$(basename "$$i").elf" objects/external/programs/$$(basename "$$i").elf; \
+			mkdir -p objects/external/programs/$$(basename "$$i")/assets; \
+			cp "$$i/$$(basename "$$i").elf" objects/external/programs/$$(basename "$$i")/$$(basename "$$i").elf; \
+			\
+			if [ -d "./programs/$$(basename "$$i")/assets" ]; then \
+				cp -r "./programs/$$(basename "$$i")/assets" objects/external/programs/$$(basename "$$i"); \
+			fi; \
 		fi \
 	done
 	
+
 	$(MAKE) -C saf
 	./saf/saf-make ./objects/external ./external/programs.saf
 	
@@ -100,11 +111,8 @@ cleanExternalFolder:
 	@mkdir objects/external/modules
 	@mkdir objects/external/programs
 	
-	
+
 ccar:
 	make clean -j$(nproc) && make clean2 -j$(nproc)
 	make -j$(nproc)
-	qemu-system-x86_64 -machine q35 -m 2G -cpu qemu64 -smp 4 -serial stdio -boot d -cdrom System.iso -no-reboot --no-shutdown
-
-jr:
 	qemu-system-x86_64 -machine q35 -m 2G -cpu qemu64 -smp 4 -serial stdio -boot d -cdrom System.iso -no-reboot --no-shutdown
