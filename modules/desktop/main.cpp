@@ -284,6 +284,7 @@ int main(int argc, char** argv)
     DrawFrame();
 
     serialPrintLn("Starting Main Loop");
+    uint64_t newPid = startProcess("bruh:programs/explorer/explorer.elf", 0, NULL);
     
     const int frameCount = 60;
     while (true)
