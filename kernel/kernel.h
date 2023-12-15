@@ -9,29 +9,13 @@
 
 #include <libm/rendering/S-Font.h>
 
-struct MaslOsAssetStruct
+struct SystemAssetStruct
 {
     // Images
-    kernelFiles::DefaultFile* bgImage;
-    kernelFiles::DefaultFile* testImage;
 	kernelFiles::DefaultFile* bootImage;
-	kernelFiles::DefaultFile* MButton;
-	kernelFiles::DefaultFile* MButtonS;
-
-    // Zips
-    kernelFiles::DefaultFile* mouseZIP;
-	kernelFiles::DefaultFile* windowButtonZIP;
-	kernelFiles::DefaultFile* windowIconsZIP;
-
-    kernelFiles::ZIPFile* maabZIP;
-    kernelFiles::ZIPFile* otherZIP;
 
     // Modules
     kernelFiles::DefaultFile* programs;
-    //kernelFiles::DefaultFile* nothingDoer;
-
-    // EFI Mem?
-
 };
 
 struct limineSmpInfo {
@@ -53,7 +37,7 @@ struct limineSmpResponse {
 void boot(void* bootInfo);
 
 
-volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, MaslOsAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData);
+volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, SystemAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData);
 
 // void RenderLoop();
 // void RecoverDed();

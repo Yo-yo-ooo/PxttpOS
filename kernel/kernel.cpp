@@ -93,7 +93,7 @@ void boot(void* _bootInfo)
         Serial::Writelnf("> Setting up Nothing Doer Task");
         Elf::LoadedElfFile elf;
         elf.entryPoint = (void*)nothing_task_entry;
-        osTask* task = Scheduler::CreateTaskFromElf(elf, 0, NULL, false);
+        osTask* task = Scheduler::CreateTaskFromElf(elf, 0, NULL, false, "", "");
         Scheduler::NothingDoerTask = task;
     }
 
@@ -157,13 +157,13 @@ void boot(void* _bootInfo)
                         Scheduler::DesktopElfFile = file->driver_specific_data;
                         Serial::Writelnf("> SET DESKTOP ELF");
                     }
-                    else
-                    {
-                        osTask* task = Scheduler::CreateTaskFromElf(elf, 0, NULL, false);
+                    // else
+                    // {
+                    //     osTask* task = Scheduler::CreateTaskFromElf(elf, 0, NULL, false);
                         
-                        Scheduler::AddTask(task);
-                        Serial::Writelnf("> ADDED MODULE");
-                    }
+                    //     Scheduler::AddTask(task);
+                    //     Serial::Writelnf("> ADDED MODULE");
+                    // }
                 }
             }
 
@@ -230,7 +230,7 @@ void boot(void* _bootInfo)
 
 
  
-volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, MaslOsAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData)
+volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, SystemAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData)
 {
     //MStackData::BenchmarkEnabled = false;
     BootInfo tempBootInfo;
@@ -239,20 +239,8 @@ volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, 
 
     tempBootInfo.psf1_font = psf1_font;
 
-    tempBootInfo.testImage = assets->testImage;
     tempBootInfo.bootImage = assets->bootImage;
-    tempBootInfo.MButton = assets->MButton;
-    tempBootInfo.MButtonS = assets->MButtonS;
-    tempBootInfo.bgImage = assets->bgImage;
-    tempBootInfo.maabZIP = assets->maabZIP;
-    tempBootInfo.otherZIP = assets->otherZIP;
-
-    tempBootInfo.mouseZIP = assets->mouseZIP;
-    tempBootInfo.windowButtonZIP = assets->windowButtonZIP;
-    tempBootInfo.windowIconsZIP = assets->windowIconsZIP;
-
     tempBootInfo.programs = assets->programs;
-    //tempBootInfo.nothingDoer = assets->nothingDoer;
 
     tempBootInfo.mMapStart = freeMemStart;
     tempBootInfo.m2MapStart = extraMemStart;

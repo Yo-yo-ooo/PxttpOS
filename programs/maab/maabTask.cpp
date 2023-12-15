@@ -12,7 +12,9 @@
 #include <libm/list/list_gui.h>
 #include <libm/syscallManager.h>
 #include <libm/stubs.h>
+#include <libm/stdio/stdio.h>
 
+using namespace STDIO;
 
 uint8_t* mem;
 uint64_t memLen;
@@ -52,24 +54,24 @@ uint32_t foregroundColor = Colors.white;
 uint32_t backgroundColor = Colors.black;
 void Print(const char* str)
 {
-    serialPrint(str);
+    print(str);
 }
 void Println()
 {
-    serialPrintLn("");
+    println();
 }
 char ReadChar()
 {
     while (true)
     {
-        char c = serialReadChar();
-        if (c != 0)
+        char c = read();
+        if (c != -1)
             return c;
     }
 }
 void Clear()
 {
-    serialPrintLn("<CLS>");
+    print("<CLS>");
 }
 void Print(char chr)
 {
@@ -88,7 +90,7 @@ void Println(const char* str)
 int main(int argc, const char** argv)
 {
     initWindowManagerStuff();
-
+	initStdio(true);
 
 	if (argc == 0 || argv == NULL)
 		return -1;
@@ -172,6 +174,8 @@ int main(int argc, const char** argv)
 
         programYield();
     }
+
+	return 0;
 }
 
 
@@ -203,6 +207,7 @@ GuiInstance* GetGuiFromWindow(Window* win)
         if (window == win)
             return guisCreated->ElementAt(i);
     }
+	return NULL;
 }
 
 

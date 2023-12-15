@@ -57,7 +57,7 @@ System.iso:
 	
 
 	$(MAKE) -C saf
-	./saf/saf-make ./objects/external ./external/programs.saf
+	./saf/saf-make ./objects/external ./external/programs.saf -q
 	
 	
 	

@@ -111,7 +111,7 @@ void InitStuff()
 
 
 
-    const char* bgPath = "bruh:wmStuff/background.mbif";
+    const char* bgPath = "bruh:modules/desktop/assets/background.mbif";
 
     {
         char* buf;
@@ -136,7 +136,7 @@ void InitStuff()
         }
     }
 
-    const char* windowButtonPath = "bruh:wmStuff/windowButtons.mbzf";
+    const char* windowButtonPath = "bruh:modules/desktop/assets/windowButtons.mbzf";
     {
         char* buf;
         uint64_t size = 0;
@@ -154,7 +154,7 @@ void InitStuff()
         }
     }
 
-    const char* windowIconsPath = "bruh:wmStuff/windowIcons.mbzf";
+    const char* windowIconsPath = "bruh:modules/desktop/assets/windowIcons.mbzf";
     {
         char* buf;
         uint64_t size = 0;
@@ -176,7 +176,7 @@ void InitStuff()
     {
         char* buf;
         uint64_t size = 0;
-        if (fsReadFile("bruh:wmStuff/mouse.mbzf", (void**)&buf, &size))
+        if (fsReadFile("bruh:modules/desktop/assets/mouse.mbzf", (void**)&buf, &size))
         {
             mouseZIP = ZipStuff::ZIP::GetZIPFromBuffer(buf, size);
             //_Free(buf);
@@ -184,7 +184,7 @@ void InitStuff()
     }
 
     ImageStuff::BitmapImage* mButton = NULL;
-    const char* mButtonPath = "bruh:wmStuff/MButton.mbif";
+    const char* mButtonPath = "bruh:modules/desktop/assets/MButton.mbif";
     {
         char* buf;
         uint64_t size = 0;
@@ -195,7 +195,7 @@ void InitStuff()
     }
 
     ImageStuff::BitmapImage* mButtonS = NULL;
-    const char* mButtonSPath = "bruh:wmStuff/MButtonS.mbif";
+    const char* mButtonSPath = "bruh:modules/desktop/assets/MButtonS.mbif";
     {
         char* buf;
         uint64_t size = 0;
@@ -284,7 +284,6 @@ int main(int argc, char** argv)
     DrawFrame();
 
     serialPrintLn("Starting Main Loop");
-    uint64_t newPid = startProcess("bruh:programs/explorer/explorer.elf", 0, NULL);
     
     const int frameCount = 60;
     while (true)
@@ -332,7 +331,7 @@ int main(int argc, char** argv)
         int aFps = (int)((frameCount * 1000) / totalTime);
 
 
-        //PrintFPS(fps, aFps, frameTime, breakTime, totalTime, totalPixelCount, frameCount);
+        PrintFPS(fps, aFps, frameTime, breakTime, totalTime, totalPixelCount, frameCount);
 
         // Check for mem leaks
         // serialPrint("B> Used Heap Count: ");
@@ -421,7 +420,7 @@ uint64_t DrawFrame()
                 KeyMessagePacket* keyMsg = (KeyMessagePacket*)msg->Data;
                 if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED && keyMsg->Scancode == 0x58) // F12
                 {
-                    uint64_t newPid = startProcess("bruh:programs/shell/shell.elf", 0, NULL);
+                    uint64_t newPid = startProcess("bruh:programs/shell/shell.elf", 0, NULL, "");
                 }
                 else if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED && keyMsg->Scancode == 0x57) // F11
                 {
@@ -432,7 +431,7 @@ uint64_t DrawFrame()
                 }
                 else if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED && keyMsg->Scancode == 0x44) // F10
                 {
-                    uint64_t newPid = startProcess("bruh:programs/explorer/explorer.elf", 0, NULL);
+                    uint64_t newPid = startProcess("bruh:programs/explorer/explorer.elf", 0, NULL, "");
                 }
                 else if (activeWindow != NULL)
                 {

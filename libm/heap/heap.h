@@ -50,6 +50,8 @@ namespace Heap
         void _Xfree(void* address, const char* func, const char* file, int line);
         bool _XtryFree(void* address, const char* func, const char* file, int line);
 
+        void* _Xrealloc(void* address, int64_t size, const char* func, const char* file, int line);
+
         bool ExpandHeap(size_t length);
 
         bool HeapCheck(bool wait);
@@ -95,7 +97,7 @@ namespace Heap
 #define _Malloc2(size, text) Heap::GlobalHeapManager->_Xmalloc(size, text, __PRETTY_FUNCTION__, __FILE__, __LINE__)
 #define _Free(address) Heap::GlobalHeapManager->_Xfree((void*)address, __PRETTY_FUNCTION__, __FILE__, __LINE__)
 #define _TryFree(address) Heap::GlobalHeapManager->_XtryFree((void*)address, __PRETTY_FUNCTION__, __FILE__, __LINE__)
-
+#define _Realloc(address, size) Heap::GlobalHeapManager->_Xrealloc((void*)address, size, __PRETTY_FUNCTION__, __FILE__, __LINE__)
 
 #include "new.hpp"
 

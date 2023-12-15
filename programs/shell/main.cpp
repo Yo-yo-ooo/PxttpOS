@@ -13,6 +13,8 @@
 #include <libm/gui/guiStuff/components/textField/textFieldComponent.h>
 #include <libm/gui/guiStuff/components/advancedText/advancedTextComponent.h>
 
+#include <libm/stdio/stdio.h>
+
 
 void Cls();
 bool SpecialKeyHandler(void* bruh, GuiComponentStuff::BaseComponent* comp, GuiComponentStuff::KeyHitEventInfo info);
@@ -24,6 +26,22 @@ GuiInstance* guiInst;
 GuiComponentStuff::TextFieldComponent* inTxt;
 GuiComponentStuff::TextComponent* pathTxt;
 GuiComponentStuff::AdvancedTextComponent* outTxt;
+
+using namespace STDIO;
+
+bool echoInput = true;
+bool echoExit = true;
+StdioInst* currStdio = NULL;
+
+void progClosed()
+{
+    if (echoExit)   
+        outTxt->Println("\n> Process exited.", Colors.yellow);
+
+    currStdio->Free();
+    _Free(currStdio);
+    currStdio = NULL;
+}
 
 int main(int argc, char** argv)
 {
@@ -115,6 +133,20 @@ int main(int argc, char** argv)
             }
         }
 
+        if (currStdio != NULL && !available(currStdio) && !pidExists(currStdio->pid))
+            progClosed();
+        if (currStdio != NULL)
+        {
+            int c = read(currStdio);
+            if (c != -1)
+            {
+                char bruh[2];
+                bruh[0] = c;
+                bruh[1] = 0;
+                outTxt->Print(bruh, Colors.white);
+            }
+        }
+
         guiInst->Render(false);
         
         programWaitMsg();
@@ -133,47 +165,120 @@ void Cls()
 
 bool SpecialKeyHandler(void* bruh, GuiComponentStuff::BaseComponent* comp, GuiComponentStuff::KeyHitEventInfo info)
 {
-    if (info.Chr == '\n')
+    if (currStdio != NULL && !available(currStdio) && !pidExists(currStdio->pid))
+        progClosed();
+        
+    if (currStdio != NULL)
     {
-        // Write command
-        outTxt->Print("> ", Colors.bgray);
-        outTxt->Println(inTxt->textComp->text, Colors.bgray);
+        char temp[2];
+        temp[1] = 0;
+        const char* send = NULL;
 
-        // Get cmd str
-        const char* cmd = StrCopy(inTxt->textComp->text);
+        if (envGetKeyState(Key_LeftShift) && info.Scancode != Key_LeftShift)
+        {
+            if (info.Scancode == Key_ArrowUp)
+            {
+                outTxt->scrollY -= 16;
+                return false;
+            }
+            else if (info.Scancode == Key_ArrowDown)
+            {
+                outTxt->scrollY += 16;
+                return false;
+            }
+            else if (info.Scancode == Key_ArrowLeft)
+            {
+                if (outTxt->scrollX >= 8)
+                    outTxt->scrollX -= 8;
+                return false;
+            }
+            else if (info.Scancode == Key_ArrowRight)
+            {
+                outTxt->scrollX += 8;
+                return false;
+            }
+            else
+            {
+                temp[0] = info.Chr;
+                send = (const char*)temp;
+            }
+        }
+        else if (info.Scancode == Key_ArrowLeft)
+            send = "\x1b[D";
+        else if (info.Scancode == Key_ArrowRight)
+            send = "\x1b[C";
+        else if (info.Scancode == Key_ArrowUp)
+            send = "\x1b[A";
+        else if (info.Scancode == Key_ArrowDown)
+            send = "\x1b[B";
+        else if (info.Scancode == Key_Backspace)
+            send = "\b";
+        else if (info.Chr == 'c' && envGetKeyState(Key_LeftControl))
+        {
+            closeProcess(currStdio->pid);
+            progClosed();
+        }
+        else
+        {
+            temp[0] = info.Chr;
+            send = (const char*)temp;
+        }
 
-        // Reset input
-        _Free(inTxt->textComp->text);
-        inTxt->textComp->text = StrCopy("");
-
-        HandleCommand(cmd);
-        outTxt->Println();
-
-        // Free
-        _Free(cmd);
+        if (send != NULL)
+        {
+            print(send, currStdio);
+            if (echoInput)
+                outTxt->Print(send, Colors.white);
+        }
 
         return false;
-    }
-    else if (info.Scancode == Key_ArrowUp)
+    }   
+    else
     {
-        outTxt->scrollY -= 16;
-        return false;
-    }
-    else if (info.Scancode == Key_ArrowDown)
-    {
-        outTxt->scrollY += 16;
-        return false;
-    }
-    else if (info.Scancode == Key_ArrowLeft)
-    {
-        if (outTxt->scrollX >= 8)
-            outTxt->scrollX -= 8;
-        return false;
-    }
-    else if (info.Scancode == Key_ArrowRight)
-    {
-        outTxt->scrollX += 8;
-        return false;
+        if (info.Chr == '\n')
+        {
+            // Write command
+            outTxt->Print("> ", Colors.bgray);
+            outTxt->Println(inTxt->textComp->text, Colors.bgray);
+
+            // Get cmd str
+            const char* cmd = StrCopy(inTxt->textComp->text);
+
+            // Reset input
+            _Free(inTxt->textComp->text);
+            inTxt->textComp->text = StrCopy("");
+
+            HandleCommand(cmd);
+            outTxt->Println();
+
+            // Free
+            _Free(cmd);
+
+            return false;
+        }
+        else if (info.Scancode == Key_ArrowUp)
+        {
+            outTxt->scrollY -= 16;
+            return false;
+        }
+        else if (info.Scancode == Key_ArrowDown)
+        {
+            outTxt->scrollY += 16;
+            return false;
+        }
+        else if (info.Scancode == Key_ArrowLeft)
+        {
+            if (outTxt->scrollX >= 8)
+                outTxt->scrollX -= 8;
+            return false;
+        }
+        else if (info.Scancode == Key_ArrowRight)
+        {
+            outTxt->scrollX += 8;
+            return false;
+        }
+
+        return true;
     }
 
     return true;
@@ -429,32 +534,34 @@ void HandleCommand(const char* inputStr)
 
             if (fsFileExists(combined))
             {
-                uint64_t newPid = startProcess(combined, argC - 2, args + 2);
+                uint64_t newPid = startProcess(combined, argC - 2, args + 2, currentPath);
                 if (newPid == 0)
                 {
-                    outTxt->Print("Failed to start process: \"", Colors.bred);
+                    outTxt->Print("> Failed to start process: \"", Colors.bred);
                     outTxt->Print(pathToUse, 0xffFFAA00);
                     outTxt->Println("\"", Colors.bred);
                 }
                 else
                 {
-                    outTxt->Print("Started process with PID: ", Colors.bgreen);
+                    outTxt->Print("> Started process with PID: ", Colors.bgreen);
                     outTxt->Println(ConvertHexToString(newPid), Colors.bgreen);
+                    currStdio = initStdio(newPid);
                 }
             }
             else if (fsFileExists(pathToUse))
             {
-                uint64_t newPid = startProcess(pathToUse, argC - 2, args + 2);
+                uint64_t newPid = startProcess(pathToUse, argC - 2, args + 2, currentPath);
                 if (newPid == 0)
                 {
-                    outTxt->Print("Failed to start process: \"", Colors.bred);
+                    outTxt->Print("> Failed to start process: \"", Colors.bred);
                     outTxt->Print(pathToUse, 0xffFFAA00);
                     outTxt->Println("\"", Colors.bred);
                 }
                 else
                 {
-                    outTxt->Print("Started process with PID: ", Colors.bgreen);
+                    outTxt->Print("> tarted process with PID: ", Colors.bgreen);
                     outTxt->Println(ConvertHexToString(newPid), Colors.bgreen);
+                    currStdio = initStdio(newPid);
                 }
             }
             else
