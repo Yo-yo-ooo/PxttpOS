@@ -289,7 +289,7 @@ void TempPitRoutine(interrupt_frame* frame)
     PIC_EndMaster();
 
     
-
+/*
     // AudioDeviceStuff::play(PIT::FreqAdder);
     // if (osData.serialManager != NULL)
     //     osData.serialManager->DoStuff();
@@ -373,7 +373,7 @@ void TempPitRoutine(interrupt_frame* frame)
         // TestSetSpeakerPosition(speakA);
         // speakA = !speakA;
     }
-
+*/
 
     RemoveFromStack();
 
