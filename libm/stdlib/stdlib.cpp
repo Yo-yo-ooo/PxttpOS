@@ -150,7 +150,7 @@ void *calloc(size_t number, size_t size) {
     size_t i,nb;
     char* p,q;
 
-    nb = n * size;
+    nb = number * size;
     if((p = q = _Malloc1(nb)) != NULL){
         for(i = 0; i < nb; i++)
             *p++ = 0;
@@ -193,12 +193,12 @@ void* realloc(void* ptr, size_t size){
         if(b->length >= size && b->length - size >= 0x10){
             b->Split(Heap::GlobalHeapManager, size);
         }else{
-            if(b->next && b->next->free && (b->size + 0x10 + b->next->size) >= size){
+            if(b->next && b->next->free && (b->length + 0x10 + b->next->length) >= size){
                 if(b->next && b->next->free){
-                    b->size += 0x8 + b->next->size;
+                    b->length += 0x8 + b->next->length;
                     b->next = b->next->next;
                     if(b->next)
-                        b->next->prev = b;
+                        b->next->last = b;
                 }
                 if(b->length - size >= 0x10){
                     b->Split(Heap::GlobalHeapManager, size);
