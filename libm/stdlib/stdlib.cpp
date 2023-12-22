@@ -11,6 +11,7 @@
 #include <libm/cstr.h>
 #include <libm/heap/heap.h>
 #include <libm/list/list_basics.h>
+#include <limits.h>
 
 
 int atoi(char* pstr)
@@ -175,7 +176,7 @@ void copy_block(Heap::_HeapSegHdr* src, Heap::_HeapSegHdr* dst) {
 }
 
 void* realloc(void* ptr, size_t size){
-    Heap::_HeapSegHdr* b, newb;
+    Heap::_HeapSegHdr* b; Heap::_HeapSegHdr*newb;
     void *newp;
     if (ptr == NULL)/* 根据标准库文档，当p传入NULL时，相当于调用malloc */
         return _Malloc1(size);
@@ -215,4 +216,128 @@ void* realloc(void* ptr, size_t size){
         return (ptr);
     }
     return NULL;
+}
+
+#define N 50
+
+long atol(const char *nptr)
+{
+    int c;
+    long total = 0;
+    int sign;
+    while(isspace((int)(unsigned char)*nptr))//跳过前面的空格
+        ++nptr;
+    c = (int)(unsigned char)*nptr++;
+    sign = c;
+    if(c == '-' || c == '+')
+        c = (int)(unsigned char) *nptr++;
+
+    while(isdigit(c))
+    {
+        total = 10 * total + c- '0';
+        c = (int)(unsigned char)*nptr++;
+    }
+    if(sign == '-')
+        return -total;
+    else
+        return total;
+}
+#undef N
+
+char *itoa(int val, char *buf, unsigned radix)
+{
+    char   *p;
+    char   *firstdig;
+    char   temp;
+    unsigned   digval;
+    p = buf;
+    if(val <0)
+    {
+        *p++ = '-';
+        val = (unsigned long)(-(long)val);
+    }
+    firstdig = p;
+    do{
+        digval = (unsigned)(val % radix);
+        val /= radix;
+
+        if  (digval > 9)
+            *p++ = (char)(digval - 10 + 'a');
+        else
+            *p++ = (char)(digval + '0');
+    }while(val > 0);
+
+    *p-- = '\0 ';
+    do{
+        temp = *p;
+        *p = *firstdig;
+        *firstdig = temp;
+        --p;
+        ++firstdig;
+    }while(firstdig < p);
+    return buf;
+}
+
+long strtol(const char *str, char **endptr, int base) {
+    int sign = 1;
+    // Initialize result
+    long result = 0;
+    
+    // Skip leading whitespace
+    while (isspace(*str)) str++;
+
+    // Determine sign
+    if (*str == '+') {
+        str++;
+    } else if (*str == '-') {
+        sign = -1;
+        str++;
+    }
+
+    // Determine base if not specified
+    if (base == 0) {
+        if (*str == '0') {
+            if (tolower(*(str + 1)) == 'x') {
+                base = 16;
+                str += 2;
+            } else {
+                base = 8;
+                str++;
+            }
+        } else {
+            base = 10;
+        }
+    }
+
+    // Check for invalid base
+    if (base < 2 || base > 36) {
+        if (endptr) *endptr = (char *)str;
+        return 0;
+    }
+
+    
+
+    // Process digits
+    while (isxdigit(*str)) {
+        int digit;
+        if (isdigit(*str)) {
+            digit = *str - '0';
+        } else {
+            digit = toupper(*str) - 'A' + 10;
+        }
+        if (digit >= base) break;
+        if (result > (LONG_MAX - digit) / base) {
+            // Overflow
+            result = sign == 1 ? LONG_MAX : LONG_MIN;
+            //errno = ERANGE;
+        } else {
+            result = result * base + digit;
+        }
+        str++;
+    }
+
+    // Set endptr to point to the first character that is not part of the number
+    if (endptr) *endptr = (char *)str;
+
+    return sign * result;
 }
