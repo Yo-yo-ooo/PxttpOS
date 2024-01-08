@@ -270,7 +270,7 @@ bool HandleClick(bool L, bool R, bool M)
         }
 
         // Window Start Drag
-        if (currentActionWindow == NULL)
+        if (currentActionWindow == NULL || (activeWindow != NULL && activeWindow != currentActionWindow))
         {
             if (activeWindow != NULL)
             {
@@ -373,6 +373,23 @@ bool HandleClick(bool L, bool R, bool M)
             {
                 activeWindow->Hidden = true;
                 activeWindow = NULL;
+            }
+            res = true;
+        }
+        else if (Taskbar::MButtonSelected)
+        {
+            if (startMenuWindow != NULL)
+            {
+                if (startMenuWindow->Hidden)
+                {
+                    startMenuWindow->Hidden = false;
+                    MakeWinActive(activeWindow, startMenuWindow);
+                }
+                else
+                {
+                    startMenuWindow->Hidden = true;
+                    MakeWinActive(activeWindow, NULL);
+                }
             }
             res = true;
         }

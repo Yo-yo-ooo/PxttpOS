@@ -324,7 +324,7 @@ void BasicRenderer::ClearDotted(uint32_t col)
 void BasicRenderer::Cls()
 {
     BasicRenderer::Clear(0);
-    BasicRenderer::Println("(OLD) SYS", Colors.green);
+    BasicRenderer::Println("(OLD) Masl OS 2 v0.01", Colors.green);
     BasicRenderer::Println("-------------------", Colors.green);
     BasicRenderer::Println();
 }

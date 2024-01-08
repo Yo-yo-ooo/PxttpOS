@@ -9,6 +9,8 @@
 #include <libm/queue/queue_windowBufferUpdate.h>
 #include <libm/msgPackets/windowObjPacket/windowObjPacket.h>
 #include <libm/images/bitmapImage.h>
+#include "taskbarConst.h"
+#include <libm/fsStuff/extra/fsExtra.h>
 
 TempRenderer* actualScreenRenderer;
 Framebuffer* actualScreenFramebuffer;
@@ -21,11 +23,14 @@ Framebuffer* backgroundImage = NULL;
 
 Framebuffer* taskbar;
 
+List<void*>* windowIconEntries;
 List<Window*>* windows;
 List<Window*>* windowsToDelete;
 List<Window*>* windowsUpdated;
 Window* activeWindow;
 Window* currentActionWindow;
+Window* startMenuWindow;
+uint64_t startMenuPid = 0;
 
 ImageStuff::BitmapImage* windowButtonIcons[countOfButtonIcons];
 
@@ -48,6 +53,8 @@ uint64_t lastFrameTime = 0;
 void InitStuff()
 {
     ENV_DATA* env = getEnvData();
+
+    windowIconEntries = new List<void*>();
 
     actualScreenFramebuffer = env->globalFrameBuffer;
     actualScreenRenderer = new TempRenderer(actualScreenFramebuffer, env->globalFont);
@@ -77,7 +84,7 @@ void InitStuff()
     {
         taskbar = new Framebuffer();
         taskbar->Width = actualScreenFramebuffer->Width;
-        taskbar->Height = 40;
+        taskbar->Height = TASKBAR_HEIGHT;
         taskbar->PixelsPerScanLine = taskbar->Width;
         taskbar->BufferSize = taskbar->Width * taskbar->Height * 4;
         taskbar->BaseAddress = _Malloc(taskbar->BufferSize, "Taskbar Buffer");
@@ -106,6 +113,7 @@ void InitStuff()
     updateFramePackets = new Queue<WindowBufferUpdatePacket*>(5);
 
     startMenuWindow = NULL;
+    startMenuPid = 0;
 
     lastFrameTime = envGetTimeMs();
 
@@ -275,14 +283,14 @@ int main(int argc, char** argv)
     activeWindow = NULL;
 
     // Clear and Redraw
-    Clear(true);
+    //Clear(true);
     UpdatePointerRect(0, 0, actualScreenFramebuffer->Width - 1, actualScreenFramebuffer->Height - 1);
     RenderWindows();
     RenderActualSquare(0, 0, actualScreenFramebuffer->Width - 1, actualScreenFramebuffer->Height - 1);
 
 
     DrawFrame();
-    uint64_t newPid = startProcess("bruh:programs/explorer/explorer.elf", 0, NULL, "");
+
     serialPrintLn("Starting Main Loop");
     
     const int frameCount = 60;
@@ -331,7 +339,7 @@ int main(int argc, char** argv)
         int aFps = (int)((frameCount * 1000) / totalTime);
 
 
-        //PrintFPS(fps, aFps, frameTime, breakTime, totalTime, totalPixelCount, frameCount);
+        PrintFPS(fps, aFps, frameTime, breakTime, totalTime, totalPixelCount, frameCount);
 
         // Check for mem leaks
         // serialPrint("B> Used Heap Count: ");
@@ -363,8 +371,25 @@ void AddWindowToBeRemoved(Window* window)
     if (idx != -1)
         windows->RemoveAt(idx);
 
+    for (int i = 0; i < windowIconEntries->GetCount(); i++)
+    {
+        WindowIconEntry* entry = (WindowIconEntry*)windowIconEntries->ElementAt(i);
+        if (entry->window == window)
+        {
+            windowIconEntries->RemoveAt(i);
+            entry->Free();
+            _Free(entry);
+            i--;
+        }
+    }
+
     if (activeWindow == window)
         activeWindow = NULL;
+    if (startMenuWindow == window)
+    {
+        startMenuWindow = NULL;
+        startMenuPid = 0;
+    }
     if (Taskbar::activeTabWindow == window)
         Taskbar::activeTabWindow = NULL;
     if (currentActionWindow == window)
@@ -378,6 +403,33 @@ uint64_t DrawFrame()
 
     updateFramePackets->Clear();
     windowsUpdated->Clear();
+
+    if (startMenuPid == 0 || (startMenuWindow == NULL && !pidExists(startMenuPid)))
+        startMenuPid = envGetStartMenuPid();
+    if (startMenuPid != 0 && startMenuWindow == NULL)
+    {
+        for (int i = 0; i < windows->GetCount(); i++)
+        {
+            Window* window = windows->ElementAt(i);
+            if (window->PID == startMenuPid)
+            {
+                startMenuWindow = window;
+                break;
+            }
+        }
+
+        if (startMenuWindow != NULL)
+        {
+            startMenuWindow->Hidden = true;
+        }
+    }
+    if (startMenuWindow != NULL)
+    {
+        if (!startMenuWindow->Hidden && startMenuWindow != activeWindow)
+        {
+            startMenuWindow->Hidden = true;
+        }
+    }
 
     bool doUpdate = false;
     int msgCount = min(msgGetCount(), 50);
@@ -441,32 +493,32 @@ uint64_t DrawFrame()
                     _Free(msgNew);
                 }
 
-                if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED)
-                {
-                    actualScreenRenderer->CursorPosition.x = 0;
-                    actualScreenRenderer->CursorPosition.y = actualScreenFramebuffer->Height - 128;
+                // if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED)
+                // {
+                //     actualScreenRenderer->CursorPosition.x = 0;
+                //     actualScreenRenderer->CursorPosition.y = actualScreenFramebuffer->Height - 128;
 
-                    actualScreenRenderer->Clear(
-                        0, actualScreenRenderer->CursorPosition.y, 
-                        160, actualScreenRenderer->CursorPosition.y + 16, 
-                        Colors.black
-                    );
+                //     actualScreenRenderer->Clear(
+                //         0, actualScreenRenderer->CursorPosition.y, 
+                //         160, actualScreenRenderer->CursorPosition.y + 16, 
+                //         Colors.black
+                //     );
 
-                    actualScreenRenderer->Println("> KEY {} HELD", to_string((int)keyMsg->Scancode), Colors.white);
-                }                
-                else if (keyMsg->Type == KeyMessagePacketType::KEY_RELEASE)
-                {
-                    actualScreenRenderer->CursorPosition.x = 0;
-                    actualScreenRenderer->CursorPosition.y = actualScreenFramebuffer->Height - 128;
+                //     actualScreenRenderer->Println("> KEY {} HELD", to_string((int)keyMsg->Scancode), Colors.white);
+                // }                
+                // else if (keyMsg->Type == KeyMessagePacketType::KEY_RELEASE)
+                // {
+                //     actualScreenRenderer->CursorPosition.x = 0;
+                //     actualScreenRenderer->CursorPosition.y = actualScreenFramebuffer->Height - 128;
 
-                    actualScreenRenderer->Clear(
-                        0, actualScreenRenderer->CursorPosition.y, 
-                        160, actualScreenRenderer->CursorPosition.y + 16, 
-                        Colors.black
-                    );
+                //     actualScreenRenderer->Clear(
+                //         0, actualScreenRenderer->CursorPosition.y, 
+                //         160, actualScreenRenderer->CursorPosition.y + 16, 
+                //         Colors.black
+                //     );
 
-                    actualScreenRenderer->Println("> KEY {} RELEASED", to_string((int)keyMsg->Scancode), Colors.white);
-                }
+                //     actualScreenRenderer->Println("> KEY {} RELEASED", to_string((int)keyMsg->Scancode), Colors.white);
+                // }
             }
         }
         else
@@ -489,7 +541,7 @@ uint64_t DrawFrame()
 
             updateFramePackets->Enqueue(windowBufferUpdatePacket);
         }
-        else if (msg->Type == MessagePacketType::WINDOW_CREATE_EVENT && msg->Size == 0 || msg->Size == 8)
+        else if (msg->Type == MessagePacketType::WINDOW_CREATE_EVENT && (msg->Size == 0 || msg->Size == 8))
         {
             uint64_t pidFrom = msg->FromPID;
             uint64_t newWindowId = 0;
@@ -514,6 +566,54 @@ uint64_t DrawFrame()
                 window->Dimensions.x + window->Dimensions.width + 1,
                 window->Dimensions.y + window->Dimensions.height + 1
                 ));
+            
+            // Load the window icon if it exists
+            {
+                const char* elfPath = getElfPath(pidFrom);
+                if (elfPath != NULL)
+                {
+                    const char* elfDrive = FS_EXTRA::GetDriveNameFromFullPath(elfPath);
+                    if (elfDrive != NULL)
+                    {
+                        const char* elfFolder = FS_EXTRA::GetFolderPathFromFullPath(elfPath);
+                        if (elfFolder != NULL)
+                        {
+                            elfDrive = StrCombineAndFree(elfDrive, ":");
+                            elfFolder = StrCombineAndFree(elfFolder, "/assets/icon.mbif");
+                            const char* res = StrCombine(elfDrive, elfFolder);
+
+                            serialPrint("IMG FILE: ");
+                            serialPrintLn(res);
+
+                            void* buffer = NULL;
+                            uint64_t byteCount = 0;
+                            if (fsReadFile(res, &buffer, &byteCount))
+                            {
+                                ImageStuff::BitmapImage* img = ImageStuff::ConvertBufferToBitmapImage((char*)buffer, byteCount);
+                                if (img != NULL)
+                                {
+                                    WindowIconEntry* entry = new WindowIconEntry(window, img);
+                                    windowIconEntries->Add(entry);
+                                }
+                                serialPrintLn("File does exist!");
+                            }
+                            else
+                                serialPrintLn("File does not exist");
+                            
+
+                            if (buffer != NULL)
+                                _Free(buffer);
+                            _Free(res);
+                            _Free(elfFolder);
+                        }
+
+                        _Free(elfDrive);
+                    }
+                }
+                else
+                    serialPrintLn("NULL");
+                _Free(elfPath);
+            }
 
             if (pidFrom != getPid())
             {
@@ -550,11 +650,15 @@ uint64_t DrawFrame()
             {
                 if (window->PID == pidFrom)
                 {
+                    {
+                        GenericMessagePacket* packet = new GenericMessagePacket(MessagePacketType::WINDOW_DELETE_EVENT, NULL, 0);
+                        msgSendConv(packet, window->PID, window->CONVO_ID_WM_WINDOW_CLOSED);
+                        packet->Free();
+                        _Free(packet);
+                    }
                     AddWindowToBeRemoved(window);
                 }
             }
-
-            // TODO: maybe make it send like an ok back
         }
         else if (msg->Type == MessagePacketType::WINDOW_GET_EVENT)
         {

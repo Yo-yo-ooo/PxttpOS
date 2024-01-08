@@ -9,6 +9,11 @@ uint64_t desktopPID;
 void initWindowManagerStuff()
 {
     desktopPID = envGetDesktopPid();
+
+    if (desktopPID == 0)
+    {
+        programCrash();
+    }
 }
 
 // GenericMessagePacket* getWindowCreatePacket()
@@ -135,6 +140,7 @@ void deleteWindow(uint64_t id)
         GenericMessagePacket* winReq = new GenericMessagePacket(MessagePacketType::WINDOW_DELETE_EVENT, (uint8_t*)&data, 8);
         msgSendMessage(winReq, desktopPID);
         winReq->Free();
+        _Free(winReq);
     }
 
     // TODO: maybe make it blocking and wait for a result
@@ -151,6 +157,7 @@ Window* requestWindow(uint64_t id)
         GenericMessagePacket* winReq = new GenericMessagePacket(MessagePacketType::WINDOW_CREATE_EVENT, (uint8_t*)(&id), 8);
         convoId = msgSendConv(winReq, desktopPID);
         winReq->Free();
+        _Free(winReq);
     }
 
     GenericMessagePacket* winCreate = msgWaitConv(convoId, 3000);

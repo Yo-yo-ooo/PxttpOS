@@ -13,6 +13,8 @@ uint64_t getParentPid();
 const char* getElfPath();
 const char* getWorkingPath();
 
+const char* getElfPath(uint64_t pid);
+
 void* requestNextPage();
 void* requestNextPages(int count);
 
@@ -38,6 +40,7 @@ void programWaitMsg();
 
 uint64_t envGetTimeMs();
 uint64_t envGetDesktopPid();
+uint64_t envGetStartMenuPid();
 RTC_Info* envGetTimeRTC();
 
 uint64_t randomUint64();

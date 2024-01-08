@@ -68,3 +68,16 @@ void qsort(void *base, size_t nitems, size_t size, int (*compar)(const void *, c
 	dsort(base, (char*)base + (nitems * size) - size, size, compar);
 	isort(base, (char*)base + (nitems * size) - size, size, compar);
 }
+
+
+void *bsearch(const void *key, const void *base, size_t nitems, size_t size, int (*compar)(const void *, const void *)) {
+	const void *ptr;
+
+	for (size_t i = 0; i < nitems; i++) {
+		ptr = base + (i * size);
+		if (compar(key, ptr) == 0) {
+			return (void *)ptr;
+		}
+	}
+	return NULL;
+}
