@@ -27,9 +27,9 @@ DSTATUS disk_status (
 )
 {
 	if(osData.diskInterfaces[pdrv]->InterfaceType != DiskInterface::Sata){
-        return STA_NODISK;
-    }else{
         return STA_NOINIT;
+    }else{
+        return STA_NODISK;
     }
 
 	return STA_NOINIT;
@@ -118,8 +118,7 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
-    for(int i = 0; i < osData.diskInterfaces.GetCount();i++){
-        if(osData.diskInterfaces[i]->InterfaceType == DiskInterface::Sata){
+    if(osData.diskInterfaces[pdrv]->InterfaceType == DiskInterface::Sata){
             switch ( cmd ) //fatfs内核使用cmd调用
             {
                 case GET_SECTOR_COUNT:	//扇区数量
@@ -135,7 +134,6 @@ DRESULT disk_ioctl (
                     return RES_OK;
             }
             //return res;
-        }
     }
 
 	return RES_PARERR;
