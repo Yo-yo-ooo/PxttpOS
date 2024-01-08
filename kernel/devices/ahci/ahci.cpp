@@ -11,6 +11,7 @@
 #include "../../diskStuff/Filesystem_Interfaces/generic/genericFileSystemInterface.h"
 #include "../../diskStuff/Filesystem_Interfaces/mrafs/mrafsFileSystemInterface.h"
 #include "../serial/serial.h"
+//#include "../../data/osdata.h"
 
 namespace AHCI 
 {
@@ -432,6 +433,7 @@ namespace AHCI
                 }
 
             }
+            //osData = testDiskInterface;
 
             // if (i == 1)
             // {
