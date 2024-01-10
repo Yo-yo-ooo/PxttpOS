@@ -10,14 +10,17 @@
 #include "ff.h"			/* Obtains integer types */
 #include "diskio.h"		/* Declarations of disk functions */
 #include "../../diskStuff/Disk_Interfaces/sata/sataDiskInterface.h"
+#include "../../diskStuff/Disk_Interfaces/ram/ramDiskInterface.h"
+#include "../../diskStuff/Disk_Interfaces/file/fileDiskInterface.h"
 #include "../../osData/osData.h"
 
-/* Definitions of physical drive number for each drive */
-#define DEV_RAM		0	/* Example: Map Ramdisk to physical drive 0 */
-#define DEV_MMC		1	/* Example: Map MMC/SD card to physical drive 1 */
-#define DEV_USB		3	/* Example: Map USB MSD to physical drive 2 */
-#define DEV_SATA    2	/* Example: Map SATA to physical drive 3 */
-
+/*
+Definitions of physical drive number for each drive 
+#define DEV_RAM		0	 Example: Map Ramdisk to physical drive 0 
+#define DEV_MMC		1	 Example: Map MMC/SD card to physical drive 1 
+#define DEV_USB		3	Example: Map USB MSD to physical drive 2 
+#define DEV_SATA    2	 Example: Map SATA to physical drive 3 
+*/
 /*-----------------------------------------------------------------------*/
 /* Get Drive Status                                                      */
 /*-----------------------------------------------------------------------*/
@@ -26,10 +29,10 @@ DSTATUS disk_status (
 	BYTE pdrv		/* Physical drive nmuber to identify the drive */
 )
 {
-	if(osData.diskInterfaces[pdrv]->InterfaceType != DiskInterface::Sata){
-        return STA_NOINIT;
-    }else{
+	if(!osData.diskInterfaces[pdrv]->InterfaceType){
         return STA_NODISK;
+    }else{
+        return STA_PROTECT;
     }
 
 	return STA_NOINIT;
@@ -67,12 +70,8 @@ DRESULT disk_read (
 )
 {
 
-	if(osData.diskInterfaces[pdrv]->InterfaceType != DiskInterface::Sata){
-        return RES_PARERR;
-    }else{
-        if((int)osData.diskInterfaces[pdrv]->Read(sector, count, (void*)buff) == true){
-            return RES_OK;
-        }
+	if(osData.diskInterfaces[pdrv]->Read(sector, count, (void*)buff) == true){
+        return RES_OK;
     }
 
 	return RES_PARERR;
@@ -94,14 +93,10 @@ DRESULT disk_write (
 )
 {
 
-	if(osData.diskInterfaces[pdrv]->InterfaceType != DiskInterface::Sata){
-        return RES_PARERR;
-    }else{
-        if((int)osData.diskInterfaces[pdrv]->Write(sector, count, (void*)buff) == true){
-            return RES_OK;
-        }
-    }
 
+	if(osData.diskInterfaces[pdrv]->Write(sector, count, (void*)buff) == true){
+        return RES_OK;
+    }
 	return RES_PARERR;
 }
 
