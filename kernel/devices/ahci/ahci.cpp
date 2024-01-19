@@ -11,7 +11,6 @@
 #include "../../diskStuff/Filesystem_Interfaces/generic/genericFileSystemInterface.h"
 #include "../../diskStuff/Filesystem_Interfaces/mrafs/mrafsFileSystemInterface.h"
 #include "../serial/serial.h"
-//#include "../../data/osdata.h"
 
 namespace AHCI 
 {
@@ -28,13 +27,13 @@ namespace AHCI
         StopCMD();
 
         void* newBase = GlobalAllocator->RequestPage();
-        GlobalPageTableManager.MapMemory(newBase, newBase, false);
+        GlobalPageTableManager.MapMemory(newBase, newBase);
         hbaPort->commandListBase = (uint32_t)(uint64_t)newBase;
         hbaPort->commandListBaseUpper = (uint32_t)((uint64_t)newBase >> 32);
         _memset((void*)(uint64_t)hbaPort->commandListBase, 0, 1024);
 
         void* fisBase = GlobalAllocator->RequestPage();
-        GlobalPageTableManager.MapMemory(fisBase, fisBase, false);
+        GlobalPageTableManager.MapMemory(fisBase, fisBase);
         hbaPort->fisBaseAddress = (uint32_t)(uint64_t)fisBase;
         hbaPort->fisBaseAddressUpper = (uint32_t)((uint64_t)fisBase >> 32);
         _memset(fisBase, 0, 256);
@@ -46,7 +45,7 @@ namespace AHCI
             cmdHeader[i].prdtLength = 8;
 
             void* cmdTableAddress = GlobalAllocator->RequestPage();
-            GlobalPageTableManager.MapMemory(cmdTableAddress, cmdTableAddress, false);
+            GlobalPageTableManager.MapMemory(cmdTableAddress, cmdTableAddress);
             uint64_t address = (uint64_t)cmdTableAddress + (i << 8);
             cmdHeader[i].commandTableBaseAddress = (uint32_t)(uint64_t)address;
             cmdHeader[i].commandTableBaseAddressUpper = (uint32_t)((uint64_t)address >> 32);
@@ -365,6 +364,7 @@ namespace AHCI
         Serial::Writelnf("> AHCIDriver has been created! %X", (uint64_t)pciBaseAddress);
 
         ABAR = (HBAMemory*)(uint64_t)((PCI::PCIHeader0*)(uint64_t)pciBaseAddress)->BAR5;
+        GlobalPageTableManager.MapMemory(ABAR, ABAR);
         ABAR->globalHostControl |= 0x80000000;
 
         ProbePorts();
@@ -433,7 +433,6 @@ namespace AHCI
                 }
 
             }
-            //osData = testDiskInterface;
 
             // if (i == 1)
             // {

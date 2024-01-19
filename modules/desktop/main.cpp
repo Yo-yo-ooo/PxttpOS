@@ -339,7 +339,7 @@ int main(int argc, char** argv)
         int aFps = (int)((frameCount * 1000) / totalTime);
 
 
-        //PrintFPS(fps, aFps, frameTime, breakTime, totalTime, totalPixelCount, frameCount);
+        PrintFPS(fps, aFps, frameTime, breakTime, totalTime, totalPixelCount, frameCount);
 
         // Check for mem leaks
         // serialPrint("B> Used Heap Count: ");
@@ -474,6 +474,15 @@ uint64_t DrawFrame()
                 {
                     uint64_t newPid = startProcess("bruh:programs/shell/shell.elf", 0, NULL, "");
                 }
+                else if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED && keyMsg->Scancode == 0x3F) // F5 
+                {
+                    for (int i = 0; i < 10; i++)
+                        uint64_t newPid = startProcess("bruh:programs/empty/empty.elf", 0, NULL, "");
+                }
+                else if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED && keyMsg->Scancode == 0x40) // F6
+                {
+                    uint64_t newPid = startProcess("bruh:programs/miniWinTest/miniWinTest.elf", 0, NULL, "");
+                }
                 else if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED && keyMsg->Scancode == 0x57) // F11
                 {
                     Clear(true);
@@ -540,6 +549,9 @@ uint64_t DrawFrame()
             WindowBufferUpdatePacket* windowBufferUpdatePacket = new WindowBufferUpdatePacket(msg);
 
             updateFramePackets->Enqueue(windowBufferUpdatePacket);
+
+            // some goofy code bc we using references
+            msg = new GenericMessagePacket(MessagePacketType::WINDOW_BUFFER_EVENT, NULL, 0);
         }
         else if (msg->Type == MessagePacketType::WINDOW_CREATE_EVENT && (msg->Size == 0 || msg->Size == 8))
         {
