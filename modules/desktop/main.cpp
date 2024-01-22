@@ -11,6 +11,7 @@
 #include <libm/images/bitmapImage.h>
 #include "taskbarConst.h"
 #include <libm/fsStuff/extra/fsExtra.h>
+#include <libm/keyboard.h>
 
 TempRenderer* actualScreenRenderer;
 Framebuffer* actualScreenFramebuffer;
@@ -36,6 +37,7 @@ ImageStuff::BitmapImage* windowButtonIcons[countOfButtonIcons];
 
 ImageStuff::BitmapImage* internalWindowIcons[countOfWindowIcons];
 
+bool MouseButtons[3] = { false, false, false };
 MPoint MousePosition;
 MPoint oldMousePos;
 
@@ -443,27 +445,62 @@ uint64_t DrawFrame()
             if (msg->Size == sizeof(MouseMessagePacket) && msg->Data != NULL)
             {
                 MouseMessagePacket* mouseMsg = (MouseMessagePacket*)msg->Data;
-                MousePosition.x = mouseMsg->MouseX;
-                MousePosition.y = mouseMsg->MouseY;
-                
-                bool handled = HandleMouseClickPacket(mouseMsg);
+                MouseButtons[0] = mouseMsg->Left;
+                MouseButtons[1] = mouseMsg->Right;
+                MouseButtons[2] = mouseMsg->Middle;
+                if (DrawMouse)
+                {
+                    MousePosition.x += mouseMsg->MouseX;
+                    MousePosition.y += mouseMsg->MouseY;
+                    if (MousePosition.x < 0)
+                        MousePosition.x = 0;
+                    if (MousePosition.y < 0)
+                        MousePosition.y = 0;
+                    if (MousePosition.x + 16 >= actualScreenFramebuffer->Width)
+                        MousePosition.x = actualScreenFramebuffer->Width - 16;
+                    if (MousePosition.y + 16 >= actualScreenFramebuffer->Height)
+                        MousePosition.y = actualScreenFramebuffer->Height - 16;
 
-                if (mouseMsg->Type == MouseMessagePacketType::MOUSE_CLICK && !handled)
-                {   
-                    if (activeWindow != NULL)
+                    bool handled = HandleMouseClickPacket(mouseMsg);
+
+                    if (mouseMsg->Type == MouseMessagePacketType::MOUSE_CLICK && !handled)
+                    {   
+                        if (activeWindow != NULL)
+                        {
+                            GenericMessagePacket* msgNew = new GenericMessagePacket(MessagePacketType::MOUSE_EVENT, msg->Data, sizeof(MouseMessagePacket));
+                            msgSendConv(msgNew, activeWindow->PID, activeWindow->CONVO_ID_WM_MOUSE_STUFF);
+                            msgNew->Free();
+                            _Free(msgNew);
+                        }
+                    }
+
+                    if (handled && activeWindow != NULL)
                     {
-                        GenericMessagePacket* msgNew = new GenericMessagePacket(MessagePacketType::MOUSE_EVENT, msg->Data, sizeof(MouseMessagePacket));
-                        msgSendConv(msgNew, activeWindow->PID, activeWindow->CONVO_ID_WM_MOUSE_STUFF);
-                        msgNew->Free();
-                        _Free(msgNew);
+                        windowsUpdated->AddIfUnique(activeWindow);
                     }
                 }
-
-                if (handled && activeWindow != NULL)
+                else
                 {
-                    windowsUpdated->AddIfUnique(activeWindow);
+                    if (mouseMsg->Type == MouseMessagePacketType::MOUSE_MOVE && !DrawMouse)
+                    {
+                        if (activeWindow != NULL)
+                        {
+                            GenericMessagePacket* msgNew = new GenericMessagePacket(MessagePacketType::MOUSE_EVENT, msg->Data, sizeof(MouseMessagePacket));
+                            msgSendConv(msgNew, activeWindow->PID, activeWindow->CONVO_ID_WM_MOUSE_STUFF);
+                            msgNew->Free();
+                            _Free(msgNew);
+                        }
+                    }
                 }
             }
+        }
+        else if (msg->Type == MessagePacketType::DESKTOP_GET_MOUSE_STATE)
+        {
+            MouseState state = MouseState(MousePosition.x, MousePosition.y, MouseButtons[0], MouseButtons[1], MouseButtons[2]);
+            GenericMessagePacket* response = new GenericMessagePacket(MessagePacketType::DESKTOP_GET_MOUSE_STATE, (uint8_t*)&state, sizeof(MouseState));
+            msgRespondConv(msg, response);
+            response->Free();
+            _Free(response);
         }
         else if (msg->Type == MessagePacketType::KEY_EVENT)
         {
@@ -493,6 +530,16 @@ uint64_t DrawFrame()
                 else if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED && keyMsg->Scancode == 0x44) // F10
                 {
                     uint64_t newPid = startProcess("bruh:programs/explorer/explorer.elf", 0, NULL, "");
+                }
+                else if (keyMsg->Type == KeyMessagePacketType::KEY_PRESSED && 
+                    (keyMsg->Scancode == 0x01 || keyMsg->Scancode == 0x1D) && // ESC or CTRL
+                    (envGetKeyState(Key_Escape) && envGetKeyState(Key_LeftControl))) // ESC and CTRL
+                {
+                    if (activeWindow != NULL)
+                    {
+                        windowsUpdated->AddIfUnique(activeWindow);
+                        MakeWinActive(activeWindow, NULL);
+                    }
                 }
                 else if (activeWindow != NULL)
                 {
@@ -897,6 +944,15 @@ uint64_t DrawFrame()
         lastFrameTime = currTime;
         doUpdate = true;
         Taskbar::Scounter = 10000;
+    }
+
+    {
+        bool tDrawMouse = (activeWindow == NULL) || !activeWindow->CaptureMouse;
+        if (DrawMouse != tDrawMouse)
+        {
+            DrawMouse = tDrawMouse;
+            doUpdate = true;
+        }
     }
 
     if (!doUpdate)

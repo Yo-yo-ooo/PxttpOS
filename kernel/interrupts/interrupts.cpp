@@ -372,7 +372,7 @@ void TempPitRoutine(interrupt_frame* frame)
     if (_pitCount++ >= 80 && true)   
     {
         _pitCount = 0;
-        DrawStats();
+        //DrawStats();
 
         // TestSetSpeakerPosition(speakA);
         // speakA = !speakA;
@@ -850,7 +850,7 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
         }
         Scheduler::CurrentRunningTask = NULL;
 
-        DrawStats();
+        //DrawStats();
 
         for (int i = 0; i < 20; i++)
             GlobalRenderer->ClearButDont();
@@ -1939,23 +1939,23 @@ void Syscall_handler(interrupt_frame* frame)
 
         frame->rax = exists;
     }
-    else if (syscall == SYSCALL_ENV_GET_MOUSE_STATE)
-    {
-        Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
+    // else if (syscall == SYSCALL_ENV_GET_MOUSE_STATE)
+    // {
+    //     Heap::HeapManager* taskHeap = (Heap::HeapManager*)Scheduler::CurrentRunningTask->addrOfVirtPages;
 
-        MouseState* packet = (MouseState*)taskHeap->_Xmalloc(sizeof(MouseState), "Malloc for mouse state");
+    //     MouseState* packet = (MouseState*)taskHeap->_Xmalloc(sizeof(MouseState), "Malloc for mouse state");
 
-        if (IsAddressValidForTask(packet))
-        {
-            packet->MouseX = Mouse::MousePosition.x;
-            packet->MouseY = Mouse::MousePosition.y;
-            packet->Left = Mouse::clicks[0];
-            packet->Right = Mouse::clicks[1];
-            packet->Middle = Mouse::clicks[2];
-        }
+    //     if (IsAddressValidForTask(packet))
+    //     {
+    //         packet->MouseX = Mouse::MousePosition.x;
+    //         packet->MouseY = Mouse::MousePosition.y;
+    //         packet->Left = Mouse::clicks[0];
+    //         packet->Right = Mouse::clicks[1];
+    //         packet->Middle = Mouse::clicks[2];
+    //     }
 
-        frame->rax = (uint64_t)packet;
-    }
+    //     frame->rax = (uint64_t)packet;
+    // }
     else if (syscall == SYSCALL_ENV_GET_KEY_STATE)
     {
         int scancode = frame->rbx;
