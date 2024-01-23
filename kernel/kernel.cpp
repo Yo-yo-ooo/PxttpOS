@@ -237,7 +237,7 @@ void boot(void* _bootInfo)
 
 
  
-volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, MaslOsAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData, void* memMap, uint64_t memEntryCount)
+volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, SystemAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData, void* memMap, uint64_t memEntryCount)
 {
     //MStackData::BenchmarkEnabled = false;
     BootInfo tempBootInfo;

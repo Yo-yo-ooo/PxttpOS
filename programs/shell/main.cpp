@@ -159,7 +159,7 @@ int main(int argc, char** argv)
 void Cls()
 {
     outTxt->Clear();
-    outTxt->Println("PxttpOS", Colors.bgreen);
+    outTxt->Println("P", Colors.bgreen);
     outTxt->scrollX = 0;
     outTxt->scrollY = 0;
 }
