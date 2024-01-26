@@ -159,7 +159,7 @@ int main(int argc, char** argv)
 void Cls()
 {
     outTxt->Clear();
-    outTxt->Println("PxttpOS", Colors.bgreen);
+    outTxt->Println("System v2", Colors.bgreen);
     outTxt->scrollX = 0;
     outTxt->scrollY = 0;
 }
@@ -342,11 +342,68 @@ void HandleCommand(const char* inputStr)
         outTxt->Println(" - ls");
         outTxt->Println(" - cd <path>");
         outTxt->Println(" - run <file>");
+        outTxt->Println(" - get <name>");
+        outTxt->Println(" - set <name> <value>");
+        outTxt->Println();
+        outTxt->Println("You can find more information in the wiki:");
+        outTxt->Println("https://github.com/marceldobehere/System-2/wiki");
+        outTxt->Println();
     }
     else if (StrEquals(cmd, "exit"))
     {
         outTxt->Println("Exiting...");
         programExit(0);
+    }
+    else if (StrEquals(cmd, "get"))
+    {
+        if (argC < 2)
+            outTxt->Println("> Get command is missing parameter!", Colors.bred);
+        else if (argC > 2)
+            outTxt->Println("> Get command has too many parameters!", Colors.bred);
+        else
+        {
+            const char* key = args[1];
+            if (StrEquals(key, "tsb ms"))
+            {
+                outTxt->Print("Time since boot (MS): ");
+                outTxt->Println(to_string(envGetTimeMs()));
+            }
+            else if (StrEquals(key, "mouse sens") || StrEquals(key, "mouse sensitivity"))
+            {
+                outTxt->Print("Mouse Sensitivity: ");
+                outTxt->Print(to_string(envGetMouseSens()));
+                outTxt->Println("%");
+            }
+            else
+            {
+                outTxt->Println("> Invalid parameter for get command!", Colors.bred);
+            }
+        }
+    }
+    else if (StrEquals(cmd, "set"))
+    {
+        if (argC < 3)
+            outTxt->Println("> Set command is missing parameter!", Colors.bred);
+        else if (argC > 3)
+            outTxt->Println("> Set command has too many parameters!", Colors.bred);
+        else
+        {
+            const char* key = args[1];
+            const char* val = args[2];
+
+            if (StrEquals(key, "mouse sens") || StrEquals(key, "mouse sensitivity"))
+            {
+                int mouseSens = to_int(val);
+                mouseSens = envSetMouseSens(mouseSens);
+                outTxt->Print("Mouse Sensitivity set to ");
+                outTxt->Print(to_string(mouseSens));
+                outTxt->Println("%");
+            }
+            else
+            {
+                outTxt->Println("> Invalid parameter for set command!", Colors.bred);
+            }
+        }
     }
     else if (StrEquals(cmd, "ls") || StrEquals(cmd, "dir"))
     {

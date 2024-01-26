@@ -323,7 +323,7 @@ void TempRenderer::ClearDotted(uint32_t col)
 void TempRenderer::Cls()
 {
     TempRenderer::Clear(0);
-    TempRenderer::Println("(OLD) PxttpOS", Colors.green);
+    TempRenderer::Println("PxttpOS", Colors.green);
     TempRenderer::Println("-------------------", Colors.green);
     TempRenderer::Println();
 }
