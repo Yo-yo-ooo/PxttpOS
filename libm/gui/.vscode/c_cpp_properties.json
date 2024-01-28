@@ -4,7 +4,7 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/home/masl/System"
+                "/home/PxttpOS/System"
             ],
             "defines": ["_USER_MODULE"],
             "compilerPath": "/usr/bin/gcc",
