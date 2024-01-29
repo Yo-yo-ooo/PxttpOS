@@ -155,7 +155,7 @@ namespace Scheduler
             if (bruhTask->removeMe || bruhTask->doExit)
             {
                 Serial::Writelnf("SCHEDULER> AUTO REMOVING STOPPED TASK AT %d", i);
-
+//
                 osTasks.Unlock();
                 RemoveTask(bruhTask);
                 osTasks.Lock();

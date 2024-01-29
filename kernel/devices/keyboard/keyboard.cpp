@@ -142,7 +142,7 @@ namespace Keyboard
         else
             KeyboardScancodeState[actualScancode] = false;
 
-        bool shift = Keyboard::IsKeyPressed(Key_GeneralShift);
+        bool shift = Keyboard::IsKeyPressed(Key_GeneralShift) | Keyboard::IsKeyPressed(Key_CapsLock);
         char chr = ScancodeTranslation::TranslateScancode(actualScancode, shift);
 
         // if ((scancode & KEY_RELEASED) == 0)
