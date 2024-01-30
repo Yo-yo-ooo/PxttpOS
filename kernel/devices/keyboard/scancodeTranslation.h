@@ -23,7 +23,6 @@ namespace ScancodeTranslation
     const int ArrowLeft = 0x4B;
     const int ArrowRight = 0x4D;
     
-    const int CapsLock = 0x3A;
 
     char GetSpecialKey(int scancode);
     inline bool IsSpecialKey(int scancode)

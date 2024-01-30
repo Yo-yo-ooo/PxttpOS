@@ -5,7 +5,6 @@
 #define Key_LeftShift      0x2A
 #define Key_RightShift     0x36
 #define Key_GeneralShift  0x0101 // special key thats not a normal scancode
-#define Key_CapsLock       0x3A
 
 #define Key_Enter          0x1C
 #define Key_Escape        0x01

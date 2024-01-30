@@ -139,13 +139,6 @@ double atof(const char *str)
     return s*(falg?-1.0:1.0);
 }
 
-size_t align8(size_t s) {
-    if(s & 0x7 == 0)
-        return s;
-    return ((s >> 3) + 1) << 3;
-}
-
-
 void *calloc(size_t number, size_t size) {
     size_t i,nb;
     char* p,q;
@@ -166,56 +159,19 @@ void free(void* ptr){
     _Free(ptr);
 }
 
-void copy_block(Heap::_HeapSegHdr* src, Heap::_HeapSegHdr* dst) {
-    size_t *sdata, *ddata;
-    size_t i;
-    sdata = (size_t *)src->text;
-    ddata = (size_t *)dst->text;
-    for(i = 0; (i * 8) < src->length && (i * 8) < dst->length; i++)
-    ddata[i] = sdata[i];
-}
-
 void* realloc(void* ptr, size_t size){
-    Heap::_HeapSegHdr* b; Heap::_HeapSegHdr*newb;
-    void *newp;
-    if (ptr == NULL)/* 根据标准库文档，当p传入NULL时，相当于调用malloc */
+    Heap::_HeapSegHdr *HeapHeader = (Heap::_HeapSegHdr*)ptr - 1;
+    if(!ptr || !size)
         return _Malloc1(size);
-    else{
-        b = (Heap::_HeapSegHdr*)ptr;
-        if (size <= 0)
-            size = 0x10;
-
-        if (size % 0x10 > 0)
-        {
-            size -= (size % 0x10);
-            size += 0x10;
-        }
-        if(b->length >= size && b->length - size >= 0x10){
-            b->Split(Heap::GlobalHeapManager, size);
-        }else{
-            if(b->next && b->next->free && (b->length + 0x10 + b->next->length) >= size){
-                if(b->next && b->next->free){
-                    b->length += 0x8 + b->next->length;
-                    b->next = b->next->next;
-                    if(b->next)
-                        b->next->last = b;
-                }
-                if(b->length - size >= 0x10){
-                    b->Split(Heap::GlobalHeapManager, size);
-                }
-            }else{
-                newp = _Malloc1 (size);
-                if (!newp)
-                    return NULL;
-                newb = (newp -= 0x10);
-                copy_block(b, newb);
-                _Free(ptr);
-                return(newp);
-            }
-        }
-        return (ptr);
+    if(HeapHeader->length >= size)
+        return ptr;
+    void* newptr = _Malloc1(size);
+    if(newptr){
+        _memcpy(newptr, ptr, HeapHeader->length);
+        free(ptr);
     }
-    return NULL;
+    return newptr;
+
 }
 
 #define N 50
