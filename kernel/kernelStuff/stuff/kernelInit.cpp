@@ -20,6 +20,8 @@
 #include "../../diskStuff/Disk_Interfaces/ram/ramDiskInterface.h"
 #include "../../diskStuff/Partition_Interfaces/mraps/mrapsPartitionInterface.h"
 #include "../../diskStuff/Filesystem_Interfaces/mrafs/mrafsFileSystemInterface.h"
+#include <libm/cstr.h>
+#include "../../audio/audioDevStuff.h"
 
 
 BasicRenderer tempRenderer = BasicRenderer(NULL, NULL);
@@ -70,15 +72,17 @@ void InitKernel(BootInfo* bootInfo)
     StepDone();
 
     PrintMsgStartLayer("RTC Info");
-    PrintMsgColSL("TIME: ", Colors.yellow);
-    PrintMsgColSL("{}:", to_string((int)RTC::Hour), Colors.yellow);
-    PrintMsgColSL("{}:", to_string((int)RTC::Minute), Colors.yellow);
-    PrintMsgCol("{}", to_string((int)RTC::Second), Colors.yellow);
+    // PrintMsgColSL("TIME: ", Colors.yellow);
+    // PrintMsgColSL("{}:", to_string((int)RTC::Hour), Colors.yellow);
+    // PrintMsgColSL("{}:", to_string((int)RTC::Minute), Colors.yellow);
+    // PrintMsgCol("{}", to_string((int)RTC::Second), Colors.yellow);
+    PrintfMsgCol("TIME: %d:%d:%d", Colors.yellow, RTC::Hour, RTC::Minute, RTC::Second);
     
-    PrintMsgColSL("DATE: ", Colors.yellow);
-    PrintMsgColSL("{}.", to_string((int)RTC::Day), Colors.yellow);
-    PrintMsgColSL("{}.", to_string((int)RTC::Month), Colors.yellow);
-    PrintMsgCol("{}", to_string((int)RTC::Year), Colors.yellow);
+    // PrintMsgColSL("DATE: ", Colors.yellow);
+    // PrintMsgColSL("{}.", to_string((int)RTC::Day), Colors.yellow);
+    // PrintMsgColSL("{}.", to_string((int)RTC::Month), Colors.yellow);
+    // PrintMsgCol("{}", to_string((int)RTC::Year), Colors.yellow);
+    PrintfMsgCol("DATE: %d.%d.%d", Colors.yellow, RTC::Day, RTC::Month, RTC::Year);
     PrintMsgEndLayer("RTC Info");
 
     PrintMsg("> Initing PIT");
@@ -155,7 +159,21 @@ void InitKernel(BootInfo* bootInfo)
         RemoveFromStack();
 
         AddToStack();
+        PrintMsg("> Creating List for Disk Interfaces");
         osData.diskInterfaces = List<DiskInterface::GenericDiskInterface*>(4);
+        RemoveFromStack();
+
+        AddToStack();
+        PrintMsg("> Creating List for Audio Destinations");
+        //osData.audioDestinations = List<Audio::BasicAudioDestination*>();
+        osData.audioInputDevices = List<Audio::AudioInputDevice*>();
+        osData.audioOutputDevices = List<Audio::AudioOutputDevice*>();
+
+        osData.pcSpeakerDev = new Audio::AudioOutputDevice("PC Speaker", new Audio::AudioBuffer(8, 29829, 1, 1500));
+        osData.defaultAudioOutputDevice = osData.pcSpeakerDev;
+        AudioDeviceStuff::pcSpk = osData.pcSpeakerDev;
+        AudioDeviceStuff::pcSpk->destination->buffer->ClearBuffer();
+        AudioDeviceStuff::pcSpk->destination->buffer->sampleCount = AudioDeviceStuff::pcSpk->destination->buffer->totalSampleCount;
         RemoveFromStack();
 
         AddToStack();
@@ -177,7 +195,7 @@ void InitKernel(BootInfo* bootInfo)
         RemoveFromStack();
 
         AddToStack();
-        Serial::Writelnf("> PART: %X", partInterface);
+        PrintfMsg("> PART: %X", partInterface);
         FilesystemInterface::GenericFilesystemInterface* fsInterface = (FilesystemInterface::GenericFilesystemInterface*)new FilesystemInterface::MrafsFilesystemInterface(partInterface, partInterface->partitionList[2]);
         RemoveFromStack();
 
@@ -272,7 +290,7 @@ void DoGdtStuff()
     //GlobalRenderer->Clear(Colors.green);
     GlobalPageTableManager.MapMemory(gdt_block, gdt_block);
     //GlobalRenderer->Clear(Colors.blue);
-    Serial::Writelnf("GDT: %X", (uint64_t)gdt_block);
+    PrintfMsg(" > GDT: %X", (uint64_t)gdt_block);
     
     //while (true);
 
@@ -359,40 +377,43 @@ void PrepareMemory(BootInfo* bootInfo)
     //asm volatile("mov %%cr3, %0" : "=r"(PML4));
     // asm("mov %0, %%cr3" : : "r" (PML4) );
     PrintMsgStartLayer("Info");
-    PrintMsgCol("PML4 ADDR:          {}", ConvertHexToString((uint64_t)PML4), Colors.yellow);
-    PrintMsgCol("ALLOC ADDR:         {}", ConvertHexToString(GlobalAllocator->EFI_BITMAP_START + GlobalAllocator->EFI_BITMAP_SIZE), Colors.yellow);
-    PrintMsgCol("FB 1 ADDR:          {}", ConvertHexToString(rFB), Colors.yellow);
-    PrintMsgCol("FB 2 ADDR:          {}", ConvertHexToString((uint64_t)GlobalRenderer->framebuffer->BaseAddress), Colors.yellow);
-    PrintMsgCol("FB 3 ADDR:          {}", ConvertHexToString((uint64_t)bootInfo->framebuffer->BaseAddress), Colors.yellow);
-    PrintMsgCol("MMAP ADDR:          {}", ConvertHexToString((uint64_t)bootInfo->mMapStart), Colors.yellow);
-    PrintMsgCol("MMAP2 ADDR:         {}", ConvertHexToString((uint64_t)bootInfo->m2MapStart), Colors.yellow);
-    PrintMsgCol("KERNEL ADDR:        {}", ConvertHexToString((uint64_t)bootInfo->kernelStart), Colors.yellow);
-    PrintMsgCol("KERNEL ADDR 2:      {}", ConvertHexToString(earlyVirtualToPhysicalAddr(bootInfo->kernelStart)), Colors.yellow);
-    PrintMsgCol("KERNEL V ADDR:      {}", ConvertHexToString((uint64_t)bootInfo->kernelStartV), Colors.yellow);
-    PrintMsgCol("KERNEL SIZE:        {}", ConvertHexToString((uint64_t)bootInfo->kernelSize), Colors.yellow);
-    PrintMsgCol("KERNEL END:         {}", ConvertHexToString((uint64_t)bootInfo->kernelStart + (uint64_t)bootInfo->kernelSize), Colors.yellow);
-    PrintMsgCol("KERNEL V END:       {}", ConvertHexToString((uint64_t)bootInfo->kernelStartV + (uint64_t)bootInfo->kernelSize), Colors.yellow);
-    PrintMsgCol("STACK BASE ADDR:    {}", ConvertHexToString(earlyVirtualToPhysicalAddr((void*)(stackPointer - stackPageCount * 0x1000))), Colors.yellow);
-    PrintMsgCol("STACK ADDR:         {}", ConvertHexToString(earlyVirtualToPhysicalAddr((void*)stackPointer)), Colors.yellow);
-    PrintMsgCol("STACK V ADDR:       {}", ConvertHexToString(stackPointer), Colors.yellow);
-    PrintMsgCol("STACK SIZE:         {}", ConvertHexToString(stackPageCount * 0x1000), Colors.yellow);
-    PrintMsgCol("BOOT INFO ADDR:     {}", ConvertHexToString(bootInfoAddr), Colors.yellow);
-    PrintMsgCol("RSDP ADDR:          {}", ConvertHexToString((uint64_t)bootInfo->rsdp), Colors.yellow);
-    PrintMsgCol("PROG ADDR:          {}", ConvertHexToString((uint64_t)bootInfo->programs), Colors.yellow);
+    PrintfMsgCol("PML4 ADDR:          %X", Colors.yellow, (uint64_t)PML4);
+    PrintfMsgCol("ALLOC ADDR:         %X", Colors.yellow, GlobalAllocator->EFI_BITMAP_START + GlobalAllocator->EFI_BITMAP_SIZE);
+    PrintfMsgCol("FB 1 ADDR:          %X", Colors.yellow, rFB);
+    PrintfMsgCol("FB 2 ADDR:          %X", Colors.yellow, (uint64_t)GlobalRenderer->framebuffer->BaseAddress);
+    PrintfMsgCol("FB 3 ADDR:          %X", Colors.yellow, (uint64_t)bootInfo->framebuffer->BaseAddress);
+    PrintfMsgCol("MMAP ADDR:          %X", Colors.yellow, (uint64_t)bootInfo->mMapStart);
+    PrintfMsgCol("MMAP2 ADDR:         %X", Colors.yellow, (uint64_t)bootInfo->m2MapStart);
+    PrintfMsgCol("KERNEL ADDR:        %X", Colors.yellow, (uint64_t)bootInfo->kernelStart);
+    PrintfMsgCol("KERNEL ADDR 2:      %X", Colors.yellow, earlyVirtualToPhysicalAddr(bootInfo->kernelStart));
+    PrintfMsgCol("KERNEL V ADDR:      %X", Colors.yellow, (uint64_t)bootInfo->kernelStartV);
+    PrintfMsgCol("KERNEL SIZE:        %X", Colors.yellow, (uint64_t)bootInfo->kernelSize);
+    PrintfMsgCol("KERNEL END:         %X", Colors.yellow, (uint64_t)bootInfo->kernelStart + (uint64_t)bootInfo->kernelSize);
+    PrintfMsgCol("KERNEL V END:       %X", Colors.yellow, (uint64_t)bootInfo->kernelStartV + (uint64_t)bootInfo->kernelSize);
+    PrintfMsgCol("STACK BASE ADDR:    %X", Colors.yellow, earlyVirtualToPhysicalAddr((void*)(stackPointer - stackPageCount * 0x1000)));
+    PrintfMsgCol("STACK ADDR:         %X", Colors.yellow, earlyVirtualToPhysicalAddr((void*)stackPointer));
+    PrintfMsgCol("STACK V ADDR:       %X", Colors.yellow, stackPointer);
+    PrintfMsgCol("STACK SIZE:         %X", Colors.yellow, stackPageCount * 0x1000);
+    PrintfMsgCol("BOOT INFO ADDR:     %X", Colors.yellow, bootInfoAddr);
+    PrintfMsgCol("RSDP ADDR:          %X", Colors.yellow, (uint64_t)bootInfo->rsdp);
+    PrintfMsgCol("PROG ADDR:          %X", Colors.yellow, (uint64_t)bootInfo->programs);
     PrintMsgEndLayer("Info");
 
     //while (true);
+    //PrintMsg("");
 
-    Serial::Writeln("");
-    Serial::Writelnf("psf1_font: %X", &GlobalRenderer->psf1_font);
-    Serial::Writelnf("fb: %X", &GlobalRenderer->framebuffer);
-    Serial::Writelnf("fb->buff: %X", &GlobalRenderer->framebuffer->BaseAddress);
-    Serial::Writelnf("psf1_font->glyph: %X", &GlobalRenderer->psf1_font->glyphBuffer);
-    Serial::Writelnf("psf1_font->psf1_Header: %X", &GlobalRenderer->psf1_font->psf1_Header);
+    PrintMsgStartLayer("Important Addr");
+    PrintfMsg("FB: %X", (uint64_t)&GlobalRenderer->framebuffer);
+    PrintfMsg("FB->buff: %X", (uint64_t)&GlobalRenderer->framebuffer->BaseAddress);
+    PrintfMsg("psf1_Font: %X", (uint64_t)&GlobalRenderer->psf1_font);
+    PrintfMsg("PSF1_Font->glyph: %X", (uint64_t)&GlobalRenderer->psf1_font->glyphBuffer);
+    PrintfMsg("PSF1_Font->psf1_Header: %X", (uint64_t)&GlobalRenderer->psf1_font->psf1_Header);
+    PrintMsgEndLayer("Important Addr");
 
     //while (true);
 
     // Map the efi memory things
+    PrintMsgStartLayer("EFI Entries");
     {
         for (int i = 0; i < bootInfo->memEntryCount; i++)
         {
@@ -403,11 +424,15 @@ void PrepareMemory(BootInfo* bootInfo)
             uint64_t entryStartVirt = entry->base | 0xffff800000000000; // ffff80007f5f4003
             uint64_t entrySize = entry->length;
             uint64_t entryPageCount = (entrySize + 0xFFF) / 0x1000;
-            Serial::Writelnf("Entry %d: %X -> %X (%d pages)", i, entryStartVirt, entryStartReal, entryPageCount);
+            
+            PrintfMsg("> Entry %d: %X -> %X (%d pages)", i, entryStartVirt, entryStartReal, entryPageCount);
+
+            
             GlobalPageTableManager.MapMemories((void*)entryStartReal, (void*)entryStartReal, entryPageCount);
             GlobalPageTableManager.MapMemories((void*)entryStartVirt, (void*)entryStartReal, entryPageCount);
         }
     }
+    PrintMsgEndLayer("EFI Entries");
 
     // Map Kernel
     {
@@ -581,7 +606,7 @@ void PrepareACPI(BootInfo* bootInfo)
     AddToStack();
     PrintMsgStartLayer("ACPI");
     PrintMsg("Preparing ACPI...");
-    PrintMsg("RSDP Addr: {}", ConvertHexToString((uint64_t)bootInfo->rsdp));
+    PrintfMsg("RSDP Addr: %X", (uint64_t)bootInfo->rsdp);
     RemoveFromStack();
 
     
@@ -594,7 +619,7 @@ void PrepareACPI(BootInfo* bootInfo)
     {
         PrintMsg("ACPI Version: 1");
         rootThing = (ACPI::SDTHeader*)(uint64_t)(bootInfo->rsdp->firstPart.RSDTAddress);
-        PrintMsg("RSDT Header Addr: {}", ConvertHexToString((uint64_t)rootThing));
+        PrintfMsg("RSDT Header Addr: %X", (uint64_t)rootThing);
         div = 4;
 
         if (rootThing == NULL)
@@ -615,7 +640,7 @@ void PrepareACPI(BootInfo* bootInfo)
         PrintMsg("ACPI Version: 2");
         rootThing = (ACPI::SDTHeader*)(bootInfo->rsdp->XSDTAddress);
 
-        PrintMsg("XSDT Header Addr: {}", ConvertHexToString((uint64_t)rootThing));
+        PrintfMsg("XSDT Header Addr: %X", (uint64_t)rootThing);
         div = 8;
 
         if (rootThing == NULL)
@@ -630,7 +655,7 @@ void PrepareACPI(BootInfo* bootInfo)
     
     AddToStack();
     int entries = (rootThing->Length - sizeof(ACPI::SDTHeader)) / div;
-    PrintMsg("Entry count: {}", to_string(entries));
+    PrintfMsg("Entry count: %d", entries);
     RemoveFromStack();
 
     AddToStack();
@@ -659,7 +684,7 @@ void PrepareACPI(BootInfo* bootInfo)
     AddToStack();
     ACPI::MCFGHeader* mcfg = (ACPI::MCFGHeader*)ACPI::FindTable(rootThing, (char*)"MCFG", div);
 
-    PrintMsg("MCFG Header Addr: {}", ConvertHexToString((uint64_t)mcfg));
+    PrintfMsg("MCFG Header Addr: %X", (uint64_t)mcfg);
     RemoveFromStack();
 
     if (mcfg == NULL)
@@ -690,7 +715,7 @@ void PrepareACPI(BootInfo* bootInfo)
     //     GlobalRenderer->Clear(Colors.bblue);
 
     AddToStack();
-    PrintMsg("Drive Count: {}", to_string(osData.diskInterfaces.GetCount()));
+    PrintfMsg("Drive Count: %d", osData.diskInterfaces.GetCount());
     RemoveFromStack();    
     
     // for (int i = 0; i < 20; i++)

@@ -46,6 +46,7 @@ void CopyRecursive(SAF::initrdMount* mount, const char* tempCombined, SAF::saf_n
     }
 }
 
+#include "osData/osData.h"
 
 void boot(void* _bootInfo)
 {
@@ -92,7 +93,7 @@ void boot(void* _bootInfo)
     Scheduler::SchedulerEnabled = false;
 
     {
-        Serial::Writelnf("> Setting up Nothing Doer Task");
+        Serial::TWritelnf("> Setting up Nothing Doer Task");
         Elf::LoadedElfFile elf;
         elf.entryPoint = (void*)nothing_task_entry;
         osTask* task = Scheduler::CreateTaskFromElf(elf, 0, NULL, false, "", "");
@@ -230,6 +231,49 @@ void boot(void* _bootInfo)
     // GlobalRenderer->Clear(Colors.black);
 
 
+    // Music Test
+    if (true)
+    {
+        Audio::BasicAudioSource* audioSource = NULL;
+        if (osData.defaultAudioOutputDevice != NULL)
+        {
+            int sampleRate = 44100;
+            int sampleCount = sampleRate * 1;
+            if (audioSource == NULL)
+            {
+                //Println(window, "> Creating Audiosource");
+                audioSource = new Audio::BasicAudioSource(
+                    Audio::AudioBuffer::Create16BitMonoBuffer(sampleRate, sampleCount)
+                );
+                //Println(window, "> Linking Audiosource to Default Output Device \"{}\"", osData.defaultAudioOutputDevice->deviceName);
+                audioSource->ConnectTo(osData.defaultAudioOutputDevice->destination);
+            }
+            Audio::BasicAudioSource* src = audioSource;
+
+            if (!src->readyToSend)
+            {
+                //Println(window, "> Filling Data");
+                uint16_t* arr = (uint16_t*)src->buffer->data;
+                int dif = 20;
+                for (int i = 0; i < dif; i++)
+                {
+                    Audio::FillArray(arr, (i * sampleCount)/dif, sampleCount/dif, ((1000*(i+1)) / dif), sampleRate);
+                }
+                src->buffer->sampleCount = sampleCount;
+                src->samplesSent = 0;
+                src->readyToSend = true;
+                //Println(window, "> Ready To send");
+            }
+            else
+            {
+                //Print(window, "> Still sending Data. ({}", to_string(src->samplesSent));
+                //Println(window, " of {} samples)", to_string(src->buffer->sampleCount));
+            }
+        }
+    }
+
+
+
     Scheduler::SchedulerEnabled = true;
 
     while (true);
@@ -237,7 +281,7 @@ void boot(void* _bootInfo)
 
 
  
-volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, SystemAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData, void* memMap, uint64_t memEntryCount)
+volatile void bootTest(Framebuffer fb, ACPI::RSDP2* rsdp, PSF1_FONT* psf1_font, MaslOsAssetStruct* assets, void* freeMemStart, void* extraMemStart, uint64_t freeMemSize, void* kernelStart, uint64_t kernelSize, void* kernelStartV, limineSmpResponse* smpData, void* memMap, uint64_t memEntryCount)
 {
     //MStackData::BenchmarkEnabled = false;
     BootInfo tempBootInfo;
