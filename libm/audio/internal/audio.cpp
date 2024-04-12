@@ -24,38 +24,29 @@ namespace Audio
         {
             if (srcTC >= srcCC)
                 srcTC = 0;
+
             // convert from src bps to 32 bit
             int32_t srcSample = 0;
             long srcIndex = ((srcIndx * srcCC + srcTC) * srcBPS) / 8;
-            switch (srcBPS)
+            if (srcBPS == 8)
             {
-                case 8:
-                {
-                    //srcSample = ((int8_t*)src)[srcIndex];
-                    int8_t t8 = *((int8_t*)((uint64_t)src + srcIndex));
-                    srcSample = t8;
-                    break;
-                }
-                case 16:
-                {
-                    //srcSample = ((int16_t*)src)[srcIndex];
-                    int16_t t16 = *((int16_t*)((uint64_t)src + srcIndex));
-                    srcSample = t16;
-                    break;
-                }
-                case 32:
-                {
-                    //srcSample = ((int32_t*)src)[srcIndex];
-                    int32_t t32 = *((int32_t*)((uint64_t)src + srcIndex));
-                    srcSample = t32;
-                    break;                    
-                }
-                default:
-                    Panic("Invalid Source BPS {}", to_string(srcBPS), true);
-                    break;
+                uint8_t t8 = *((uint8_t*)((uint64_t)src + srcIndex));
+                srcSample = t8;
             }
-            
+            else if (srcBPS == 16)
+            {
+                int16_t t16 = *((int16_t*)((uint64_t)src + srcIndex));
+                srcSample = t16;
+            }
+            else if (srcBPS == 32)
+            {
+                int32_t t32 = *((int32_t*)((uint64_t)src + srcIndex));
+                srcSample = t32;
+            }
+            else
+                Panic("Invalid Source BPS {}", to_string(srcBPS), true);
             srcSample = (srcSample * srcVol) / 100;
+
 
             // deal with changing bits per second messing with the actual audio data/volume bc ranges are different
             if (srcBPS == 16 && destBPS == 8)
@@ -79,26 +70,64 @@ namespace Audio
             // for 16/32 bits its pretty simple, just multiply/divide
             // for 8 bit stuff its a bit more pain
 
+
+            // convert from dest bps to 32 bit
+            int32_t destSample = 0;
             long destIndex = ((destIndx * destCC + destTC) * destBPS) / 8;
-            // convert from 32 bit to dest bps
-            switch (destBPS)
+            if (destBPS == 8)
             {
-                case 8:
-                    //((int8_t*)dest)[destIndex] += (int8_t)srcSample;
-                    *((int8_t*)((uint64_t)dest + destIndex)) += (int8_t)srcSample;
-                    break;
-                case 16:
-                    //((int16_t*)dest)[destIndex] += (int16_t)srcSample;
-                    *((int16_t*)((uint64_t)dest + destIndex)) += (int16_t)srcSample;
-                    break;
-                case 32:
-                    //((int32_t*)dest)[destIndex] += (int32_t)srcSample;
-                    *((int32_t*)((uint64_t)dest + destIndex)) += (int32_t)srcSample;
-                    break;
-                default:
-                    Panic("Invalid Destination BPS {}", to_string(destBPS), true);
-                    break;
+                uint8_t t8 = *((uint8_t*)((uint64_t)dest + destIndex));
+                destSample = t8;
             }
+            else if (destBPS == 16)
+            {
+                int16_t t16 = *((int16_t*)((uint64_t)dest + destIndex));
+                destSample = t16;
+            }
+            else if (destBPS == 32)
+            {
+                int32_t t32 = *((int32_t*)((uint64_t)dest + destIndex));
+                destSample = t32;
+            }
+            else
+                Panic("Invalid Destination BPS {}", to_string(destBPS), true);
+            
+
+            // Add samples and clamp
+            int32_t sampleRes;
+            if (destBPS == 8)
+            {
+                uint8_t t8 = (uint32_t)destSample + (uint32_t)srcSample;
+                if (t8 > 0xff)
+                    t8 = 0xff;
+                sampleRes = t8;
+            }
+            else if (destBPS == 16)
+            {
+                int32_t t16 = destSample + srcSample;
+                if (t16 > 0x7fff)
+                    t16 = 0x7fff;
+                else if (t16 < -0x8000)
+                    t16 = -0x8000;
+                sampleRes = t16;
+            }
+            else if (destBPS == 32)
+            {
+                sampleRes = destSample + srcSample;
+            }
+            else
+                Panic("Invalid Destination BPS {}", to_string(destBPS), true);
+            
+
+            // convert from 32 bit to dest bps
+            if (destBPS == 8)
+                *((int8_t*)((uint64_t)dest + destIndex)) = (int8_t)sampleRes;
+            else if (destBPS == 16)
+                *((int16_t*)((uint64_t)dest + destIndex)) = (int16_t)sampleRes;
+            else if (destBPS == 32)
+                *((int32_t*)((uint64_t)dest + destIndex)) = (int32_t)sampleRes;
+            else
+                Panic("Invalid Destination BPS {}", to_string(destBPS), true);
         }
     }
 
@@ -122,35 +151,48 @@ namespace Audio
             data[i] = 0;
         sampleCount = 0;
     }
-    void AudioBuffer::Free()
+    void AudioBuffer::Destroy()
     {
         _Free(this->data);
         _Free(this);
     }
-    int AudioBuffer::MixBuffer(AudioBuffer* other, int sampleOffset)
+    
+    void AudioBuffer::MixBuffer(AudioBuffer* other, int sampleOffset, int* samplesWritten, int* samplesRead)
     {
         // Try to mix the other buffer into the current one
         // Tries to convert correct Samplerate and everything
-        // Will return amount of samples read from the other buffer
+        // Will return amount of samples written to this buffer
 
         long sC1 = sampleCount;
         long sC2 = other->sampleCount - sampleOffset;
         if (sC2 <= 0)
-            return 0;
+        {
+            *samplesWritten = 0;
+            *samplesRead = 0;
+            return;
+        }
         
         long sR1 = sampleRate;
         long sR2 = other->sampleRate;
         if (sR1 == 0 || sR2 == 0)
-            return 0;
+        {
+            *samplesWritten = 0;
+            *samplesRead = 0;
+            return;
+        }
 
         //float sR3 = sR1 / (float)sR2; // x Samples of other to 1 sample of this
-        long asC2 = ((sC2 * sR1) / sR2); // amount of samples of other to mix into this
+        long asC2 = ((sC2 * sR1 + (sR2 - 1)) / sR2); // amount of samples of other to mix into this
         //Panic("YO {}", to_string(sC2 * sR1), true);
         long commonSC = min(sC1, asC2); // amount of samples to mix
         if (commonSC <= 0)
-            return sC2;
+        {
+            *samplesWritten = 0;
+            *samplesRead = sC2;
+            return;
+        }
         
-        long osC2 = ((commonSC * sR2 + (sR1 / 2)) / sR1); // amount of samples of this to mix into other
+        long osC2 = ((commonSC * sR2 + (sR1 - 1)) / sR1); // amount of samples of this to mix into other
 
 
         int cC1 = channelCount;
@@ -207,7 +249,9 @@ namespace Audio
 
         //Panic("YO {}", to_string(commonSC), true);
 
-        return osC2;
+        *samplesWritten = commonSC;
+        *samplesRead = osC2;
+        return;
     }
 
 
@@ -247,8 +291,9 @@ namespace Audio
         if (!from->readyToSend)
             return 0;
         
-        int c = this->buffer->MixBuffer(from->buffer, from->samplesSent);
-        from->samplesSent += c;
+        int fromSent, thisRec;
+        this->buffer->MixBuffer(from->buffer, from->samplesSent, &thisRec, &fromSent);
+        from->samplesSent += fromSent;
         
         if (from->samplesSent >= from->buffer->sampleCount)
         {
@@ -270,7 +315,7 @@ namespace Audio
 
 
 
-        return c;
+        return thisRec;
     }
 
     int BasicAudioDestination::RequestBuffers()
@@ -281,7 +326,7 @@ namespace Audio
         for (int i = 0; i < sources->GetCount(); i++)
         {
             BasicAudioSource* src = sources->ElementAt(i);
-            c += RequestBuffer(src);
+            c = max(c, RequestBuffer(src));
         }
         return c;
     }
@@ -299,10 +344,10 @@ namespace Audio
         return true;
     }
 
-    void BasicAudioDestination::Free()
+    void BasicAudioDestination::Destroy()
     {
         if (buffer != NULL)
-            buffer->Free();
+            buffer->Destroy();
         buffer = NULL;
         if (sources != NULL)
         {
@@ -343,7 +388,7 @@ namespace Audio
             return;
         dest->sources->RemoveAt(indx);
     }
-    void BasicAudioSource::Free()
+    void BasicAudioSource::Destroy()
     {
         if (destinations != NULL)
         {
@@ -358,7 +403,7 @@ namespace Audio
         }
         destinations = NULL;
         if (buffer != NULL)
-            buffer->Free();
+            buffer->Destroy();
         buffer = NULL;
         _Free(this);
     }
@@ -375,13 +420,13 @@ namespace Audio
         this->source = source;
     }
 
-    void AudioInputDevice::Free()
+    void AudioInputDevice::Destroy()
     {
         if (deviceName != NULL)
             _Free(deviceName);
         deviceName = NULL;
         if (source != NULL)
-            source->Free();
+            source->Destroy();
         source = NULL;
         _Free(this);
     }
@@ -398,13 +443,13 @@ namespace Audio
         this->destination = destination;
     }
 
-    void AudioOutputDevice::Free()
+    void AudioOutputDevice::Destroy()
     {
         if (deviceName != NULL)
             _Free(deviceName);
         deviceName = NULL;
         if (destination != NULL)
-            destination->Free();
+            destination->Destroy();
         destination = NULL;
         _Free(this);
     }

@@ -355,6 +355,7 @@ void DrawStats()
 #include "../audio/audioDevStuff.h"
 
 int _pitCount = 0;
+int _pitCount2 = 0;
 
 void TempPitRoutine(interrupt_frame* frame)
 {
@@ -370,20 +371,26 @@ void TempPitRoutine(interrupt_frame* frame)
     // if (osData.serialManager != NULL)
     //     osData.serialManager->DoStuff();
 
+    int silly = 1;
+    if (PIT::Divisor != 0)
+        silly = PIT::NonMusicDiv / PIT::Divisor;
+    if (silly < 1)
+        silly = 1;
 
-    if (_pitCount++ >= 80 && true)   
+    if (++_pitCount >= 80 * silly && true)   
     {
         _pitCount = 0;
-        //DrawStats();
-
-        // TestSetSpeakerPosition(speakA);
-        // speakA = !speakA;
+        DrawStats();
     }
 
 
     RemoveFromStack();
 
-    Scheduler::SchedulerInterrupt(frame);
+    if (++_pitCount2 >= 3 * silly)
+    {
+        _pitCount2 = 0;
+        Scheduler::SchedulerInterrupt(frame);
+    }
 
     // if (Scheduler::CurrentRunningTask != NULL)
     //     MapMemoryOfCurrentTask(Scheduler::CurrentRunningTask);
@@ -508,6 +515,7 @@ void TestSetSpeakerPosition(bool in)
     outb(0x61, t);
     //io_wait();
 }
+
 
 
 void RemapPIC(uint8_t _a1, uint8_t _a2) 
@@ -852,7 +860,7 @@ extern "C" void intr_common_handler_c(interrupt_frame* frame)
         }
         Scheduler::CurrentRunningTask = NULL;
 
-        //DrawStats();
+        DrawStats();
 
         for (int i = 0; i < 20; i++)
             GlobalRenderer->ClearButDont();
@@ -1769,7 +1777,7 @@ void Syscall_handler(interrupt_frame* frame)
     {
         if (Scheduler::CurrentRunningTask != Scheduler::NothingDoerTask)
             if (LOG_SCHED_STUFF)
-                Serial::Writelnf("> YIELDING TASK %X", Scheduler::CurrentRunningTask->pid);
+                Serial::TWritelnf("> YIELDING TASK %X", Scheduler::CurrentRunningTask->pid);
         Scheduler::CurrentRunningTask->justYielded = true;
 
         Scheduler::SchedulerInterrupt(frame);
@@ -1786,6 +1794,9 @@ void Syscall_handler(interrupt_frame* frame)
         Scheduler::CurrentRunningTask->waitTillMessage = true;
         Scheduler::CurrentRunningTask->taskTimeoutDone = PIT::TimeSinceBootMS() + 500;
         Scheduler::CurrentRunningTask->justYielded = true;
+
+        if (Scheduler::CurrentRunningTask->messages->GetCount() > 0)
+            ;//Serial::TWritelnf("> TASK %X WAITING FOR MSG BUT ALREADY HAS %d", Scheduler::CurrentRunningTask->pid, Scheduler::CurrentRunningTask->messages->GetCount());
 
         if (LOG_SCHED_STUFF)
             Serial::TWritelnf("> MSG YIELDING TASK %X", Scheduler::CurrentRunningTask->pid);
@@ -2184,6 +2195,105 @@ void Syscall_handler(interrupt_frame* frame)
         osTask* nTask = Scheduler::CreateThreadFromTask(Scheduler::CurrentRunningTask, func);
         Scheduler::AddTask(nTask);
         frame->rax = nTask->pid;
+    }
+    else if (syscall == SYSCALL_AUDIO_SETUP_BUFFER)
+    {
+        osTask* task = Scheduler::CurrentRunningTask;
+        
+        if (task->audioOutput != NULL)
+        {
+            task->audioOutput->Destroy();
+            task->audioOutput = NULL;
+        }
+
+        int sampleRate = frame->rbx;
+        int sampleCount = frame->rcx;
+        int bitsPerSample = frame->rdx;
+        int channelCount = frame->rsi;
+
+        if (sampleRate < 1000 || sampleRate > 1000000 || 
+            sampleCount < 1 || sampleCount > 1000000 || 
+            bitsPerSample < 8 || bitsPerSample > 32 ||
+            channelCount < 1 || channelCount > 2)
+        {
+            Serial::TWritelnf("> Setup audio buffer for task %X failed! (Sample Rate: %d Hz, Sample Count: %d, Channel Count: %d, Bits per sample: %d)", task->pid, sampleRate, sampleCount, channelCount, bitsPerSample);
+            frame->rax = false;
+        }
+        else
+        {
+            task->audioOutput = new Audio::BasicAudioSource(
+                new Audio::AudioBuffer(bitsPerSample, sampleRate, channelCount, sampleCount)
+            );
+
+            task->audioOutput->ConnectTo(osData.defaultAudioOutputDevice->destination);
+            Serial::TWritelnf("> Setup audio buffer for task %X succeded! (Sample Rate: %d Hz, Sample Count: %d, Channel Count: %d, Bits per sample: %d)", task->pid, sampleRate, sampleCount, channelCount, bitsPerSample);
+
+            frame->rax = true;
+        }
+    }
+    else if (syscall == SYSCALL_AUDIO_SEND_DATA)
+    {
+        osTask* task = Scheduler::CurrentRunningTask;
+        
+        if (task->audioOutput != NULL)
+        {
+            void* data = (void*)frame->rbx;
+            uint64_t byteCount = frame->rcx;
+            int sampleCount = frame->rdx;
+            Audio::BasicAudioSource* source = task->audioOutput;
+            Serial::TWritelnf("> SYSCALL send audio data for task %X, %d bytes", task->pid, byteCount);
+
+            if (IsAddressValidForTask(data, task) && IsAddressValidForTask((char*)data + byteCount, task))
+            {
+                if (byteCount == source->buffer->byteCount)
+                {
+                    // Clear the buffer
+                    // source->buffer->ClearBuffer();
+                    
+                    if (sampleCount < 0)
+                        sampleCount = 0;
+                    if (sampleCount > source->buffer->totalSampleCount)
+                        sampleCount = source->buffer->totalSampleCount;
+
+                    // Copy the data
+                    _memcpy(data, source->buffer->data, byteCount);
+                    source->buffer->sampleCount = sampleCount;
+                    source->samplesSent = 0;
+                    source->readyToSend = true;
+
+
+                    frame->rax = true;
+                }
+                else
+                {
+                    frame->rax = false;
+                    Serial::TWritelnf("> SYSCALL send audio data for task %X failed! (Byte count mismatch: %d != %d)", task->pid, byteCount, source->buffer->byteCount);
+                }
+            }
+            else
+            {
+                frame->rax = false;
+                Serial::TWritelnf("> SYSCALL send audio data for task %X failed! (Invalid address)", task->pid);
+            }
+        }
+        else
+        {
+            frame->rax = false;
+            Serial::TWritelnf("> SYSCALL send audio data for task %X failed! (No audio buffer)", task->pid);
+        }
+    }
+    else if (syscall == SYSCALL_AUDIO_DATA_NEEDED)
+    {
+        osTask* task = Scheduler::CurrentRunningTask;
+        if (task->audioOutput != NULL)
+        {
+            Audio::BasicAudioSource* source = task->audioOutput;
+            frame->rax = !source->readyToSend;// || source->samplesSent >= source->buffer->sampleCount;
+        }
+        else
+        {
+            frame->rax = 0;
+        }
     }
     else
     {

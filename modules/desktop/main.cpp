@@ -279,7 +279,7 @@ void PrintFPS(int fps, int aFps, int frameTime, int breakTime, int totalTime, ui
 int main(int argc, char** argv)
 {
     serialPrintLn("Starting Desktop");
-    programSetPriority(1);
+    programSetPriority(2);
     InitStuff();
 
     activeWindow = NULL;
@@ -341,7 +341,7 @@ int main(int argc, char** argv)
         int aFps = (int)((frameCount * 1000) / totalTime);
 
 
-        //PrintFPS(fps, aFps, frameTime, breakTime, totalTime, totalPixelCount, frameCount);
+        PrintFPS(fps, aFps, frameTime, breakTime, totalTime, totalPixelCount, frameCount);
 
         // Check for mem leaks
         // serialPrint("B> Used Heap Count: ");

@@ -1,8 +1,5 @@
 {
     "files.associations": {
-        "Makefrag": "makefile",
-        "*.S": "asm-intel-x86-generic",
-        "script": "bat",
         "random": "cpp",
         "memory": "cpp",
         "optional": "cpp",
@@ -27,8 +24,6 @@
         "tuple": "cpp",
         "array": "cpp",
         "initializer_list": "cpp",
-        "utility": "cpp",
-        "satadiskinterface.h": "c"
-    },
-    "C_Cpp.errorSquiggles": "disabled"
+        "utility": "cpp"
+    }
 }

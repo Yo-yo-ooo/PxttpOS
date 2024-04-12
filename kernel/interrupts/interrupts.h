@@ -73,6 +73,8 @@ void PIC_EndSlave();
 void TestSetSpeakerPosition(bool in);
 void DoSafe();
 
+#define SetSpeakerPosition( in ) outb(0x61, (inb(0x61) & 0xFC) | (in ? 3 : 0));
+
 
 
 extern "C" void intr_common_handler_c(interrupt_frame* regs);
@@ -139,3 +141,9 @@ bool IsAddressValidForTask(const void* addr);
 void Syscall_handler(interrupt_frame* frame);
 void FS_Syscall_handler(int syscall, interrupt_frame* frame);
 
+
+
+
+
+#include <libm/msgPackets/msgPacket.h>
+bool SendMessageToTask(GenericMessagePacket* oldPacket, uint64_t targetPid, uint64_t sourcePid);
