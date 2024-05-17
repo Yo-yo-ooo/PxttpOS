@@ -1,12 +1,10 @@
 #include "cnf.h"
 
 void CNR::DrawPixel(int x, int y, uint32_t col){
-        TempRenderer* fb = renderer->componentFrameBuffer;
+#define fb framebuffer
         if (x >= 0 && x < fb->Width && 
             y >= 0 && y < fb->Height)
-            fb->pixels[x + y * fb->Width] = col;
-        if (update)
-            UpdateCanvas(x, y);
+            ((uint32_t*)framebuffer->BaseAddress)[x + y * fb->Width] = col;
 }
 
 int CNR::draw_cn(int x, int y, char *str, uint32_t color)
