@@ -159,7 +159,7 @@ int main(int argc, char** argv)
 void Cls()
 {
     outTxt->Clear();
-    outTxt->Println("System v2", Colors.bgreen);
+    outTxt->Println("MaslOS v2", Colors.bgreen);
     outTxt->scrollX = 0;
     outTxt->scrollY = 0;
 }
@@ -346,7 +346,7 @@ void HandleCommand(const char* inputStr)
         outTxt->Println(" - set <name> <value>");
         outTxt->Println();
         outTxt->Println("You can find more information in the wiki:");
-        outTxt->Println("https://github.com/marceldobehere/System-2/wiki");
+        outTxt->Println("https://github.com/marceldobehere/MaslOS-2/wiki");
         outTxt->Println();
     }
     else if (StrEquals(cmd, "exit"))
