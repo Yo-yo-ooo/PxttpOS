@@ -1,15 +1,7 @@
 #include "cnf.h"
 
-void CNR::DrawPixel(int x, int y, uint32_t col){
-#define fb framebuffer
-        if (x >= 0 && x < fb->Width && 
-            y >= 0 && y < fb->Height)
-            ((uint32_t*)framebuffer->BaseAddress)[x + y * fb->Width] = col;
-}
-
-int CNR::draw_cn(int x, int y, char *str, uint32_t color)
+int draw_cn(int x, int y, char *str, uint32_t color,GuiComponentStuff::CanvasComponent *canvas)
 {
-#define PIXEL(x, y) *(((uint32_t*)framebuffer->BaseAddress) + x + (y * framebuffer->Width))
     uint16_t font;
     int i, j, k;
     int offset;
@@ -24,10 +16,9 @@ int CNR::draw_cn(int x, int y, char *str, uint32_t color)
                    cn_lib[offset + i * 2 + 1];
             for (j = 0; j < 16; j++)
                 if ((font << j) & 0x8000)
-                   PIXEL((x + j), (y + i)) = color;
+                   canvas->DrawPixel((x + j), (y + i),color,true);
         }
         x += 16;
     }
     return 0;
-#undef PIXEL
 }
