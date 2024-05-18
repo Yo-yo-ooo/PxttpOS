@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-make
+make -j$(nproc)
 
 read -p "Press Enter to run..."
 
