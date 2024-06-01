@@ -1,98 +1,175 @@
 #include "cnf.h"
 #include <libm/cstrTools.h>
+#include <libm/cstr.h>
+#include <libm/heap/heap.h>
+#include <libm/heap/new.hpp>
+#include <libm/heap/new2.h>
+#include "sthutf.h"
+using namespace Heap;
+static boolean isLegalUTF8(const UTF8* source, int length)
+{
+    UTF8 a;
+    const UTF8* srcptr = NULL;
 
-/*
-Unicode符号范围     |        UTF-8编码方式
-(十六进制)        |              （二进制）
-----------------------+---------------------------------------------
-0000 0000-0000 007F | 0xxxxxxx
-0000 0080-0000 07FF | 110xxxxx 10xxxxxx
-0000 0800-0000 FFFF | 1110xxxx 10xxxxxx 10xxxxxx
-0001 0000-0010 FFFF | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-*/
-/**
- * @brief utf8编码转unicode字符集(usc4)，最大支持4字节utf8编码，(4字节以上在中日韩文中为生僻字)
- * @param *utf8 utf8变长编码字节集1~4个字节
- * @param *unicode utf8编码转unicode字符集结果，最大4个字节，返回的字节序与utf8编码序一致
- * @return length 0：utf8解码异常，others：本次utf8编码长度
- */
-uint8_t UTF8ToUnicode(uint8_t *utf8, uint32_t *unicode) {
-    const uint8_t lut_size = 3;
-    const uint8_t length_lut[] = {2, 3, 4};
-    const uint8_t range_lut[] = {0xE0, 0xF0, 0xF8};
-    const uint8_t mask_lut[] = {0x1F, 0x0F, 0x07};
+    if (NULL == source) {
+        //printf("ERR, isLegalUTF8: source=%p\n", source);
+        return FALSE;
+    }
+    srcptr = source + length;
 
-    uint8_t length = 0;
-    char b = *(utf8 + 0);
-    uint32_t i = 0;
-
-    if(utf8 == NULL) {
-        *unicode = 0;
-        return PARSE_ERROR;
-    }
-    // utf8编码兼容ASCII编码,使用0xxxxxx 表示00~7F
-    if(b < 0x80) {
-        *unicode =  b;
-        return 1;
-    }
-    // utf8不兼容ISO8859-1 ASCII拓展字符集
-    // 同时最大支持编码6个字节即1111110X
-    if(b < 0xC0 || b > 0xFD) {
-        *unicode = 0;
-        return PARSE_ERROR;
-    }
-    for(i = 0; i < lut_size; i++) {
-        if(b < range_lut[i]) {
-            *unicode = b & mask_lut[i];
-            length = length_lut[i];
+    switch (length) {
+    default:
+        //printf("ERR, isLegalUTF8 1: length=%d\n", length);
+        return FALSE;
+        /* Everything else falls through when "TRUE"... */
+    case 4:
+        if ((a = (*--srcptr)) < 0x80 || a > 0xBF) {
+            //printf("ERR, isLegalUTF8 2: length=%d, a=%x\n", length, a);
+            return FALSE;
+        }
+    case 3:
+        if ((a = (*--srcptr)) < 0x80 || a > 0xBF) {
+            //printf("ERR, isLegalUTF8 3: length=%d, a=%x\n", length, a);
+            return FALSE;
+        }
+    case 2:
+        if ((a = (*--srcptr)) > 0xBF) {
+            //printf("ERR, isLegalUTF8 4: length=%d, a=%x\n", length, a);
+            return FALSE;
+        }
+        switch (*source)
+        {
+            /* no fall-through in this inner switch */
+        case 0xE0:
+            if (a < 0xA0) {
+                //printf("ERR, isLegalUTF8 1: source=%x, a=%x\n", *source, a);
+                return FALSE;
+            }
             break;
+        case 0xED:
+            if (a > 0x9F) {
+                //printf("ERR, isLegalUTF8 2: source=%x, a=%x\n", *source, a);
+                return FALSE;
+            }
+            break;
+        case 0xF0:
+            if (a < 0x90) {
+                //printf("ERR, isLegalUTF8 3: source=%x, a=%x\n", *source, a);
+                return FALSE;
+            }
+            break;
+        case 0xF4:
+            if (a > 0x8F) {
+                //printf("ERR, isLegalUTF8 4: source=%x, a=%x\n", *source, a);
+                return FALSE;
+            }
+            break;
+        default:
+            if (a < 0x80) {
+                //printf("ERR, isLegalUTF8 5: source=%x, a=%x\n", *source, a);
+                return FALSE;
+            }
+        }
+    case 1:
+        if (*source >= 0x80 && *source < 0xC2) {
+            //printf("ERR, isLegalUTF8: source=%x\n", *source);
+            return FALSE;
         }
     }
-    // 超过四字节的utf8编码不进行解析
-    if(length == 0) {
-        *unicode = 0;
-        return PARSE_ERROR;
-    }
-    // 取后续字节数据
-    for(i = 1; i < length; i++ ) {
-        b = *(utf8 + i);
-        // 多字节utf8编码后续字节范围10xxxxxx~10111111
-        if( b < 0x80 || b > 0xBF ) {
-            break;
-        }
-        *unicode <<= 6;
-        // 00111111
-        *unicode |= (b & 0x3F);
-    }
-    // 长度校验
-    return (i < length) ? PARSE_ERROR : length;
+    if (*source > 0xF4)
+        return FALSE;
+    return TRUE;
 }
 
-/**
- * @brief 4字节unicode(usc4)字符集转utf16编码
- * @param unicode unicode字符值
- * @param *utf16 utf16编码结果
- * @return utf16长度，(2字节)单位
- */
-uint8_t UnicodeToUTF16(uint32_t unicode, uint16_t *utf16) {
-    // Unicode范围 U+000~U+FFFF
-    // utf16编码方式：2 Byte存储，编码后等于Unicode值
-    if(unicode <= 0xFFFF) {
-		if(utf16 != NULL) {
-			*utf16 = (unicode & 0xFFFF);
-		}
-		return 1;
-	}else if( unicode <= 0xEFFFF ) {
-		if( utf16 != NULL ) {
-		    // 高10位
-		    *(utf16 + 0) = 0xD800 + (unicode >> 10) - 0x40;
-            // 低10位
-		    *(utf16 + 1) = 0xDC00 + (unicode &0x03FF);
-		}
-		return 2;
-	}
+ConversionResult Utf8_To_Utf16(const UTF8* sourceStart, UTF16* targetStart, size_t outLen, ConversionFlags flags)
+{
+    ConversionResult result = conversionOK;
+    const UTF8* source = sourceStart;
+    UTF16* target = targetStart;
+    UTF16* targetEnd = targetStart + outLen / 2;
+    const UTF8* sourceEnd = NULL;
 
-    return 0;
+    if ((NULL == source) || (NULL == targetStart)) {
+        //printf("ERR, Utf8_To_Utf16: source=%p, targetStart=%p\n", source, targetStart);
+        return conversionFailed;
+    }
+    sourceEnd = StrLen((const char*)sourceStart) + sourceStart;
+
+    while (*source) {
+        UTF32 ch = 0;
+        unsigned short extraBytesToRead = trailingBytesForUTF8[*source];
+        if (source + extraBytesToRead >= sourceEnd) {
+            //printf("ERR, Utf8_To_Utf16----sourceExhausted: source=%p, extraBytesToRead=%d, sourceEnd=%p\n", source, extraBytesToRead, sourceEnd);
+            result = sourceExhausted;
+            break;
+        }
+        /* Do this check whether lenient or strict */
+        if (!isLegalUTF8(source, extraBytesToRead + 1)) {
+            //printf("ERR, Utf8_To_Utf16----isLegalUTF8 return FALSE: source=%p, extraBytesToRead=%d\n", source, extraBytesToRead);
+            result = sourceIllegal;
+            break;
+        }
+        /*
+        * The cases all fall through. See "Note A" below.
+        */
+        switch (extraBytesToRead) {
+        case 5: ch += *source++; ch <<= 6; /* remember, illegal UTF-8 */
+        case 4: ch += *source++; ch <<= 6; /* remember, illegal UTF-8 */
+        case 3: ch += *source++; ch <<= 6;
+        case 2: ch += *source++; ch <<= 6;
+        case 1: ch += *source++; ch <<= 6;
+        case 0: ch += *source++;
+        }
+        ch -= offsetsFromUTF8[extraBytesToRead];
+
+        if (target >= targetEnd) {
+            source -= (extraBytesToRead + 1); /* Back up source pointer! */
+            //printf("ERR, Utf8_To_Utf16----target >= targetEnd: source=%p, extraBytesToRead=%d\n", source, extraBytesToRead);
+            result = targetExhausted;
+            break;
+        }
+        if (ch <= UNI_MAX_BMP) {
+            /* Target is a character <= 0xFFFF */
+            /* UTF-16 surrogate values are illegal in UTF-32 */
+            if (ch >= UNI_SUR_HIGH_START && ch <= UNI_SUR_LOW_END) {
+                if (flags == strictConversion) {
+                    source -= (extraBytesToRead + 1); /* return to the illegal value itself */
+                    //printf("ERR, Utf8_To_Utf16----ch >= UNI_SUR_HIGH_START && ch <= UNI_SUR_LOW_END: source=%p, extraBytesToRead=%d\n", source, extraBytesToRead);
+                    result = sourceIllegal;
+                    break;
+                }
+                else {
+                    *target++ = UNI_REPLACEMENT_CHAR;
+                }
+            }
+            else {
+                *target++ = (UTF16)ch; /* normal case */
+            }
+        }
+        else if (ch > UNI_MAX_UTF16) {
+            if (flags == strictConversion) {
+                result = sourceIllegal;
+                source -= (extraBytesToRead + 1); /* return to the start */
+                //printf("ERR, Utf8_To_Utf16----ch > UNI_MAX_UTF16: source=%p, extraBytesToRead=%d\n", source, extraBytesToRead);
+                break; /* Bail out; shouldn't continue */
+            }
+            else {
+                *target++ = UNI_REPLACEMENT_CHAR;
+            }
+        }
+        else {
+            /* target is a character in range 0xFFFF - 0x10FFFF. */
+            if (target + 1 >= targetEnd) {
+                source -= (extraBytesToRead + 1); /* Back up source pointer! */
+                //printf("ERR, Utf8_To_Utf16----target + 1 >= targetEnd: source=%p, extraBytesToRead=%d\n", source, extraBytesToRead);
+                result = targetExhausted; break;
+            }
+            ch -= halfBase;
+            *target++ = (UTF16)((ch >> halfShift) + UNI_SUR_HIGH_START);
+            *target++ = (UTF16)((ch & halfMask) + UNI_SUR_LOW_START);
+        }
+    }
+    return result;
 }
 
 
@@ -119,38 +196,19 @@ int draw_cn(int x, int y, char *str, uint32_t color,GuiComponentStuff::CanvasCom
     return 0;
 }
 
-int UTFdcn(int x, int y,const char *str, uint32_t color,GuiComponentStuff::CanvasComponent *canvas){
 
-    uint32_t buffer;
-    uint8_t utf8 = 0,buf = 0;
-    uint16_t utf16[2] = {0};
-    uint8_t bytes[2];
+int UTFdcn(int x, int y,uint8_t *str, uint32_t color,GuiComponentStuff::CanvasComponent *canvas){
+    uint32_t buffer = 0;
+    uint16_t utf16[StrLen(str)] = {0};
     for(int i = 0;i < StrLen(str);i++){
-        utf8 = str[i];
-        buf = UTF8ToUnicode(utf8, &buffer);
-        buf = UnicodeToUTF16(buffer, utf16);
-        if(utf16[1] < (uint16_t)0x5BC5){
-            for(int j = 0;j < 3481;j++){
-                if(utf_gb2312[j].utf16 == utf16[1]){
-#define pack utf_gb2312[j].GB2312
-                    bytes[0] = (uint8_t)((pack >> 24) & 0xFF);
-                    bytes[1] = (uint8_t)((pack >> 16) & 0xFF);
-                    draw_cn(x, y, bytes, color, canvas);
-#undef pack
-                }
+        Utf8_To_Utf16(str,utf16,sizeof(utf16),strictConversion);
+        for(int k = 0;k < 6963;k++){
+            if(utf_gb2312[k].utf16 == utf16[i]){
+#define pack  utf_gb2312[k].GB2312
+                draw_cn(x, y, ConvertHexToString(pack), color, canvas);
+            }else{
+                continue;
             }
-        }else if(utf16[1] > (uint16_t)0x5BC5){
-            for(int k = 3481;k < 6963;k++){
-                if(utf_gb2312[k].utf16 == utf16[1]){
-#define pack utf_gb2312[k].GB2312
-                    bytes[0] = (uint8_t)((pack >> 24) & 0xFF);
-                    bytes[1] = (uint8_t)((pack >> 16) & 0xFF);
-                    draw_cn(x, y, bytes, color, canvas);
-#undef pack
-                }
-            }
-        }else{
-            draw_cn(x, y, "\0xD2FA", color, canvas);
         }
     }
     return 0;
