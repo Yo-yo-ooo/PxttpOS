@@ -214,8 +214,16 @@ int UTFdcn(int x, int y,uint8_t *str, uint32_t color,GuiComponentStuff::CanvasCo
         //serialPrintLn("Here!OK!");
         for(int k = 0;k < 6963;k++){
             if(utf_gb2312[k].utf16 == utf16[i]){
+#define A StrCombineAndFree("\0x",ConvertHexToString((uint8_t)utf_gb2312[k].GB2312))
+#define B StrCombineAndFree("\0x",ConvertHexToString((uint8_t)(utf_gb2312[k].GB2312 >> 8)))
+#define C StrCombineAndFree("\0x",ConvertHexToString((uint8_t)(utf_gb2312[k].GB2312 >> 16)))
+#define D StrCombineAndFree("\0x",ConvertHexToString((uint8_t)(utf_gb2312[k].GB2312 >> 24)))
                 buffer = StrCombineAndFree(buffer,
-                StrCombineAndFree("\0x",ConvertHexToString(utf_gb2312[k].gb2312)));
+                StrCombineAndFree(A,StrCombineAndFree(B,StrCombineAndFree(C,D))));
+#undef A
+#undef B
+#undef C
+#undef D
             }else{continue;}
             //res = StrCombineAndFree(res,buffer);
         }
