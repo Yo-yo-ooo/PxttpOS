@@ -1,6 +1,6 @@
 #include "cnf.h"
 
-UTFGB2312 utf_gb2312[6963]{
+const UTFGB2312 utf_gb2312[6963]{
 {0x3001,0xA1A2}, //GB2312:、<br>
 {0x3002,0xA1A3}, //GB2312:。<br>
 {0x00B7,0xA1A4}, //GB2312:·<br>
