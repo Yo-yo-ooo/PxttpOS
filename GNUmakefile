@@ -112,7 +112,7 @@ cleanExternalFolder:
 	@mkdir objects/external/programs
 	
 ac:
-	make clean -j$(nproc) && make clean2 -j$(nproc)
+	make clean -j$(nproc)
 	make -j$(nproc)
 	./cDisk.sh
 	qemu-system-x86_64 -machine q35 -m 2G -cpu qemu64 -smp 4 -serial stdio -boot d -drive file=disk.img -cdrom System.iso -no-reboot --no-shutdown

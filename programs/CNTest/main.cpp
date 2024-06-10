@@ -64,7 +64,7 @@ void HandleFrame()
     //uint64_t rndX = RND::RandomInt() % 300;
     //uint64_t rndY = RND::RandomInt() % 300;
     uint32_t rndCol = (uint32_t)RND::RandomInt();
-    draw_cn(0, 0, "ÄãºÃ", rndCol, canvas);
+    UTF8dcn(0, 0, "ä½ å¥½", rndCol, canvas);
 
     // All Scancodes are here https://wiki.osdev.org/PS/2_Keyboard#Scan_Code_Set_1
     if (envGetKeyState(Key_Enter))

@@ -199,38 +199,21 @@ int draw_cn(int x, int y, char *str, uint32_t color,GuiComponentStuff::CanvasCom
     return 0;
 }
 
-char* SCFAndFree(const char *a,const char*b,const char*c,const char*d){
-    char* res = StrCombine(a, b, c, d);
-    _Free((void*)a);
-    return res;
-}
-
-int UTFdcn(int x, int y,uint8_t *str, uint32_t color,GuiComponentStuff::CanvasComponent *canvas){
-    char* buffer = _Malloc1(sizeof(char) * 225);
-    memset(buffer,0,225);
-    uint16_t *utf16 = (uint16_t*)Heap::GlobalHeapManager->_Xmalloc(sizeof(uint16_t) * StrLen(str),"UTF-8 To UTF-16");
+int UTF8dcn(int x, int y,uint8_t *str, uint32_t color,GuiComponentStuff::CanvasComponent *canvas){
+    
+    uint16_t utf16[256] = { 0 };
     for(int i = 0;i < StrLen(str);i++){
-        Utf8_To_Utf16(str,utf16,StrLen(str),strictConversion);
+        Utf8_To_Utf16(str,utf16,sizeof(utf16),strictConversion);
         //serialPrintLn("Here!OK!");
         for(int k = 0;k < 6963;k++){
             if(utf_gb2312[k].utf16 == utf16[i]){
-#define A StrCombineAndFree("\0x",ConvertHexToString((uint8_t)utf_gb2312[k].GB2312))
-#define B StrCombineAndFree("\0x",ConvertHexToString((uint8_t)(utf_gb2312[k].GB2312 >> 8)))
-#define C StrCombineAndFree("\0x",ConvertHexToString((uint8_t)(utf_gb2312[k].GB2312 >> 16)))
-#define D StrCombineAndFree("\0x",ConvertHexToString((uint8_t)(utf_gb2312[k].GB2312 >> 24)))
-                buffer = StrCombineAndFree(buffer,
-                StrCombineAndFree(A,StrCombineAndFree(B,StrCombineAndFree(C,D))));
-#undef A
-#undef B
-#undef C
-#undef D
+                char buf[3] = {0,0,'\0'};
+                buf[0] = ((char)((utf_gb2312[k].GB2312 >> 8) & 0xff));
+                buf[1] = ((char)(utf_gb2312[k].GB2312 & 0xff));
+                draw_cn(x,y,buf,color,canvas);
+                x+=16;
             }else{continue;}
-            //res = StrCombineAndFree(res,buffer);
         }
     }
-    buffer = StrCombineAndFree(buffer,"\0");
-    draw_cn(x,y,buffer,color,canvas);
-    _Free((void*)utf16);
-    _Free((void*)buffer);
     return 0;
 }

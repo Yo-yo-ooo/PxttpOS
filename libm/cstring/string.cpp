@@ -78,15 +78,16 @@ void *memset(void *s, register int c, register size_t n)
     return s;
 }
 
-char *strcat(char *ret, register const char *s2)
+char* strcat(char *_s1, const char *_s2)
 {
-    register char *s1 = ret;
-    while (*s1++ != '\0')
-        /* EMPTY */ ;
-    s1--;
-    while (*s1++ = *s2++)
-        /* EMPTY */ ;
-    return ret;
+    char *pszOrigDst = _s1;
+
+    while(*_s1)
+        _s1++;
+    while((*_s1++ = *_s2++) != '\0')
+        ;
+
+    return pszOrigDst;
 }
 
 char *strncat(char *ret, register const char *s2, size_t n)
