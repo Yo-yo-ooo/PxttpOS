@@ -159,21 +159,6 @@ void free(void* ptr){
     _Free(ptr);
 }
 
-void* realloc(void* ptr, size_t size){
-    Heap::_HeapSegHdr *HeapHeader = (Heap::_HeapSegHdr*)ptr - 1;
-    if(!ptr || !size)
-        return _Malloc1(size);
-    if(HeapHeader->length >= size)
-        return ptr;
-    void* newptr = _Malloc1(size);
-    if(newptr){
-        _memcpy(newptr, ptr, HeapHeader->length);
-        free(ptr);
-    }
-    return newptr;
-
-}
-
 #define N 50
 
 long atol(const char *nptr)

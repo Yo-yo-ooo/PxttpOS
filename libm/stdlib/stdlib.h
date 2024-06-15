@@ -21,5 +21,4 @@ void *bsearch(const void *key, const void *base, size_t nitems, size_t size, int
 //memory
 void* malloc(size_t size);
 void* calloc(size_t num, size_t size);
-void* realloc(void* ptr, size_t size);
 void free(void* ptr);
