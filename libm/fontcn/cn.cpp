@@ -202,12 +202,12 @@ int draw_cn(int x, int y, char *str, uint32_t color,GuiComponentStuff::CanvasCom
 int UTF8dcn(int x, int y,uint8_t *str, uint32_t color,GuiComponentStuff::CanvasComponent *canvas){
     
     uint16_t utf16[256] = { 0 };
+    register char buf[3] = {0,0,'\0'};
     for(int i = 0;i < StrLen(str);i++){
         Utf8_To_Utf16(str,utf16,sizeof(utf16),strictConversion);
         //serialPrintLn("Here!OK!");
         for(int k = 0;k < 6963;k++){
             if(utf_gb2312[k].utf16 == utf16[i]){
-                char buf[3] = {0,0,'\0'};
                 buf[0] = ((char)((utf_gb2312[k].GB2312 >> 8) & 0xff));
                 buf[1] = ((char)(utf_gb2312[k].GB2312 & 0xff));
                 draw_cn(x,y,buf,color,canvas);
