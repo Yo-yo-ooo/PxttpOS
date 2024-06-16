@@ -2,6 +2,12 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <libm/rnd/rnd.h>
+
+#define rand() RND::RandomInt()
+inline void srand(uint32_t a){
+    RND::g_lehmer64_state = (__uint128_t)a;
+}
 
 //convert
 int atoi(char* pstr);
