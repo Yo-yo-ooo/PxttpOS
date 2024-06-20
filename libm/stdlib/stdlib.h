@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <libm/rnd/rnd.h>
+#include "cpuid.h"
 
 #define rand() RND::RandomInt()
 inline void srand(uint32_t a){
