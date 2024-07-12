@@ -182,6 +182,8 @@ static __inline unsigned long long __DOUBLE_BITS(double __f)
 #define predict_true(x) __builtin_expect(!!(x), 1)
 #define predict_false(x) __builtin_expect(x, 0)
 
+float intpower(float a, int n);
+float ln(float x);
 double modf(double x, double *iptr);
 double floor(double x);
 double scalbn(double x, int n);
