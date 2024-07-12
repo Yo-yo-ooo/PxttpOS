@@ -1,4 +1,5 @@
 #include "extmath.h"
+#include "../cstring/string.h"
 
 #define EPS (2.22044604925031308085e-16)
 #define accuracy 0.000001
@@ -56,6 +57,12 @@ static const double pio2_1  = 1.57079631090164184570e+00; /* 0x3FF921FB, 0x50000
 static const double pio2_1t = 1.58932547735281966916e-08; /* 0x3E5110b4, 0x611A6263 */
 
 typedef double double_t;
+
+double sqrt(double x) {
+    double res;
+    __asm__("fsqrt" : "=t"(res) : "0"(x));
+    return res;
+}
 
 double fabs(double x)
 {
@@ -597,3 +604,134 @@ float cosf(float x) {
         return __sindf(y);
     }
 }
+
+double atan2(double y, double x) {
+    double z;
+    uint32_t m, lx, ly, ix, iy;
+
+    if (isnan(x) || isnan(y))
+        return x + y;
+    EXTRACT_WORDS(ix, lx, x);
+    EXTRACT_WORDS(iy, ly, y);
+    if (((ix - 0x3ff00000) | lx) == 0) /* x = 1.0 */
+        return atan(y);
+    m = ((iy >> 31) & 1) | ((ix >> 30) & 2); /* 2*sign(x)+sign(y) */
+    ix = ix & 0x7fffffff;
+    iy = iy & 0x7fffffff;
+
+    /* when y = 0 */
+    if ((iy | ly) == 0) {
+        switch (m) {
+        case 0:
+        case 1:
+        return y; /* atan(+-0,+anything)=+-0 */
+        case 2:
+        return pi; /* atan(+0,-anything) = pi */
+        case 3:
+        return -pi; /* atan(-0,-anything) =-pi */
+        }
+    }
+    /* when x = 0 */
+    if ((ix | lx) == 0)
+        return m & 1 ? -pi / 2 : pi / 2;
+    /* when x is INF */
+    if (ix == 0x7ff00000) {
+        if (iy == 0x7ff00000) {
+        switch (m) {
+        case 0:
+            return pi / 4; /* atan(+INF,+INF) */
+        case 1:
+            return -pi / 4; /* atan(-INF,+INF) */
+        case 2:
+            return 3 * pi / 4; /* atan(+INF,-INF) */
+        case 3:
+            return -3 * pi / 4; /* atan(-INF,-INF) */
+        }
+        } else {
+        switch (m) {
+        case 0:
+            return 0.0; /* atan(+...,+INF) */
+        case 1:
+            return -0.0; /* atan(-...,+INF) */
+        case 2:
+            return pi; /* atan(+...,-INF) */
+        case 3:
+            return -pi; /* atan(-...,-INF) */
+        }
+        }
+    }
+    /* |y/x| > 0x1p64 */
+    if (ix + (64 << 20) < iy || iy == 0x7ff00000)
+        return m & 1 ? -pi / 2 : pi / 2;
+
+    /* z = atan(|y/x|) without spurious underflow */
+    if ((m & 2) && iy + (64 << 20) < ix) /* |y/x| < 0x1p-64, x<0 */
+        z = 0;
+    else
+        z = atan(fabs(y / x));
+    switch (m) {
+    case 0:
+        return z; /* atan(+,+) */
+    case 1:
+        return -z; /* atan(-,+) */
+    case 2:
+        return pi - (z - pi_lo); /* atan(+,-) */
+    default:                   /* case 3 */
+        return (z - pi_lo) - pi; /* atan(-,-) */
+    }
+}
+
+float sinf(float x) {
+    double y;
+    uint32_t ix;
+    int n, sign;
+
+    GET_FLOAT_WORD(ix, x);
+    sign = ix >> 31;
+    ix &= 0x7fffffff;
+
+    if (ix <= 0x3f490fda) {  /* |x| ~<= pi/4 */
+        if (ix < 0x39800000) { /* |x| < 2**-12 */
+        /* raise inexact if x!=0 and underflow if subnormal */
+        FORCE_EVAL(ix < 0x00800000 ? x / 0x1p120f : x + 0x1p120f);
+        return x;
+        }
+        return __sindf(x);
+    }
+    if (ix <= 0x407b53d1) {   /* |x| ~<= 5*pi/4 */
+        if (ix <= 0x4016cbe3) { /* |x| ~<= 3pi/4 */
+        if (sign)
+            return -__cosdf(x + s1pio2);
+        else
+            return __cosdf(x - s1pio2);
+        }
+        return __sindf(sign ? -(x + s2pio2) : -(x - s2pio2));
+    }
+    if (ix <= 0x40e231d5) {   /* |x| ~<= 9*pi/4 */
+        if (ix <= 0x40afeddf) { /* |x| ~<= 7*pi/4 */
+        if (sign)
+            return __cosdf(x + s3pio2);
+        else
+            return -__cosdf(x - s3pio2);
+        }
+        return __sindf(sign ? x + s4pio2 : x - s4pio2);
+    }
+
+    /* sin(Inf or NaN) is NaN */
+    if (ix >= 0x7f800000)
+        return x - x;
+
+    /* general argument reduction needed */
+    n = __rem_pio2f(x, &y);
+    switch (n & 3) {
+    case 0:
+        return __sindf(y);
+    case 1:
+        return __cosdf(y);
+    case 2:
+        return __sindf(-y);
+    default:
+        return -__cosdf(y);
+    }
+}
+

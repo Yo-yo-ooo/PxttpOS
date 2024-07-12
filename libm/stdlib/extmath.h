@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define FORCE_EVAL(x) do {									\
 	if (sizeof(x) == sizeof(float)) {						\
@@ -188,6 +189,10 @@ double modf(double x, double *iptr);
 double floor(double x);
 double scalbn(double x, int n);
 float cosf(float x); 
+double fabs(double x);
+double sqrt(double x);
+double atan2(double y, double x);
+float sinf(float x);
 int __rem_pio2_large(double* x, double* y, int e0, int nx, int prec);
 int __rem_pio2f(float x, double *y);
 float __sindf(double x);

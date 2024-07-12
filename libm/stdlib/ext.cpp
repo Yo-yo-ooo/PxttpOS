@@ -1,4 +1,7 @@
 #include "ext.h"
+#include "../stdio/stdio.h"
+#include <stdarg.h>
+
 double copysign(double x, double y) {
     union {
         double f;
@@ -16,4 +19,25 @@ float copysignf(float x, float y) {
     ux.i &= 0x7fffffff;
     ux.i |= uy.i & 0x80000000;
     return ux.f;
+}
+
+void printlnf(const char* str, ...)
+{
+    va_list arg;
+    va_start(arg, str);
+    _printf(str, arg, parent);
+    va_end(arg);
+    STDIO::println(parent);
+}
+
+void printf(const char* str, ...)
+{
+    va_list arg;
+    va_start(arg, str);
+    STDIO::printf(str,arg);
+    va_end(arg);
+}
+
+void _initStdio(int needLoggerWindow){
+    STDIO::initStdio((bool)needLoggerWindow);
 }

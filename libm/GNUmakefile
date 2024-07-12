@@ -4,8 +4,8 @@ OBJDIR = ../objects/libm
 
 LDFLAGS = $(LD_RELO_FLAGS)
 NASMFLAGS = $(BASE_NASM_FLAGS)
-CFLAGS    = $(C_RELO_FLAGS)
-CPPFLAGS  = $(CPP_RELO_FLAGS)
+CFLAGS    = $(C_RELO_FLAGS) -I./gui/sdl2/include -D__PXOS__
+CPPFLAGS  = $(CPP_RELO_FLAGS) -I./gui/sdl2/include -D__PXOS__
 
 CFILES    = $(shell find . -type f -name '*.c')
 CPPFILES  = $(shell find . -type f -name '*.cpp')
