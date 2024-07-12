@@ -2,7 +2,7 @@
 
 #include <stddef.h>
 
-#define NULL    ((void *)0)
+//#define NULL    ((void *)0)
 
 void *_memchr(const void *_s, int _c, size_t _n);
 int _memcmp(const void *_s1, const void *_s2, size_t _n);

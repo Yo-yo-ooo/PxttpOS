@@ -104,6 +104,23 @@ do {														\
 #define	islessgreater(x, y)		__builtin_islessgreater((x), (y))
 #define	isunordered(x, y)		__builtin_isunordered((x), (y))
 
+struct ieee_double {
+	unsigned int	dbl_fracl;
+	unsigned int	dbl_frach:20;
+	unsigned int	dbl_exp:11;
+	unsigned int	dbl_sign:1;
+};
+
+struct ieee_single {
+	unsigned int	sng_frac:23;
+	unsigned int	sng_exp:8;
+	unsigned int	sng_sign:1;
+};
+
+int __fpclassifyf(float f);
+int __fpclassify(double d);
+
+
 static __inline unsigned __FLOAT_BITS(float __f)
 {
 	union {float __f; unsigned __i;} __u;
@@ -183,16 +200,15 @@ static __inline unsigned long long __DOUBLE_BITS(double __f)
 #define predict_true(x) __builtin_expect(!!(x), 1)
 #define predict_false(x) __builtin_expect(x, 0)
 
-float intpower(float a, int n);
-float ln(float x);
-double modf(double x, double *iptr);
-double floor(double x);
-double scalbn(double x, int n);
-float cosf(float x); 
-double fabs(double x);
-double sqrt(double x);
-double atan2(double y, double x);
-float sinf(float x);
+float Ln(float x);
+double Modf(double x, double *iptr);
+double Floor(double x);
+double Scalbn(double x, int n);
+float Cosf(float x); 
+double Fabs(double x);
+double Sqrt(double x);
+double Atan2(double y, double x);
+float Sinf(float x);
 int __rem_pio2_large(double* x, double* y, int e0, int nx, int prec);
 int __rem_pio2f(float x, double *y);
 float __sindf(double x);

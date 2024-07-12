@@ -21,16 +21,7 @@ float copysignf(float x, float y) {
     return ux.f;
 }
 
-void printlnf(const char* str, ...)
-{
-    va_list arg;
-    va_start(arg, str);
-    _printf(str, arg, parent);
-    va_end(arg);
-    STDIO::println(parent);
-}
-
-void printf(const char* str, ...)
+void _printf(const char* str, ...)
 {
     va_list arg;
     va_start(arg, str);

@@ -228,10 +228,10 @@ char *_strpbrk(register const char *string, register const char *brk)
 
 char *_strstr(register const char *s, register const char *wanted)
 {
-    register const size_t len = strlen(wanted);
+    register const size_t len = _strlen(wanted);
 
     if (len == 0) return (char *)s;
-    while (*s != *wanted || strncmp(s, wanted, len))
+    while (*s != *wanted || _strncmp(s, wanted, len))
         if (*s++ == '\0')
             return (char *)NULL;
     return (char *)s;
@@ -247,13 +247,13 @@ char *_strtok(register char *string, const char *separators)
         if (string == NULL) return (char *)NULL;
     }
 
-    s1 = string + strspn(string, separators);
+    s1 = string + _strspn(string, separators);
     if (*s1 == '\0') {
         savestring = NULL;
         return (char *)NULL;
     }
 
-    s2 = strpbrk(s1, separators);
+    s2 = _strpbrk(s1, separators);
     if (s2 != NULL)
         *s2++ = '\0';
     savestring = s2;

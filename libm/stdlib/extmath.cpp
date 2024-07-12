@@ -1,9 +1,68 @@
 #include "extmath.h"
 #include "../cstring/string.h"
+#include "../math.h"
+
+#define ln(x)       Ln(x)
+#define modf(x,y)   Modf(x,y)
+#define floor(x)    Floor(x)
+#define scalbn(x,y)   Scalbn(x,y)
+#define cosf(x)     Cosf(x)
+#define sqrt(x)     Sqrt(x)
+#define atan2(x,y)    Atan2(x,y)
+#define sinf(x)     Sinf(x)
 
 #define EPS (2.22044604925031308085e-16)
 #define accuracy 0.000001
 #define pai 3.1415926
+
+int
+__fpclassifyf(float f)
+{
+	struct ieee_single *p = (struct ieee_single *)&f;
+
+	if (p->sng_exp == 0) {
+		if (p->sng_frac == 0)
+			return FP_ZERO;
+		else
+			return FP_SUBNORMAL;
+	}
+
+	if (p->sng_exp == 0) {
+		if (p->sng_frac == 0)
+			return FP_INFINITE;
+		else
+			return FP_NAN;
+	}
+
+	return FP_NORMAL;
+}
+
+int
+__fpclassify(double d)
+{
+	struct ieee_double *p = (struct ieee_double *)&d;
+
+	if (p->dbl_exp == 0) {
+		if (p->dbl_frach == 0 && p->dbl_fracl == 0)
+			return FP_ZERO;
+		else
+			return FP_SUBNORMAL;
+	}
+
+	if (p->dbl_exp == 0) {
+		if (p->dbl_frach == 0 && p->dbl_fracl == 0)
+			return FP_INFINITE;
+		else
+			return FP_NAN;
+	}
+
+	return FP_NORMAL;
+}
+
+static const double s1pio2 = 1 * M_PI_2, /* 0x3FF921FB, 0x54442D18 */
+    s2pio2 = 2 * M_PI_2,                 /* 0x400921FB, 0x54442D18 */
+    s3pio2 = 3 * M_PI_2,                 /* 0x4012D97C, 0x7F3321D2 */
+    s4pio2 = 4 * M_PI_2;                 /* 0x401921FB, 0x54442D18 */
 //#define EPS (2.22044604925031308085e-16)
 float intpower(float a, int n) {  //非负整数次方
     if (n == 0) {
@@ -17,7 +76,8 @@ float intpower(float a, int n) {  //非负整数次方
         return s;
     }
 }
-float ln(float x) {  //自然对数
+
+float Ln(float x) {  //自然对数
     float s = 0;
     int E = 50;  //精度
     if (x < 1) {
@@ -58,21 +118,22 @@ static const double pio2_1t = 1.58932547735281966916e-08; /* 0x3E5110b4, 0x611A6
 
 typedef double double_t;
 
-double sqrt(double x) {
+double Sqrt(double x) {
     double res;
     __asm__("fsqrt" : "=t"(res) : "0"(x));
     return res;
 }
 
-double fabs(double x)
+double Fabs(double x)
 {
 	int high;
 	GET_HIGH_WORD(high,x);
 	SET_HIGH_WORD(x,high&0x7fffffff);
     return x;
 }
+#define fabs(x) Fabs(x)
 
-double modf(double x, double *iptr) {
+double Modf(double x, double *iptr) {
     union {
         double f;
         uint64_t i;
@@ -106,7 +167,7 @@ double modf(double x, double *iptr) {
     *iptr = u.f;
     return x - u.f;
 }
-double floor(double x) {
+double Floor(double x) {
     int flag = 1;
     if (fabs(x) == x) {
         flag = 0;
@@ -123,7 +184,7 @@ double floor(double x) {
         return s;
     }
 }
-double scalbn(double x, int n) {
+double Scalbn(double x, int n) {
     union {
         double f;
         uint64_t i;
@@ -549,7 +610,7 @@ float __cosdf(double x) {
     r = C2 + z * C3;
     return ((1.0 + z * C0) + w * C1) + (w * z) * r;
 }
-float cosf(float x) {
+float Cosf(float x) {
     double y;
     uint32_t ix;
     unsigned n, sign;
@@ -605,7 +666,10 @@ float cosf(float x) {
     }
 }
 
-double atan2(double y, double x) {
+static const double pi = 3.1415926535897931160E+00, /* 0x400921FB, 0x54442D18 */
+    pi_lo = 1.2246467991473531772E-16;              /* 0x3CA1A626, 0x33145C07 */
+
+double Atan2(double y, double x) {
     double z;
     uint32_t m, lx, ly, ix, iy;
 
@@ -614,7 +678,7 @@ double atan2(double y, double x) {
     EXTRACT_WORDS(ix, lx, x);
     EXTRACT_WORDS(iy, ly, y);
     if (((ix - 0x3ff00000) | lx) == 0) /* x = 1.0 */
-        return atan(y);
+        return Atan(y);
     m = ((iy >> 31) & 1) | ((ix >> 30) & 2); /* 2*sign(x)+sign(y) */
     ix = ix & 0x7fffffff;
     iy = iy & 0x7fffffff;
@@ -668,7 +732,7 @@ double atan2(double y, double x) {
     if ((m & 2) && iy + (64 << 20) < ix) /* |y/x| < 0x1p-64, x<0 */
         z = 0;
     else
-        z = atan(fabs(y / x));
+        z = Atan(fabs(y / x));
     switch (m) {
     case 0:
         return z; /* atan(+,+) */
@@ -681,7 +745,7 @@ double atan2(double y, double x) {
     }
 }
 
-float sinf(float x) {
+float Sinf(float x) {
     double y;
     uint32_t ix;
     int n, sign;
