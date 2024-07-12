@@ -1,0 +1,6 @@
+#pragma once
+#include <stdint.h>
+
+#include "extmath.h"
+double copysign(double x, double y);
+float copysignf(float x, float y);
