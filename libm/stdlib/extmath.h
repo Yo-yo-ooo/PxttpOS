@@ -117,6 +117,10 @@ struct ieee_single {
 	unsigned int	sng_sign:1;
 };
 
+#define	SNG_EXP_INFNAN	255
+#define	DBL_EXP_INFNAN	2047
+#define	EXT_EXP_INFNAN	32767
+
 int __fpclassifyf(float f);
 int __fpclassify(double d);
 
@@ -209,7 +213,3 @@ double Fabs(double x);
 double Sqrt(double x);
 double Atan2(double y, double x);
 float Sinf(float x);
-int __rem_pio2_large(double* x, double* y, int e0, int nx, int prec);
-int __rem_pio2f(float x, double *y);
-float __sindf(double x);
-float __cosdf(double x);

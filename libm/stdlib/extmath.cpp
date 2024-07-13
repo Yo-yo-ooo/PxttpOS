@@ -2,6 +2,11 @@
 #include "../cstring/string.h"
 #include "../math.h"
 
+int __rem_pio2_large(double* x, double* y, int e0, int nx, int prec);
+int __rem_pio2f(float x, double *y);
+float __sindf(double x);
+float __cosdf(double x);
+
 #define ln(x)       Ln(x)
 #define modf(x,y)   Modf(x,y)
 #define floor(x)    Floor(x)
@@ -27,7 +32,7 @@ __fpclassifyf(float f)
 			return FP_SUBNORMAL;
 	}
 
-	if (p->sng_exp == 0) {
+	if (p->sng_exp == SNG_EXP_INFNAN) {
 		if (p->sng_frac == 0)
 			return FP_INFINITE;
 		else
@@ -49,7 +54,7 @@ __fpclassify(double d)
 			return FP_SUBNORMAL;
 	}
 
-	if (p->dbl_exp == 0) {
+	if (p->dbl_exp == DBL_EXP_INFNAN) {
 		if (p->dbl_frach == 0 && p->dbl_fracl == 0)
 			return FP_INFINITE;
 		else
