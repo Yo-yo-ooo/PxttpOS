@@ -8,6 +8,8 @@
 #include <libm/wmStuff/wmStuff.h>
 #include "../../SDL_internal.h"
 #include "../../../cstring/string.h"
+#include <libm/rendering/basicRenderer.h>
+#include <libm/syscallManager.h>
 #ifdef SDL_VIDEO_DRIVER_PXOS
 #define SFP(x) SDL_PXOS_##x
 
@@ -19,6 +21,8 @@ static void SFP(DestroyDevice)(SDL_VideoDevice *device)
 {
     OS_free(device);
 }
+
+
 
 static int SFP(CreateSDLWindow)(_THIS, SDL_Window *window){
     win = requestWindow();
@@ -78,6 +82,20 @@ static void SFP(DestroyWindow)(_THIS, SDL_Window * window){
     }
 }
 
+static int SFP(VideoInit)(_THIS){
+    return 0;
+}
+
+static int SFP(UpdateWindowFramebuffer) (_THIS, SDL_Window * window, const SDL_Rect * rects, int numrects){
+    win->Buffer->Height = window->surface->h;
+    win->Buffer->Width = window->surface->h * window->surface->w;
+    win->Buffer->BufferSize = window->surface->h * window->surface->w;
+    if(SendWindowFrameBufferUpdate(win) == false){
+        return -1;
+    }
+    return 0;
+}
+
 /* Initialization/Query device */
 static SDL_VideoDevice *PXOS_CreateDevice(void){
 
@@ -99,6 +117,8 @@ static SDL_VideoDevice *PXOS_CreateDevice(void){
     device->HideWindow = SDL_PXOS_HideWindow;
     device->DestroyWindow = SDL_PXOS_DestroyWindow;
     device->free = SDL_PXOS_DestroyDevice;
+    device->VideoInit = SDL_PXOS_VideoInit;
+    device->UpdateWindowFramebuffer = SDL_PXOS_UpdateWindowFramebuffer;
 
     return device;
 }

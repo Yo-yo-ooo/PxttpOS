@@ -220,6 +220,9 @@ int SDL_InitSubSystem(Uint32 flags)
 
     /* Clear the error message */
     SDL_ClearError();
+#ifdef __PXOS__
+    SDL_SetMemoryFunctions(OS_malloc, OS_calloc, OS_realloc, OS_free);
+#endif
 
 #ifdef SDL_USE_LIBDBUS
     SDL_DBus_Init();
