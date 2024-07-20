@@ -10,3 +10,6 @@ objects/**
 
 kernel.elf
 objects/**/*.elf
+
+System.iso
+external/programs.saf
