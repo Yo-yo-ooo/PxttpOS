@@ -13,14 +13,18 @@
 
 #define PXOSVID_DRIVER_NAME       "PxttpOS Video Drive(SDL2)"
 
-
 Window* win;
+
+static void SFP(DestroyDevice)(SDL_VideoDevice *device)
+{
+    OS_free(device);
+}
 
 static int SFP(CreateSDLWindow)(_THIS, SDL_Window *window){
     win = requestWindow();
     if (win == NULL)
         return 0;
-    SDL_free(win->Title);
+    OS_free(win->Title);
     win->Title = window->title;
     win->Dimensions.width = window->w;
     win->Dimensions.height = window->h;
@@ -94,6 +98,7 @@ static SDL_VideoDevice *PXOS_CreateDevice(void){
     device->ShowWindow = SDL_PXOS_ShowWindow;
     device->HideWindow = SDL_PXOS_HideWindow;
     device->DestroyWindow = SDL_PXOS_DestroyWindow;
+    device->free = SDL_PXOS_DestroyDevice;
 
     return device;
 }
