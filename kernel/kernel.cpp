@@ -67,7 +67,7 @@ void boot(void* _bootInfo)
     //
     //while(true);
     osData.booting = true;
-    osData.verboseBoot = false;
+    osData.verboseBoot = true;
 
     osData.mouseSensitivity = 100;
 
