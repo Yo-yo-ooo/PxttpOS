@@ -8,7 +8,7 @@
 #include <libm/cstr.h>
 #include "../ac97/ac97.h"
 #include "../serial/serial.h"
-
+#include "../e1000/e1000.h"
 
 namespace PCI
 {
@@ -208,6 +208,10 @@ namespace PCI
             //Serial::SerialPort= 0x2F8;
             if (!Serial::Init())
                 Serial::pciCard = 0;
+        }
+        else if (pciDeviceHeader->Vendor_ID == 0x8086 && pciDeviceHeader->Device_ID == 0x100E){
+            //e1000
+            new E1000(pciDeviceHeader);
         }
 
         RemoveFromStack();
