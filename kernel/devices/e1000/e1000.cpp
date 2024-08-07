@@ -6,6 +6,7 @@
 #include "../../kernelStuff/IO/IO.h"
 #include "../../osData/MStack/MStackM.h"
 #include <libm/stubs.h>
+//see https://wiki.osdev.org/Intel_Ethernet_i217
 
 namespace MMIOUtils{
 
@@ -388,7 +389,8 @@ void E1000::startLink (){}
 
 void E1000::fire (interrupt_frame* frame)
 {
-    if(frame->interrupt_number == BufIrqId){
+    //if(frame->interrupt_number == BufIrqId)
+    {
         writeCommand(REG_IMASK, 0x1);
         
         uint32_t status = readCommand(0xc0);
@@ -414,17 +416,17 @@ void E1000::handleReceive()
  
     while((rx_descs[rx_cur]->status & 0x1))
     {
-            got_packet = true;
-            uint8_t *buf = (uint8_t *)rx_descs[rx_cur]->addr;
-            uint16_t len = rx_descs[rx_cur]->length;
+        got_packet = true;
+        uint8_t *buf = (uint8_t *)rx_descs[rx_cur]->addr;
+        uint16_t len = rx_descs[rx_cur]->length;
 
-            // Here you should inject the received packet into your network stack
+        // Here you should inject the received packet into your network stack
 
 
-            rx_descs[rx_cur]->status = 0;
-            old_cur = rx_cur;
-            rx_cur = (rx_cur + 1) % E1000_NUM_RX_DESC;
-            writeCommand(REG_RXDESCTAIL, old_cur );
+        rx_descs[rx_cur]->status = 0;
+        old_cur = rx_cur;
+        rx_cur = (rx_cur + 1) % E1000_NUM_RX_DESC;
+        writeCommand(REG_RXDESCTAIL, old_cur );
     }    
 }
 
