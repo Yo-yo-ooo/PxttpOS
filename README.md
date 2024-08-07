@@ -5,6 +5,15 @@
 <br>
 如果您有相关改进请Pull request
 
+## How to contact me |  如何联系我
+email:
+<br> 
+yoyo102421@163.com
+1218849168@qq.com
+
+qq: 1218849168
+
+
 ## Thanks to | 致谢
  - [MaslOS-2](https://github.com/marceldobehere/MaslOS-2)
  - [VisualOS](https://github.com/nothotscott/VisualOS)
