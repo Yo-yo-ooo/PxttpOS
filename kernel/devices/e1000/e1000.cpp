@@ -5,8 +5,23 @@
 #include "../pci/pci.h"
 #include "../../kernelStuff/IO/IO.h"
 #include "../../osData/MStack/MStackM.h"
+#include "../../scheduler/scheduler.h"
+#include <libm/osTask.h>
 #include <libm/stubs.h>
 //see https://wiki.osdev.org/Intel_Ethernet_i217
+
+PCI::PCI_BAR_TYPE_ENUM bar_type;     // Type of BAR0
+uint16_t io_base;     // IO Base Address
+uint8_t BufIrqId;
+uint64_t  mem_base;   // MMIO Base Address
+bool eerprom_exists;  // A flag indicating if eeprom exists
+uint8_t mac [6];      // A buffer for storing the mack address
+struct e1000_rx_desc *rx_descs[E1000_NUM_RX_DESC]; // Receive Descriptor Buffers
+struct e1000_tx_desc *tx_descs[E1000_NUM_TX_DESC]; // Transmit Descriptor Buffers
+uint16_t rx_cur;      // Current Receive Descriptor Buffer
+uint16_t tx_cur;      // Current Transmit Descriptor Buffer
+PCI::PCI_BAR_TYPE BufferBarType; // Buffer Bar Type
+uint64_t DriverBaseAddress; // Buffer Base Address
 
 namespace MMIOUtils{
 
@@ -421,13 +436,42 @@ void E1000::handleReceive()
         uint16_t len = rx_descs[rx_cur]->length;
 
         // Here you should inject the received packet into your network stack
-
+        //GenericMessagePacket* NetPacket = new GenericMessagePacket(MessagePacketType::GENERIC_DATA,
+        //    (uint8_t*)buf, len);
+        // Scheduler::CurrentRunningTask->messages->Enqueue(NetPacket);
 
         rx_descs[rx_cur]->status = 0;
         old_cur = rx_cur;
         rx_cur = (rx_cur + 1) % E1000_NUM_RX_DESC;
         writeCommand(REG_RXDESCTAIL, old_cur );
     }    
+}
+
+void WriteCommand( uint16_t p_address, uint32_t p_value)
+{
+    if ( bar_type == PCI::PCI_BAR_TYPE_ENUM::MMIO32 || bar_type == PCI::PCI_BAR_TYPE_ENUM::MMIO64 )
+        MMIOUtils::write32(mem_base+p_address,p_value);
+    else if(bar_type == PCI::PCI_BAR_TYPE_ENUM::IO)
+    {
+        Ports::outportl(io_base, p_address);
+        Ports::outportl(io_base + 4, p_value);
+    }else{return;}
+}
+
+bool SendPacket(NetworkPacket packet){ // Send a packet
+    tx_descs[tx_cur]->addr = (uint64_t)packet.buffer;
+    tx_descs[tx_cur]->length = packet.size;
+    tx_descs[tx_cur]->cmd = CMD_EOP | CMD_IFCS | CMD_RS;
+    tx_descs[tx_cur]->status = 0;
+    uint8_t old_cur = tx_cur;
+    tx_cur = (tx_cur + 1) % E1000_NUM_TX_DESC;
+    WriteCommand(REG_TXDESCTAIL, tx_cur);   
+    while(!(tx_descs[old_cur]->status & 0xff));    
+    return 0;
+}
+
+uint8_t* Get_MacAddr(){
+    return mac;
 }
 
 int E1000::sendPacket(const void * p_data, uint16_t p_len)

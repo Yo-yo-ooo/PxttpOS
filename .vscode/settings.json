@@ -40,7 +40,26 @@
         "sdl_config_minimal.h": "c",
         "jump.h": "c",
         "memstuff.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "opt.h": "c",
+        "altcp.h": "c",
+        "altcp_tcp.h": "c",
+        "mem.h": "c",
+        "ppp_opts.h": "c",
+        "err.h": "c",
+        "netif.h": "c",
+        "bridgeif.h": "c",
+        "sys.h": "c",
+        "tcpip_priv.h": "c",
+        "debug.h": "c",
+        "interrupts.h": "c",
+        "cc.h": "c",
+        "basicrenderer.h": "c",
+        "testodebug.h": "c",
+        "stddef.h": "c",
+        "stdint.h": "c",
+        "lwipopts.h": "c",
+        "xutility": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include "../pci/pci.h"
 #include "../../interrupts/interrupts.h"
+#include "../../fsStuff/packdef.h"
 
 #define INTEL_VEND     0x8086  // Vendor ID for Intel 
 #define E1000_DEV      0x100E  // Device ID for the e1000 Qemu, Bochs, and VirtualBox emmulated NICs
@@ -189,18 +190,7 @@ class E1000
 {
 private:
     
-    PCI::PCI_BAR_TYPE_ENUM bar_type;     // Type of BAR0
-    uint16_t io_base;     // IO Base Address
-    uint8_t BufIrqId;
-    uint64_t  mem_base;   // MMIO Base Address
-    bool eerprom_exists;  // A flag indicating if eeprom exists
-    uint8_t mac [6];      // A buffer for storing the mack address
-    struct e1000_rx_desc *rx_descs[E1000_NUM_RX_DESC]; // Receive Descriptor Buffers
-    struct e1000_tx_desc *tx_descs[E1000_NUM_TX_DESC]; // Transmit Descriptor Buffers
-    uint16_t rx_cur;      // Current Receive Descriptor Buffer
-    uint16_t tx_cur;      // Current Transmit Descriptor Buffer
-    PCI::PCI_BAR_TYPE BufferBarType; // Buffer Bar Type
-    uint64_t DriverBaseAddress; // Buffer Base Address
+   
     
     // Send Commands and read results From NICs either using MMIO or IO Ports
     void writeCommand( uint16_t p_address, uint32_t p_value);
@@ -224,5 +214,14 @@ public:
     int sendPacket(const void * p_data, uint16_t p_len);  // Send a packet
     ~E1000();                                             // Default Destructor
 };
+
+PACK(typedef struct NetworkPacket
+{
+    uint8_t* buffer;
+    uint16_t size;
+})NetworkPacket;
+
+bool SendPacket(NetworkPacket packet); // Send a packet
+uint8_t* Get_MacAddr();
 
 #endif
