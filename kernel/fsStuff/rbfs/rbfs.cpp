@@ -83,7 +83,7 @@ int ReadFile(uint64_t StartAddr,void* buffer){
     char* p;
     RBFSFile *Tfile;
     if(ThisSata->ReadBytes(StartAddr,sizeof(RBFSFile),(void*)Tfile) == true){
-        if(Tfile->StartBlockAddr == 0){return ReadFault::EmptyFile;} //空文件
+        if(Tfile->StartBlockAddr == 0 && Tfile->FileSize == 0){return ReadFault::EmptyFile;} //空文件
         else{
             p = (char*)_Malloc1(GetAllBlockSize(Tfile->StartBlockAddr));
             RDRets ret = _RDF(p,Tfile->StartBlockAddr);
