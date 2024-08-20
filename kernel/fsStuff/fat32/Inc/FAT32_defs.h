@@ -14,6 +14,7 @@
 #include "../../../diskStuff/Disk_Interfaces/sata/sataDiskInterface.h"
 #include "../../packdef.h"
 #include "../../../osData/osData.h"
+#include "../../../devices/rtc/rtc.h"
 
 using namespace DiskInterface;
 

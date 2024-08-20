@@ -18,7 +18,8 @@ public:
     bool CreateDir(char *name_ptr);
     bool DeleteDir(char *name_ptr);
 private:
+    unsigned char buffer[10240];
     struct MEDIA_DISK media_ptr;
     struct FAT32_MEDIA media;
-    unsigned int max_size = 256 * 1024 * 1024;
+    unsigned int max_size = 0;
 };

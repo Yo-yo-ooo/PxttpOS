@@ -43,6 +43,19 @@ unsigned int FAT32_directory_create(FAT32_MEDIA *media_ptr,char *name_ptr)
     dir_ptr->first_cluster_l = cluster;
     dir_ptr->first_cluster_h = cluster >> 16;
 
+    
+    dir_ptr->CreationD.year = RTC::Year;
+    dir_ptr->CreationD.month = RTC::Month;
+    dir_ptr->CreationD.day = RTC::Day;
+
+    dir_ptr->CreationT.hour = RTC::Hour;
+    dir_ptr->CreationT.min = RTC::Minute;
+    dir_ptr->CreationT.sec = RTC::Second;
+
+    dir_ptr->LastAccessD.year = RTC::Year;
+    dir_ptr->LastAccessD.month = RTC::Month;
+    dir_ptr->LastAccessD.day = RTC::Day;
+
     return FAT32_utility_logic_sector_write(media_ptr,media_ptr->memory_buff, FAT32_utility_cluster_to_sector(media_ptr,cluster),1);
 
 }

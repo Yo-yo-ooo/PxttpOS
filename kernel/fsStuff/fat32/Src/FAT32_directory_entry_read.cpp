@@ -140,6 +140,11 @@ unsigned int FAT32_directory_entry_read(FAT32_MEDIA *media_ptr, FAT32_DIR *sourc
         }
     }
     *dest_dir = *read_ptr;
+
+    dest_dir->LastAccessD.year = RTC::Year;
+    dest_dir->LastAccessD.month = RTC::Month;
+    dest_dir->LastAccessD.day = RTC::Day;
+
     (*entry_ptr)++;
     return FAT_SUCCESS;
 }

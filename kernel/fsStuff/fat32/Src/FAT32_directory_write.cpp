@@ -102,6 +102,11 @@ unsigned int FAT32_directory_write(FAT32_MEDIA *media_ptr, FAT32_DIR *dest_dir, 
                 dir_ptr->file_size = size;
                 dir_ptr->first_cluster_h = cluster >> 16;
                 dir_ptr->first_cluster_l = cluster;
+
+                dir_ptr->LastAccessD.year = RTC::Year;
+                dir_ptr->LastAccessD.month = RTC::Month;
+                dir_ptr->LastAccessD.day = RTC::Day;
+
                 return FAT_SUCCESS;
             }
         }

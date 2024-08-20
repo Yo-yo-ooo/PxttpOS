@@ -1,8 +1,9 @@
 #include "fat32.h"
-
-unsigned char buffer[10240];
+#include "../../devices/rtc/rtc.h"
 
 Fat32::Fat32(int DiskNum){
+    max_size = 
+    ((SataDiskInterface*)osData.diskInterfaces[DiskNum])->GetMaxSectorCount() * SECTOR_SIZE;
     if (max_size != NULL) {
         media_ptr.status = 0;
         media_ptr.read_times = 0;

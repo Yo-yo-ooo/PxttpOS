@@ -58,6 +58,17 @@ PACK(struct FAT32_FSInfo {
     unsigned int trail_sign;
 });
 
+PACK(typedef struct FAT32_T{
+    uint32_t sec : 5;
+    uint32_t min : 6;
+    uint32_t hour : 5;
+})FAT32_Time;
+
+PACK(typedef struct FAT32_D{
+    uint32_t day : 5;
+    uint32_t month : 4;
+    uint32_t year : 7;
+})FAT32_Date;
 
 PACK(struct FAT32_DIR {
     unsigned char DIR_name[11];
@@ -67,6 +78,10 @@ PACK(struct FAT32_DIR {
     unsigned int reserved2;
     unsigned short first_cluster_l;
     unsigned int file_size;
+
+    FAT32_Time CreationT;
+    FAT32_Date CreationD;
+    FAT32_Date LastAccessD;
 });
 
 PACK(struct FAT32_DIR_long_name {

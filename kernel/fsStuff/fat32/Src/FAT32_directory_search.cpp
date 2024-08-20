@@ -69,6 +69,11 @@ unsigned int FAT32_directory_search(FAT32_MEDIA *media_ptr,char *name_ptr,FAT32_
     }
     media_ptr->last_found.path_dir = last_dir;
     *entry_dir = dest_dir;
+
+    entry_dir->LastAccessD.year = RTC::Year;
+    entry_dir->LastAccessD.month = RTC::Month;
+    entry_dir->LastAccessD.day = RTC::Day;
+
     media_ptr->last_found.path_entry = entry - 1;
     return  FAT_SUCCESS;
 }
