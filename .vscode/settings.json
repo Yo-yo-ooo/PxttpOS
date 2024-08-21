@@ -59,7 +59,8 @@
         "stddef.h": "c",
         "stdint.h": "c",
         "lwipopts.h": "c",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "xmemory": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
