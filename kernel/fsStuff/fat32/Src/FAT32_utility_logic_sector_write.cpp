@@ -3,9 +3,10 @@
 //
 #include "../Inc/FAT32_struct.h"
 
+using namespace DiskInterface;
 
 #undef ThisSata
-#define ThisSata    ((SataDiskInterface*)osData.diskInterfaces[media_ptr->disk->ID])
+#define ThisSata    ((GenericDiskInterface*)osData.diskInterfaces[media_ptr->disk->ID])
 
 
 unsigned int FAT32_utility_logic_sector_write(FAT32_MEDIA *media_ptr,void *buffer,unsigned int logic_sector,unsigned int write_sectors)

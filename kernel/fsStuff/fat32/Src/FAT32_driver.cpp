@@ -3,8 +3,10 @@
 //
 #include "../Inc/FAT32_struct.h"
 
+using namespace DiskInterface;
+
 #undef ThisSata
-#define ThisSata    ((SataDiskInterface*)osData.diskInterfaces[media_ptr->disk->ID])
+#define ThisSata    ((GenericDiskInterface*)osData.diskInterfaces[media_ptr->disk->ID])
 
 void FAT32_driver(struct FAT32_MEDIA *media_ptr)
 {

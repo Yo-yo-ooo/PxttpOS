@@ -1,9 +1,11 @@
 #include "fat32.h"
 #include "../../devices/rtc/rtc.h"
 
+using namespace DiskInterface;
+
 Fat32::Fat32(int DiskNum){
     max_size = 
-    ((SataDiskInterface*)osData.diskInterfaces[DiskNum])->GetMaxSectorCount() * SECTOR_SIZE;
+    ((GenericDiskInterface*)osData.diskInterfaces[DiskNum])->GetMaxSectorCount() * SECTOR_SIZE;
     if (max_size != NULL) {
         media_ptr.status = 0;
         media_ptr.read_times = 0;

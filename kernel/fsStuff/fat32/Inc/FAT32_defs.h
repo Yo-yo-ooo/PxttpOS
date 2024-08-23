@@ -16,7 +16,7 @@
 #include "../../../osData/osData.h"
 #include "../../../devices/rtc/rtc.h"
 
-using namespace DiskInterface;
+
 
 #define ERROR_CLUSTER 0xFEFEFEFE
 #define END_CLUSTER 0x0FFFFFFF
