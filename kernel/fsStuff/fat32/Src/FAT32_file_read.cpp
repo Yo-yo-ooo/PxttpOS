@@ -41,7 +41,9 @@ unsigned int FAT32_file_read(FAT32_MEDIA *media_ptr, char*name_ptr, unsigned int
         FAT32_utility_FAT_read(media_ptr,cluster,&cluster);
     }
 
-
+    dest_dir.LastAccessD.day = RTC::Day;
+    dest_dir.LastAccessD.month = RTC::Month;
+    dest_dir.LastAccessD.year = RTC::Year;
 
     return FAT_SUCCESS;
 }

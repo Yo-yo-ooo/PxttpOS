@@ -9,3 +9,10 @@ PACK(typedef struct vfs_node{
     int (*vfs_write)(void *media, unsigned int offset, void *buffer, unsigned int write_size);
 })vfs_node_t;
 
+/* 打开文件的选项 */
+enum oflags {
+   O_RDONLY,	  // 只读
+   O_WRONLY,	  // 只写
+   O_RDWR,	  // 读写
+   O_CREAT = 4	  // 创建
+};

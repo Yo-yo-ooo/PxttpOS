@@ -60,7 +60,11 @@
         "stdint.h": "c",
         "lwipopts.h": "c",
         "xutility": "cpp",
-        "xmemory": "cpp"
+        "xmemory": "cpp",
+        "algorithm": "cpp",
+        "type_traits": "cpp",
+        "xtr1common": "cpp",
+        "compare": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

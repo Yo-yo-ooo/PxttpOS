@@ -43,8 +43,9 @@ unsigned int FAT32_file_write(FAT32_MEDIA *media_ptr, char*name_ptr, unsigned in
         }
     }
 
-
-
+    dest_dir.LastAccessD.day = RTC::Day;
+    dest_dir.LastAccessD.month = RTC::Month;
+    dest_dir.LastAccessD.year = RTC::Year;
 
     return FAT_SUCCESS;
 }
