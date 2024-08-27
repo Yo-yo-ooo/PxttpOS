@@ -57,7 +57,9 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
-
+    if(pdrv > osData.diskInterfaces.GetCount()){
+        return RES_ERROR;
+    }
 	if(osData.diskInterfaces[pdrv]->Read(sector, count, (void*)buff) == true)
         return RES_OK;
     else
@@ -114,6 +116,9 @@ DRESULT disk_write (
 		return res;
 	}
     */
+   if(pdrv > osData.diskInterfaces.GetCount()){
+        return RES_ERROR;
+    }
    if(osData.diskInterfaces[pdrv]->Write(sector, count, (void*)buff) == true)
         return RES_OK;
     else
@@ -161,6 +166,9 @@ DRESULT disk_ioctl (
 
 	return RES_PARERR;
     */
-   return RES_OK;
+   if(pdrv > osData.diskInterfaces.GetCount()){
+        return RES_ERROR;
+    }
+    return RES_OK;
 }
 
