@@ -35,3 +35,4 @@ typedef struct _iobuf{
     int flag;
     int fd;
 }FILE;
+static FILE _iob[OPEN_MAX];

@@ -4,7 +4,12 @@
 #include <libm/stubs.h>
 
 
-int fatfs::Init(int DiskNum){
+static FIL files[OPEN_MAX];
+static FATFS fs;
+static int Tfd;
+static BYTE work[FF_MAX_SS];
+
+int fatfs::Init(int DiskNum,const MKFS_PARM* opt){
     Tfd = 3;
     if(DiskNum > 9 || DiskNum < 0)
         return -1;
@@ -12,7 +17,12 @@ int fatfs::Init(int DiskNum){
     p[0] = to_string(DiskNum);
     p[1] = ":";
     p[3] = "\0";
-    f_mount(&fs, p, 0);
+    if(f_mkfs(p,opt,work, sizeof(work)) != FR_OK)
+        return -1;
+    else if(f_mount(&fs, p, 0) != FR_OK)
+        return -1;
+    else
+        return 0;
 }
 
 int fatfs::open(const char* path, int mode){
