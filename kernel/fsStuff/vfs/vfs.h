@@ -2,6 +2,9 @@
 #include <stddef.h>
 #include "../packdef.h"
 
+#define EOF (-1)
+#define OPEN_MAX 20
+
 PACK(typedef struct vfs_node{
     int (*vfs_open)(void *media, char *name_ptr);
     int (*vfs_close)(void *media);
@@ -16,3 +19,19 @@ enum oflags {
    O_RDWR,	  // 读写
    O_CREAT = 4	  // 创建
 };
+
+enum _flags{
+    _READ = 01,
+    _WRITE = 02,
+    _UNBUF = 04,
+    _EOF = 010,
+    _ERR = 020
+};
+
+typedef struct _iobuf{
+    int cnt;
+    char *ptr;
+    char *base;
+    int flag;
+    int fd;
+}FILE;
