@@ -5,34 +5,23 @@
 #define EOF (-1)
 #define OPEN_MAX 20
 
+#define O_RDONLY    0b1000000000000000
+#define O_WRONLY    0b0100000000000000
+#define O_RDWR      0b0010000000000000
+#define O_CREAT     0b0001000000000000
+#define O_EXCL      0b0000100000000000
+#define O_NOCTTY    0b0000010000000000
+#define O_TRUNC     0b0000001000000000
+#define O_APPEND    0b0000000100000000
+#define O_NONBLOCK  0b0000000010000000
+#define O_DSYNC     0b0000000001000000
+#define O_FASYNC    0b0000000000100000
+#define O_NOFOLLOW  0b0000000000010000
+
 PACK(typedef struct vfs_node{
-    int (*vfs_open)(void *media, char *name_ptr);
-    int (*vfs_close)(void *media);
-    int (*vfs_read)(void *media, unsigned int offset, void *buffer, unsigned int read_size);
-    int (*vfs_write)(void *media, unsigned int offset, void *buffer, unsigned int write_size);
+    int (*vfs_open)(const char *pathname, int flags);
+    int (*vfs_open)(const char *pathname, int flags, mode_t mode);
+    int (*vfs_read)(int fd, void *buf, size_t count);
+    int (*vfs_write)(int fd, const void *buf, size_t count);
 })vfs_node_t;
 
-/* 打开文件的选项 */
-enum oflags {
-   O_RDONLY,	  // 只读
-   O_WRONLY,	  // 只写
-   O_RDWR,	  // 读写
-   O_CREAT = 4	  // 创建
-};
-
-enum _flags{
-    _READ = 01,
-    _WRITE = 02,
-    _UNBUF = 04,
-    _EOF = 010,
-    _ERR = 020
-};
-
-typedef struct _iobuf{
-    int cnt;
-    char *ptr;
-    char *base;
-    int flag;
-    int fd;
-}FILE;
-static FILE _iob[OPEN_MAX];

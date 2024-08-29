@@ -63,5 +63,7 @@ struct osTask
 
 	bool waitTillMessage = false;
 
+    int Curfd;
+
 	Audio::BasicAudioSource* audioOutput = NULL;
 };

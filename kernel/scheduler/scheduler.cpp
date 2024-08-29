@@ -422,6 +422,9 @@ namespace Scheduler
         task->isThread = false;
         task->mainPid = task->pid;
         task->audioOutput = NULL;
+
+        task->Curfd = 3;
+
         Serial::TWritelnf("SCHEDULER> Creating Task with PID: %X", task->pid);
 
         {
