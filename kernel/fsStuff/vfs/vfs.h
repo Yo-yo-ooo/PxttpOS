@@ -20,7 +20,7 @@
 
 PACK(typedef struct vfs_node{
     int (*vfs_open)(const char *pathname, int flags);
-    int (*vfs_open)(const char *pathname, int flags, mode_t mode);
+    int (*vfs_open_)(const char *pathname, int flags, unsigned int mode);
     int (*vfs_read)(int fd, void *buf, size_t count);
     int (*vfs_write)(int fd, const void *buf, size_t count);
 })vfs_node_t;

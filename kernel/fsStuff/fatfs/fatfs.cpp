@@ -62,7 +62,7 @@ int fatfs::open(const char *pathname, int flags){
     }
     return Tfd;
 }
-int fatfs::open(const char *pathname, int flags, unsigned int mode){
+int fatfs::open_(const char *pathname, int flags, unsigned int mode){
     
     if(bf == 0){
         return (int)-1;

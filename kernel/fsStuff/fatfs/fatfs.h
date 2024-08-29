@@ -5,6 +5,6 @@
 
 namespace fatfs{
     int Init(int DiskNum,const MKFS_PARM* opt);
-    int fatfs::open(const char *pathname, int flags);
-    int fatfs::open(const char *pathname, int flags, unsigned int mode);
+    int open(const char *pathname, int flags);
+    int open_(const char *pathname, int flags, unsigned int mode);
 }
