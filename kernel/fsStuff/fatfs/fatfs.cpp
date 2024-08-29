@@ -43,15 +43,15 @@ int fatfs::open(const char *pathname, int flags){
     FRESULT res;
     
     if(GET_BIT(flags,15) == 1)
-        res = f_open(&files[Tfd], path, FA_READ);
+        res = f_open(&files[Tfd], pathname, FA_READ);
     else if(GET_BIT(flags,14) == 1)
-        res = f_open(&files[Tfd], path, FA_WRITE);
+        res = f_open(&files[Tfd], pathname, FA_WRITE);
     else if(GET_BIT(flags,13) == 1)
-        res = f_open(&files[Tfd], path, FA_READ | FA_WRITE);
+        res = f_open(&files[Tfd], pathname, FA_READ | FA_WRITE);
     else if(GET_BIT(flags,12) == 1)
-        res = f_open(&files[Tfd], path, FA_CREATE_NEW);
+        res = f_open(&files[Tfd], pathname, FA_CREATE_NEW);
     else if(GET_BIT(flags,8) == 1)
-        res = f_open(&files[Tfd], path, FA_OPEN_APPEND);
+        res = f_open(&files[Tfd], pathname, FA_OPEN_APPEND);
     
 
     if(res != FR_OK){
@@ -70,15 +70,15 @@ int fatfs::open_(const char *pathname, int flags, unsigned int mode){
     FRESULT res2 = f_chmod(pathname, mode, AM_RDO | AM_ARC);
     
     if(GET_BIT(flags,15) == 1)
-        res = f_open(&files[Tfd], path, FA_READ);
+        res = f_open(&files[Tfd], pathname, FA_READ);
     else if(GET_BIT(flags,14) == 1)
-        res = f_open(&files[Tfd], path, FA_WRITE);
+        res = f_open(&files[Tfd], pathname, FA_WRITE);
     else if(GET_BIT(flags,13) == 1)
-        res = f_open(&files[Tfd], path, FA_READ | FA_WRITE);
+        res = f_open(&files[Tfd], pathname, FA_READ | FA_WRITE);
     else if(GET_BIT(flags,12) == 1)
-        res = f_open(&files[Tfd], path, FA_CREATE_NEW);
+        res = f_open(&files[Tfd], pathname, FA_CREATE_NEW);
     else if(GET_BIT(flags,8) == 1)
-        res = f_open(&files[Tfd], path, FA_OPEN_APPEND);
+        res = f_open(&files[Tfd], pathname, FA_OPEN_APPEND);
     
 
     if(res2 != FR_OK || res != FR_OK){
