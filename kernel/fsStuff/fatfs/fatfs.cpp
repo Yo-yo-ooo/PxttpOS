@@ -34,9 +34,6 @@ int fatfs::Init(int DiskNum,const MKFS_PARM* opt){
 #define SET1_BIT(value,bit) ((value)|= (1<<(bit))) //把某个位置1
 
 int fatfs::open(const char *pathname, int flags){
-    if(bf == 0){
-        return (int)-1;
-    }
     
     if(Tfd > 20 || Tfd < 3){
         return (int)-1;
@@ -63,10 +60,6 @@ int fatfs::open(const char *pathname, int flags){
     return Tfd;
 }
 int fatfs::open_(const char *pathname, int flags, unsigned int mode){
-    
-    if(bf == 0){
-        return (int)-1;
-    }
     
     if(Tfd > 20 || Tfd < 3){
         return (int)-1;
