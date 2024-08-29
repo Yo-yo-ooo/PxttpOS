@@ -13,3 +13,5 @@ objects/**/*.elf
 
 System.iso
 external/programs.saf
+
+iso_root
