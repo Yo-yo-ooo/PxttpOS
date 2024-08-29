@@ -7,7 +7,7 @@
 
 static FIL files[OPEN_MAX];
 static FATFS fs;
-#define Tfd Scheduler::CurrentRunningTask->Curfd;
+#define Tfd Scheduler::CurrentRunningTask->Curfd
 static BYTE work[FF_MAX_SS];
 UINT br, bw;         /* File read/write count */
 
