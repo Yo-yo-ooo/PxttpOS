@@ -3,16 +3,17 @@
 #include "../ram/ramDiskInterface.h"
 #include "../sata/sataDiskInterface.h"
 #include "../file/fileDiskInterface.h"
-
+#include "../nvme/nvme.h"
 
 namespace DiskInterface
 {
-    const char* DiskInterfaceTypeStr[4] 
+    const char* DiskInterfaceTypeStr[5] 
     {
         "Generic",
         "RAM",
         "SATA / SATAPI",
-        "Disk"
+        "Disk",
+        "NVMe"
     };
 
     bool GenericDiskInterface::Read(uint64_t sector, uint32_t sectorCount, void* buffer)
@@ -32,6 +33,10 @@ namespace DiskInterface
             case DiskInterface::File:
             {
                 return ((FileDiskInterface*)this)->Read(sector, sectorCount, buffer);
+            }
+            case DiskInterface::Nvme:
+            {
+                return ((NvmeDiskInterface*)this)->Read(sector, sectorCount, buffer);
             }
         }
         //osData.mainTerminalWindow->Log("DISK IS GENERIC!!!");
@@ -55,6 +60,10 @@ namespace DiskInterface
             case DiskInterface::File:
             {
                 return ((FileDiskInterface*)this)->Write(sector, sectorCount, buffer);
+            }
+            case DiskInterface::Nvme:
+            {
+                return ((NvmeDiskInterface*)this)->Write(sector, sectorCount, buffer);
             }
         }
         //osData.mainTerminalWindow->Log("DISK IS GENERIC!!!");
@@ -101,6 +110,10 @@ namespace DiskInterface
             {
                 return ((FileDiskInterface*)this)->ReadBytes(address, count, buffer);
             }
+            case DiskInterface::Nvme:
+            {
+                return ((NvmeDiskInterface*)this)->ReadBytes(address, count, buffer);
+            }
         }
         //osData.mainTerminalWindow->Log("DISK IS GENERIC!!!");
         return false;
@@ -124,6 +137,10 @@ namespace DiskInterface
             case DiskInterface::File:
             {
                 return ((FileDiskInterface*)this)->WriteBytes(address, count, buffer);
+            }
+            case DiskInterface::Nvme:
+            {
+                return ((NvmeDiskInterface*)this)->WriteBytes(address, count, buffer);
             }
         }
         //osData.mainTerminalWindow->Log("DISK IS GENERIC!!!");
