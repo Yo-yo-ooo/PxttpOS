@@ -35,6 +35,12 @@ PACK(typedef struct nvme_queue_{
     uint64_t size;
 })NvmeQueue;
 
+PACK(typedef struct NvmeVerisonReg{
+    uint32_t ter : 8;
+    uint32_t mnr : 8;
+    uint32_t mjr : 16;
+})NvmeVReg;
+
 enum nvme_opcode{
     nvme_cmd_flush          = 0x00,
     nvme_cmd_write          = 0x01,

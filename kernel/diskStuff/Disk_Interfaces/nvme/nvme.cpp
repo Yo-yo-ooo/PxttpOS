@@ -53,9 +53,8 @@ NvmeDiskInterface::NvmeDiskInterface(PCI::PCIDeviceHeader* PCIBaseAddr){
     this->nvme_base_addr = (uint64_t)(((uint64_t)bar1 << 32) | (bar0 & 0xFFFFFFF0));
     this->nvme_cap_strd = (nvme_base_addr >> 12) & 0xF;
 
-    uint32_t mjr = ReadRegister(0x08);
-    uint32_t mnr = ReadRegister(0x0A);
-    uint32_t ter = ReadRegister(0x0B);
+    NvmeVReg Version = (NvmeVReg)ReadRegister(0x08);
+    PrintfMsg("NVMe Version: %d.%d.%d", Version.mjr, Version.mnr, Version.ter);
 
     if(this->create_admin_completion_queue(cq) == false ||
        this->create_admin_submission_queue(sq) == false){
