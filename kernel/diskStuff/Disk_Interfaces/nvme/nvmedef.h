@@ -41,6 +41,73 @@ PACK(typedef struct NvmeVerisonReg{
     uint32_t mjr : 16;
 })NvmeVReg;
 
+PACK(typedef struct Registers
+{
+    volatile struct [[gnu::packed]]
+    {
+        uint64_t mqes : 16;
+        uint64_t cqr : 1;
+        uint64_t ams : 2;
+        uint64_t rsv0 : 5;
+        uint64_t to : 8;
+        uint64_t dstrd : 4;
+        uint64_t nssrs : 1;
+        uint64_t css : 8;
+        uint64_t bps : 1;
+        uint64_t cps : 2;
+        uint64_t mpsmin : 4;
+        uint64_t mpsmax : 4;
+        uint64_t pmrs : 1;
+        uint64_t cmbs : 1;
+        uint64_t nsss : 1;
+        uint64_t crms : 2;
+        uint64_t rsv1 : 3;
+    } caps;
+    volatile struct [[gnu::packed]]
+    {
+        uint32_t ter : 8;
+        uint32_t mnr : 8;
+        uint32_t mjr : 16;
+    } version;
+    uint32_t intms;
+    uint32_t intmc;
+    volatile struct [[gnu::packed]]
+    {
+        uint32_t en : 1;
+        uint32_t rsv0 : 3;
+        uint32_t css : 3;
+        uint32_t mps : 4;
+        uint32_t ams : 3;
+        uint32_t shn : 2;
+        uint32_t iosqes : 4;
+        uint32_t iocqes : 4;
+        uint32_t crime : 1;
+        uint32_t rsv1 : 7;
+    } ctrlconf;
+    uint32_t rsv0;
+    volatile struct [[gnu::packed]]
+    {
+        uint32_t rdy : 1;
+        uint32_t cfs : 1;
+        uint32_t shst : 2;
+        uint32_t nssro : 1;
+        uint32_t pp : 1;
+        uint32_t st : 1;
+        uint32_t rsv0 : 25;
+    } ctrlstat;
+    uint32_t nssr;
+    volatile struct [[gnu::packed]]
+    {
+        uint32_t asqs : 12;
+        uint32_t rsv0 : 4;
+        uint32_t acqs : 12;
+        uint32_t rsv1 : 4;
+    } aqa;
+    uint64_t asq;
+    uint64_t acq;
+    
+})NvmeRegs;
+
 enum nvme_opcode{
     nvme_cmd_flush          = 0x00,
     nvme_cmd_write          = 0x01,

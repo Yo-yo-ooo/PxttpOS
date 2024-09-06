@@ -2,6 +2,7 @@
 #include "../generic/genericDiskInterface.h"
 #include "../../../devices/pci/pci.h"
 #include "nvmedef.h"
+#include "../../../interrupts/interrupts.h"
 
 namespace DiskInterface
 {
@@ -18,6 +19,8 @@ namespace DiskInterface
         void *data, uint64_t lba, uint16_t num_blocks, NvmeQueueEntry *completion);
         bool create_admin_submission_queue(NvmeQueue *sq);
         bool create_admin_completion_queue(NvmeQueue *cq);
+
+        void HandleIRQ(interrupt_frame* frame);
     public:
         NvmeDiskInterface(PCI::PCIDeviceHeader* PCIBaseAddr);
         bool Read(uint64_t sector, uint32_t count, void *buffer);

@@ -2,6 +2,7 @@
 #include "../../../memory/heap.h"
 #include "../../../paging/PageTableManager.h"
 #include "../../../kernelStuff/stuff/stackmacro.h"
+#include "../../../devices/pit/pit.h"
 //see https://wiki.osdev.org/NVMe
 #define QUEUE_SIZE 4096
 #define NVME_SUCCESS 0
@@ -46,25 +47,87 @@ bool NvmeDiskInterface::create_admin_completion_queue(NvmeQueue *cq) {
 	return true;
 }
 
+static bool toggle(NvmeRegs*p,bool enable){
+    uint32_t value = enable;
+    p->ctrlconf.en = value;
+
+    size_t start = PIT::TimeSinceBootMS();
+    size_t end = p->caps.to * 500;
+
+    while (start < end)
+    {
+        if (p->ctrlstat.rdy == value)
+            break;
+
+        asm volatile ("" : : : "memory");
+        start++;
+    }
+
+    return p->ctrlstat.cfs == 0 && p->ctrlstat.rdy == value;
+}
+
+void NvmeDiskInterface::HandleIRQ(interrupt_frame* frame){
+
+}
+
 NvmeDiskInterface::NvmeDiskInterface(PCI::PCIDeviceHeader* PCIBaseAddr){
 #define bar0 ((PCI::PCIHeader0*)PCIBaseAddr)->BAR0
 #define bar1 ((PCI::PCIHeader0*)PCIBaseAddr)->BAR1
+    AddToStack();
 
     this->nvme_base_addr = (uint64_t)(((uint64_t)bar1 << 32) | (bar0 & 0xFFFFFFF0));
     this->nvme_cap_strd = (nvme_base_addr >> 12) & 0xF;
 
-    NvmeVReg Version = (NvmeVReg)ReadRegister(0x08);
-    PrintfMsg("NVMe Version: %d.%d.%d", Version.mjr, Version.mnr, Version.ter);
+    NvmeRegs *nvme_regs = (NvmeRegs *)nvme_base_addr;
+    PrintfMsg("NVMe Version: %d.%d.%d", 
+    nvme_regs->version.mjr, 
+    nvme_regs->version.mnr, 
+    nvme_regs->version.ter);
+
+    auto css = nvme_regs->caps.css;
+    if ((css & 0x01) == 0)
+        PrintMsg("NVM command set not supported");
+
+    if (toggle(nvme_regs ,false) == false)
+        PrintMsg("Could not disable controller");
+
+    auto queue_size = nvme_regs->caps.mqes;
+    {
+        int irqId = PCI::io_read_byte(PCIBaseAddr, PCI_INTERRUPT_LINE);
+        PrintfMsg("> Nvme IRQ: %d", irqId);
+        {
+            IRQHandlerCallbackFuncs[irqId] = (void*)&NvmeDiskInterface::HandleIRQ;
+            IRQHandlerCallbackHelpers[irqId] = (void*)this;
+        }
+    }
+
+    nvme_regs->aqa.asqs = queue_size - 1;
+    nvme_regs->aqa.acqs = queue_size - 1;
 
     if(this->create_admin_completion_queue(cq) == false ||
        this->create_admin_submission_queue(sq) == false){
         PrintMsg("Failed to create admin queues\n");
+        
     }
+
+    nvme_regs->asq = sq->address;
+    nvme_regs->acq = cq->address;
+
+    nvme_regs->ctrlconf.css = 0b000; // NVM command set
+    nvme_regs->ctrlconf.ams = 0b000; // Round robin
+    nvme_regs->ctrlconf.iosqes = 6;
+    nvme_regs->ctrlconf.iocqes = 4;
+
+    if (toggle(nvme_regs,true) == false)
+        PrintMsg("Could not enable controller");
+
+    
     completion_queue_head = (uint64_t)cq;
     submission_queue_tail = (uint64_t)sq + 0x1000;
 
 #undef bar0
 #undef bar1
+    RemoveFromStack();
 }
 
 bool NvmeDiskInterface::nvme_send_command(uint8_t opcode, uint32_t nsid, void *data, uint64_t lba, uint16_t num_blocks, NvmeQueueEntry *completion) {

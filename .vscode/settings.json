@@ -64,7 +64,14 @@
         "algorithm": "cpp",
         "type_traits": "cpp",
         "xtr1common": "cpp",
-        "compare": "cpp"
+        "compare": "cpp",
+        "concepts": "cpp",
+        "cstddef": "cpp",
+        "cstdint": "cpp",
+        "cstdlib": "cpp",
+        "cstring": "cpp",
+        "exception": "cpp",
+        "expected": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
