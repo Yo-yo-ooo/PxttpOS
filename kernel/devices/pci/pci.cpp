@@ -180,13 +180,6 @@ namespace PCI
         //     osData.debugTerminalWindow->renderer->Println("{}", ConvertHexToString(*(((uint32_t*)&((PCI::PCIHeader0*)pciDeviceHeader)->BAR0) + i)), Colors.orange);
         //     io_wait(1000);
         // }
-        pcidevs = (uint64_t*)Heap::GlobalHeapManager->_Xrealloc(
-            pcidevs, 
-            sizeof(pcidevs) / sizeof(uint64_t) + 1,
-            "PCIDeviceHeader*",
-            "pci.cpp",
-            188);
-        pcidevs[sizeof(pcidevs) / sizeof(uint64_t)] = (uint64_t)pciDeviceHeader;
 
         if (pciDeviceHeader->Class == 0x04 && pciDeviceHeader->SubClass == 0x01 && pciDeviceHeader->Prog_IF == 0x00)
         {
@@ -226,9 +219,9 @@ namespace PCI
 
     PCIDeviceHeader *GetDevice(uint64_t vendorID, uint64_t deviceID)
     {
-        for (int i = 0; i < sizeof(pcidevs) / sizeof(uint64_t); i++)
+        for (int i = 0; i < osData.PCIDH_Addrs.GetCount(); i++)
         {
-            PCIDeviceHeader *header = (PCIDeviceHeader *)pcidevs[i];
+            PCIDeviceHeader *header = (PCIDeviceHeader *)osData.PCIDH_Addrs.ElementAt(i);
             if (header->Vendor_ID == vendorID && header->Device_ID == deviceID)
                 return header;
         }

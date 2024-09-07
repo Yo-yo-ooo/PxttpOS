@@ -76,7 +76,6 @@ struct OSData
 
 //     GenericDisplay* fallbackOriginalDisplay = NULL;
 //     GenericDisplay* currentDisplay = NULL;
-
 };
 
 

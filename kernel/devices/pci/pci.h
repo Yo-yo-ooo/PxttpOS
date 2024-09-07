@@ -1,6 +1,6 @@
 #pragma once
 #include "../acpi/acpi.h"
-
+#include <libm/list/list.h>
 
 namespace PCI
 {
@@ -212,6 +212,6 @@ namespace PCI
 	void write_word(uint64_t address, PCI_BAR_TYPE type, uint16_t field, uint16_t value);
 	void write_dword(uint64_t address, PCI_BAR_TYPE type, uint16_t field, uint32_t value);
 
-    static uint64_t *pcidevs;
+
     PCIDeviceHeader *GetDevice(uint64_t vendorID, uint64_t deviceID);
 }
