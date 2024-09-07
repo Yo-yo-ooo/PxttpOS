@@ -71,7 +71,8 @@
         "cstdlib": "cpp",
         "cstring": "cpp",
         "exception": "cpp",
-        "expected": "cpp"
+        "expected": "cpp",
+        "pci.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

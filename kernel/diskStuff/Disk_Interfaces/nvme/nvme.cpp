@@ -93,7 +93,7 @@ NvmeDiskInterface::NvmeDiskInterface(PCI::PCIDeviceHeader* PCIBaseAddr){
 
     auto queue_size = nvme_regs->caps.mqes;
     {
-        int irqId = PCI::io_read_byte(PCIBaseAddr, PCI_INTERRUPT_LINE);
+        uint8_t irqId = PCI::io_read_byte(PCIBaseAddr, PCI_INTERRUPT_LINE);
         PrintfMsg("> Nvme IRQ: %d", irqId);
         {
             IRQHandlerCallbackFuncs[irqId] = (void*)&NvmeDiskInterface::HandleIRQ;
