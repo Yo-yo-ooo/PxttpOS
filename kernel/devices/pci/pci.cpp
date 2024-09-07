@@ -217,16 +217,7 @@ namespace PCI
     }
 
 
-    PCIDeviceHeader *GetDevice(uint64_t vendorID, uint64_t deviceID)
-    {
-        for (int i = 0; i < osData.PCIDH_Addrs.GetCount(); i++)
-        {
-            PCIDeviceHeader *header = (PCIDeviceHeader *)osData.PCIDH_Addrs.ElementAt(i);
-            if (header->Vendor_ID == vendorID && header->Device_ID == deviceID)
-                return header;
-        }
-        return nullptr;
-    }
+    
 
 
     IOAddress get_address(PCIDeviceHeader* hdr, uint8_t field)
