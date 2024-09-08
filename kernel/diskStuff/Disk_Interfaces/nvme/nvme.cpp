@@ -78,7 +78,7 @@ NvmeDiskInterface::NvmeDiskInterface(PCI::PCIDeviceHeader* PCIBaseAddr){
     this->nvme_base_addr = (uint64_t)(((uint64_t)bar1 << 32) | (bar0 & 0xFFFFFFF0));
     this->nvme_cap_strd = (nvme_base_addr >> 12) & 0xF;
 
-    NvmeRegs *nvme_regs = (NvmeRegs *)nvme_base_addr;
+    nvme_regs = (NvmeRegs *)nvme_base_addr;
     PrintfMsg("NVMe Version: %d.%d.%d", 
     nvme_regs->version.mjr, 
     nvme_regs->version.mnr, 

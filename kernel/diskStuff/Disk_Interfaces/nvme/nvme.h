@@ -12,6 +12,7 @@ namespace DiskInterface
         uint64_t nvme_base_addr;
         uint32_t nvme_cap_strd;
         NvmeQueue *sq, *cq;
+        NvmeRegs *nvme_regs;
 
         uint32_t ReadRegister(uint32_t offset);
         void WriteRegister(uint32_t offset, uint32_t value);
