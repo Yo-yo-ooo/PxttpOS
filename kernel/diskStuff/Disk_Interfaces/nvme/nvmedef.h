@@ -121,3 +121,12 @@ enum nvme_opcode{
     nvme_cmd_resv_acquire   = 0x11,
     nvme_cmd_resv_release   = 0x15,
 };
+
+enum AdminOpcode
+{
+    deleteSQ = 0x0,
+    createSQ = 0x1,
+    deleteCQ = 0x4,
+    createCQ = 0x5,
+    identify = 0x6
+};

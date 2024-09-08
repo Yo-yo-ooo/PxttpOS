@@ -5,7 +5,7 @@
 #include "../../../devices/pit/pit.h"
 //see https://wiki.osdev.org/NVMe
 #define QUEUE_SIZE 4096
-#define NVME_SUCCESS 0
+#define NVME_SUCCESS 1
 
 
 static uint64_t submission_queue_tail;
@@ -121,6 +121,10 @@ NvmeDiskInterface::NvmeDiskInterface(PCI::PCIDeviceHeader* PCIBaseAddr){
     if (toggle(nvme_regs,true) == false)
         PrintMsg("Could not enable controller");
 
+    NvmeQueueEntry *completion = NULL;
+    if(nvme_send_command(AdminOpcode::identify,0,0,0,0,completion) == NVME_SUCCESS)
+        PrintMsg("Failed to send identify command");
+    
     
     completion_queue_head = (uint64_t)cq;
     submission_queue_tail = (uint64_t)sq + 0x1000;
@@ -156,7 +160,7 @@ bool NvmeDiskInterface::nvme_send_command(uint8_t opcode, uint32_t nsid, void *d
 	WriteRegister(0x1000 + 3 * (4 << nvme_cap_strd), completion_queue_head);
 	if (completion_queue_head == QUEUE_SIZE)
 		completion_queue_head = 0;
-	return completion->status != 0;
+	return (bool)completion->status != 0;
 
 #undef submission_queue
 #undef completion_queue
@@ -165,7 +169,7 @@ bool NvmeDiskInterface::nvme_send_command(uint8_t opcode, uint32_t nsid, void *d
 bool NvmeDiskInterface::Read(uint64_t sector, uint32_t count, void *buffer) {
 	NvmeQueueEntry *completion = NULL;
 	if (nvme_send_command(0x02, 0, buffer, sector, count, completion) != NVME_SUCCESS)
-	return true;
+	    return true;
 	if (completion->status != NVME_SUCCESS)
 		return true;
 	return false;
@@ -174,7 +178,7 @@ bool NvmeDiskInterface::Read(uint64_t sector, uint32_t count, void *buffer) {
 bool NvmeDiskInterface::Write(uint64_t sector, uint32_t count, void *buffer) {
 	NvmeQueueEntry *completion = NULL;
 	if (nvme_send_command(0x01, 0, buffer, sector, count, completion) != NVME_SUCCESS)
-	return true;
+	    return true;
 	if (completion->status != NVME_SUCCESS)
 		return true;
 	return false;
