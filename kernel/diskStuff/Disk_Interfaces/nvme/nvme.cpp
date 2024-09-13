@@ -75,6 +75,12 @@ NvmeDiskInterface::NvmeDiskInterface(PCI::PCIDeviceHeader* PCIBaseAddr){
 #define bar1 ((PCI::PCIHeader0*)PCIBaseAddr)->BAR1
     AddToStack();
 
+    uint64_t address = (uint64_t)PCIBaseAddr;
+    PCI::enable_bus_mastering(address);
+    PCI::enable_mem_space(address);
+    PCI::enable_io_space(address);
+    PCI::enable_interrupt(address);
+
     this->nvme_base_addr = (uint64_t)(((uint64_t)bar1 << 32) | (bar0 & 0xFFFFFFF0));
     this->nvme_cap_strd = (nvme_base_addr >> 12) & 0xF;
 
@@ -104,6 +110,18 @@ NvmeDiskInterface::NvmeDiskInterface(PCI::PCIDeviceHeader* PCIBaseAddr){
     nvme_regs->aqa.asqs = queue_size - 1;
     nvme_regs->aqa.acqs = queue_size - 1;
 
+    cq = (NvmeQueue*)GlobalAllocator->RequestPage();
+    sq = (NvmeQueue*)GlobalAllocator->RequestPage();
+
+    completion_queue_head = (uint64_t)cq;
+    submission_queue_tail = ((uint64_t)sq) + 0x1000;
+
+    GlobalPageTableManager.MapMemory((uint64_t)cq,(uint64_t)cq);
+    GlobalPageTableManager.MapMemory((uint64_t)sq,(uint64_t)sq);
+
+    _memset(cq, 0, 0x1000);
+    _memset(sq, 0, 0x1000);
+
     if(this->create_admin_completion_queue(cq) == false ||
        this->create_admin_submission_queue(sq) == false){
         PrintMsg("Failed to create admin queues\n");
@@ -125,9 +143,6 @@ NvmeDiskInterface::NvmeDiskInterface(PCI::PCIDeviceHeader* PCIBaseAddr){
     if(nvme_send_command(AdminOpcode::identify,0,0,0,0,completion) == NVME_SUCCESS)
         PrintMsg("Failed to send identify command");
     
-    
-    completion_queue_head = (uint64_t)cq;
-    submission_queue_tail = (uint64_t)sq + 0x1000;
 
 #undef bar0
 #undef bar1
