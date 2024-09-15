@@ -1,0 +1,171 @@
+#! /bin/sh
+
+set -ex
+
+srcdir="$(dirname "$0")"
+test -z "$srcdir" && srcdir=.
+
+: "${AUTORECONF:=autoreconf}"
+: "${AUTOMAKE:=automake}"
+
+cd "$srcdir"
+
+AUXFILES="config.guess config.sub install-sh"
+
+clone_repo_commit() {
+    if test -d "$2/.git"; then
+        git -C "$2" reset --hard
+        git -C "$2" clean -fd
+        if ! git -C "$2" checkout $3; then
+            rm -rf "$2"
+        fi
+    else
+        if test -d "$2"; then
+            set +x
+            echo "error: '$2' is not a Git repository"
+            exit 1
+        fi
+    fi
+    if ! test -d "$2"; then
+        git clone $1 "$2"
+        if ! git -C "$2" checkout $3; then
+            rm -rf "$2"
+            exit 1
+        fi
+    fi
+}
+
+download_by_hash() {
+    DOWNLOAD_COMMAND="curl -Lo"
+    if ! command -v $DOWNLOAD_COMMAND >/dev/null 2>&1; then
+        DOWNLOAD_COMMAND="wget -O"
+        if ! command -v $DOWNLOAD_COMMAND >/dev/null 2>&1; then
+            set +x
+            echo "error: Neither curl nor wget found"
+            exit 1
+        fi
+    fi
+    SHA256_COMMAND="sha256sum"
+    if ! command -v $SHA256_COMMAND >/dev/null 2>&1; then
+        SHA256_COMMAND="sha256"
+        if ! command -v $SHA256_COMMAND >/dev/null 2>&1; then
+            set +x
+            echo "error: Cannot find sha256(sum) command"
+            exit 1
+        fi
+    fi
+    if ! test -f "$2" || ! $SHA256_COMMAND "$2" | grep $3 >/dev/null 2>&1; then
+        rm -f "$2"
+        mkdir -p "$2" && rm -rf "$2"
+        $DOWNLOAD_COMMAND "$2" $1
+        if ! $SHA256_COMMAND "$2" | grep $3 >/dev/null 2>&1; then
+            set +x
+            echo "error: Cannot download file '$2' by hash"
+            echo "incorrect hash:"
+            $SHA256_COMMAND "$2"
+            rm -f "$2"
+            exit 1
+        fi
+    fi
+}
+
+if ! test -f version; then
+    clone_repo_commit \
+        https://github.com/osdev0/freestnd-c-hdrs-0bsd.git \
+        freestnd-c-hdrs-0bsd \
+        0353851fdebe0eb6a4d2c608c5393040d310bf35
+
+    download_by_hash \
+        https://github.com/osdev0/cc-runtime/raw/dcdf5d82973e77edee597a047a3ef66300903de9/cc-runtime.c \
+        decompressor/cc-runtime.c \
+        199907f5303ab15a963377fabcc1f2ee736e4ed18d54c59aab08345aa5485e8a
+    cp decompressor/cc-runtime.c common/cc-runtime.s2.c
+
+    download_by_hash \
+        https://github.com/osdev0/freestanding-toolchain/raw/729281786413dc16529d87bd4ea13f03a71e004e/freestanding-toolchain \
+        build-aux/freestanding-toolchain \
+        1176b458cac5a7e72b4237fbe22f2245d96f1ac851408f834dc549ebc2d7076b
+    chmod +x build-aux/freestanding-toolchain
+
+    clone_repo_commit \
+        https://github.com/osdev0/nyu-efi.git \
+        nyu-efi \
+        d1b3b5a19462e9ad4d3ae195e7a01b294d4bead3
+
+    clone_repo_commit \
+        https://github.com/jibsen/tinf.git \
+        tinf \
+        57ffa1f1d5e3dde19011b2127bd26d01689b694b
+    mkdir -p decompressor/tinf
+    cp tinf/src/tinf.h tinf/src/tinflate.c tinf/src/tinfgzip.c decompressor/tinf/
+    patch -p0 < decompressor/tinf.patch
+    rm -f tinf/src/tinf.h.orig tinf/src/tinflate.c.orig tinf/src/tinfgzip.c.orig
+
+    clone_repo_commit \
+        https://github.com/mintsuki/flanterm.git \
+        common/flanterm \
+        ef07a10cc38b34aa003d17be97a9f3542e275069
+
+    download_by_hash \
+        https://github.com/nothings/stb/raw/f7f20f39fe4f206c6f19e26ebfef7b261ee59ee4/stb_image.h \
+        common/lib/stb_image.h.nopatch \
+        594c2fe35d49488b4382dbfaec8f98366defca819d916ac95becf3e75f4200b3
+    cp common/lib/stb_image.h.nopatch common/lib/stb_image.h
+    patch -p0 < common/stb_image.patch
+    rm -f common/lib/stb_image.h.orig
+
+    clone_repo_commit \
+        https://git.kernel.org/pub/scm/utils/dtc/dtc.git \
+        dtc \
+        039a99414e778332d8f9c04cbd3072e1dcc62798
+    rm -rf common/libfdt
+    cp -rp dtc/libfdt common/
+    find common/libfdt/ -type f -not -name '*.c' -not -name '*.h' -delete
+    patch -p1 < common/libfdt.patch
+    rm -f common/libfdt/*.orig
+fi
+
+# Create timestamps file
+if test -d .git && git log -1 >/dev/null 2>&1; then
+    cat >timestamps <<EOF
+REGEN_DATE="$(git log -1 --pretty=%cd --date='format:%B %Y')"
+SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)"
+SOURCE_DATE_EPOCH_TOUCH="$(git log -1 --pretty=%cI | head -c 16 | sed 's/-//g;s/T//g;s/://g')"
+EOF
+else
+    if ! test -f timestamps; then
+        cat >timestamps <<EOF
+REGEN_DATE="UNVERSIONED"
+SOURCE_DATE_EPOCH="1546297200"
+SOURCE_DATE_EPOCH_TOUCH="201901010000"
+EOF
+    fi
+fi
+
+for auxfile in $AUXFILES; do
+    rm -f build-aux/$auxfile
+done
+
+$AUTORECONF -fvi -Wall
+
+# Older versions of autoreconf have a bug where they do not
+# install auxiliary files, sometimes... Check if that is the
+# case and work around...
+for auxfile in $AUXFILES; do
+    if ! test -f build-aux/$auxfile; then
+        if ! $AUTOMAKE --print-libdir >/dev/null 2>&1; then
+            set +x
+            echo "error: Broken autoreconf detected, but missing or broken automake."
+            echo "       Please make sure automake is installed and working."
+            exit 1
+        fi
+        AUTOMAKE_LIBDIR="$($AUTOMAKE --print-libdir)"
+        if test -z "$AUTOMAKE_LIBDIR"; then
+            # Assume `true` was passed as $AUTOMAKE
+            continue
+        fi
+        mkdir -p build-aux
+        cp -v "$AUTOMAKE_LIBDIR/$auxfile" build-aux/
+        chmod +x build-aux/$auxfile
+    fi
+done
