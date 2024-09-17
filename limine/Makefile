@@ -1,45 +1,39 @@
 CC ?= cc
+STRIP ?= strip
 INSTALL ?= ./install-sh
 
 PREFIX ?= /usr/local
 
-CFLAGS ?= -g -O2 -pipe -Wall -Wextra
+CFLAGS ?= -g -O2 -pipe
 
 .PHONY: all
-all: limine-deploy limine-version
-
-.PHONY: install-data
-install-data: all
-	$(INSTALL) -d '$(DESTDIR)$(PREFIX)/share'
-	$(INSTALL) -d '$(DESTDIR)$(PREFIX)/share/limine'
-	$(INSTALL) -m 644 limine.sys '$(DESTDIR)$(PREFIX)/share/limine/'
-	$(INSTALL) -m 644 limine-cd.bin '$(DESTDIR)$(PREFIX)/share/limine/'
-	$(INSTALL) -m 644 limine-cd-efi.bin '$(DESTDIR)$(PREFIX)/share/limine/'
-	$(INSTALL) -m 644 limine-pxe.bin '$(DESTDIR)$(PREFIX)/share/limine/'
-	$(INSTALL) -m 644 BOOTX64.EFI '$(DESTDIR)$(PREFIX)/share/limine/'
-	$(INSTALL) -m 644 BOOTIA32.EFI '$(DESTDIR)$(PREFIX)/share/limine/'
-	$(INSTALL) -d '$(DESTDIR)$(PREFIX)/include'
-	$(INSTALL) -m 644 limine.h '$(DESTDIR)$(PREFIX)/include/'
+all: limine
 
 .PHONY: install
-install: install-data
+install: all
+	$(INSTALL) -d '$(DESTDIR)$(PREFIX)/share'
+	$(INSTALL) -d '$(DESTDIR)$(PREFIX)/share/limine'
+	$(INSTALL) -m 644 limine-bios.sys '$(DESTDIR)$(PREFIX)/share/limine/'
+	$(INSTALL) -m 644 limine-bios-cd.bin '$(DESTDIR)$(PREFIX)/share/limine/'
+	$(INSTALL) -m 644 limine-uefi-cd.bin '$(DESTDIR)$(PREFIX)/share/limine/'
+	$(INSTALL) -m 644 limine-bios-pxe.bin '$(DESTDIR)$(PREFIX)/share/limine/'
+	$(INSTALL) -m 644 BOOTX64.EFI '$(DESTDIR)$(PREFIX)/share/limine/'
+	$(INSTALL) -m 644 BOOTIA32.EFI '$(DESTDIR)$(PREFIX)/share/limine/'
+	$(INSTALL) -m 644 BOOTAA64.EFI '$(DESTDIR)$(PREFIX)/share/limine/'
+	$(INSTALL) -m 644 BOOTRISCV64.EFI '$(DESTDIR)$(PREFIX)/share/limine/'
+	$(INSTALL) -m 644 BOOTLOONGARCH64.EFI '$(DESTDIR)$(PREFIX)/share/limine/'
+	$(INSTALL) -d '$(DESTDIR)$(PREFIX)/include'
+	$(INSTALL) -m 644 limine.h '$(DESTDIR)$(PREFIX)/include/'
 	$(INSTALL) -d '$(DESTDIR)$(PREFIX)/bin'
-	$(INSTALL) limine-deploy '$(DESTDIR)$(PREFIX)/bin/'
-	$(INSTALL) limine-version '$(DESTDIR)$(PREFIX)/bin/'
+	$(INSTALL) limine '$(DESTDIR)$(PREFIX)/bin/'
 
 .PHONY: install-strip
-install-strip: install-data
-	$(INSTALL) -d '$(DESTDIR)$(PREFIX)/bin'
-	$(INSTALL) -s limine-deploy '$(DESTDIR)$(PREFIX)/bin/'
-	$(INSTALL) -s limine-version '$(DESTDIR)$(PREFIX)/bin/'
+install-strip: install
+	$(STRIP) '$(DESTDIR)$(PREFIX)/bin/limine'
 
 .PHONY: clean
 clean:
-	rm -f limine-deploy limine-deploy.exe
-	rm -f limine-version limine-version.exe
+	rm -f limine limine.exe
 
-limine-deploy: limine-deploy.c limine-hdd.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -std=c99 -D__USE_MINGW_ANSI_STDIO limine-deploy.c $(LIBS) -o $@
-
-limine-version: limine-version.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -std=c99 -D__USE_MINGW_ANSI_STDIO limine-version.c $(LIBS) -o $@
+limine: limine.c
+	$(CC) $(CFLAGS) -Wall -Wextra $(WERROR_FLAG) $(CPPFLAGS) $(LDFLAGS) -std=c99 limine.c $(LIBS) -o $@
