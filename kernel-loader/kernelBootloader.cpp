@@ -6,41 +6,32 @@
 // the compiler does not optimise them away, so, usually, they should
 // be made volatile or equivalent.
 
-__attribute__((used, section(".requests")))
-static volatile LIMINE_BASE_REVISION(2);
-
-__attribute__((used, section(".requests")))
 static volatile struct limine_terminal_request terminal_request = {
     .id = LIMINE_TERMINAL_REQUEST,
     .revision = 0
 };
 
-__attribute__((used, section(".requests")))
 static volatile struct limine_framebuffer_request framebuffer_request = {
     .id = LIMINE_FRAMEBUFFER_REQUEST,
     .revision = 0
 };
 
-__attribute__((used, section(".requests")))
 static volatile limine_rsdp_request rsdp_request = {
     .id = LIMINE_RSDP_REQUEST,
     .revision = 0
 };
 
-__attribute__((used, section(".requests")))
 static volatile limine_module_request module_request = {
     .id = LIMINE_MODULE_REQUEST,
     .revision = 0
 };
 
-__attribute__((used, section(".requests")))
 static volatile limine_memmap_request memmap_request = {
     .id = LIMINE_MEMMAP_REQUEST,
     .revision = 0
 };
 
 #define LIMINE_SMP_REQUEST { LIMINE_COMMON_MAGIC, 0x95a67b819a1b857e, 0xa0b61b723b6a73e0 }
-__attribute__((used, section(".requests")))
 static volatile limine_smp_request smp_request = {
     .id = LIMINE_SMP_REQUEST,
     .revision = 0
@@ -63,17 +54,10 @@ static volatile limine_smp_request smp_request = {
 //     .entry = _start
 // };
 
-__attribute__((used, section(".requests")))
 struct limine_kernel_address_request kernel_address_request = {
     .id = LIMINE_KERNEL_ADDRESS_REQUEST,
     .revision = 0, .response = NULL
 };
-
-__attribute__((used, section(".requests_start_marker")))
-static volatile LIMINE_REQUESTS_START_MARKER;
-
-__attribute__((used, section(".requests_end_marker")))
-static volatile LIMINE_REQUESTS_END_MARKER;
 
 //__attribute__((section(".limine_reqs")))
 

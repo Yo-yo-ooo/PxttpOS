@@ -22,28 +22,22 @@ SECTIONS
     /* that is the beginning of the region. */
     . = 0xffffffff80000000;
 
-     .text : {
+    .text : {
         *(.text .text.*)
     } :text
 
     /* Move to the next memory page for .rodata */
-    . = ALIGN(CONSTANT(MAXPAGESIZE));
+    . += CONSTANT(MAXPAGESIZE);
 
     .rodata : {
         *(.rodata .rodata.*)
     } :rodata
 
     /* Move to the next memory page for .data */
-    . = ALIGN(CONSTANT(MAXPAGESIZE));
+    . += CONSTANT(MAXPAGESIZE);
 
     .data : {
         *(.data .data.*)
-
-        /* Place the sections that contain the Limine requests as part of the .data */
-        /* output section. */
-        KEEP(*(.requests_start_marker))
-        KEEP(*(.requests))
-        KEEP(*(.requests_end_marker))
     } :data
 
     /* NOTE: .bss needs to be the last thing mapped to :data, otherwise lots of */
@@ -51,13 +45,13 @@ SECTIONS
     /* If you need, for example, .init_array and .fini_array, those should be placed */
     /* above this. */
     .bss : {
-        *(.bss .bss.*)
         *(COMMON)
+        *(.bss .bss.*)
     } :data
 
-    /* Discard .note.* and .eh_frame* since they may cause issues on some hosts. */
+    /* Discard .note.* and .eh_frame since they may cause issues on some hosts. */
     /DISCARD/ : {
-        *(.eh_frame*)
+        *(.eh_frame)
         *(.note .note.*)
     }
 }
