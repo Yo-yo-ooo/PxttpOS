@@ -13,3 +13,5 @@ void Panic(const char* panicMessage);
 void Panic(const char* panicMessage, bool lock);
 
 bool CheckKernelSpaceAddr(void* addr);
+
+#define ASSERT(CONDITION) if (CONDITION) {} else {Panic(#CONDITION);}
