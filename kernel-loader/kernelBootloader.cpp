@@ -37,6 +37,13 @@ static volatile limine_smp_request smp_request = {
     .revision = 0
 };
 
+static volatile limine_hhdm_request hhdm_request = {
+    .id = LIMINE_HHDM_REQUEST,
+    .revision = 0
+};
+
+uint64_t hhdm_offset = 0;
+
 // #define LIMINE_5_LEVEL_PAGING_REQUEST { LIMINE_COMMON_MAGIC, 0x94469551da9b3192, 0xebe5e86db7382888}
 
 // static volatile limine_5_level_paging_request paging_request = {
@@ -510,6 +517,7 @@ extern "C" void _start(void) {
     e9_printf("> OS has %d MB of RAM. (Starts at %x)", freeMemSize / 1000000, (uint64_t)freeMemStart);
 
     //done();
+    hhdm_offset = hhdm_request.response->offset;
 
     terminal_request.response->write(terminal, "> Completed Boot Init!\n", 23);
     bootTest(fb, rsdp, &font, &assets, startRAMAddr, freeMemStart, freeMemSize, kernelStart, kernelSize, kernelStartV, (limineSmpResponse*)smp_response, (void*)memmap_response->entries, memmap_response->entry_count);
