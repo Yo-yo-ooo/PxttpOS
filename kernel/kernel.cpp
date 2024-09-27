@@ -17,6 +17,7 @@
 #include <libm/cstrTools.h>
 #include "paging/PageTableManager.h"
 #include "fsStuff/fsStuff.h"
+#include "fsStuff/fatfs/ff.h"
 
 void CopyRecursive(SAF::initrdMount* mount, const char* tempCombined, SAF::saf_node_folder_t* folderNode, const char* folderName)
 {

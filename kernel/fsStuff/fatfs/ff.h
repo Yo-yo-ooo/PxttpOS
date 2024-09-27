@@ -17,7 +17,7 @@
 / by use of this software.
 /
 /----------------------------------------------------------------------------*/
-
+#pragma once
 
 #ifndef FF_DEFINED
 #define FF_DEFINED	80286	/* Revision ID */
@@ -171,7 +171,7 @@ typedef struct {
 	BYTE	win[FF_MAX_SS];	/* Disk access window for Directory, FAT (and file data at tiny cfg) */
 } FATFS;
 
-
+void InitFatFs_Table();
 
 /* Object ID and allocation information (FFOBJID) */
 

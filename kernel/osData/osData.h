@@ -24,40 +24,25 @@
 #include "../diskStuff/Disk_Interfaces/generic/genericDiskInterface.h"
 #include <libm/list/list_genDiskInterface.h>
 
+#include "../fsStuff/fatfs/ff.h"
+
 struct OSData
 {
     bool exit;
     bool booting;
     bool verboseBoot;
     bool inBootProcess;
-//     KernelInfo* kernelInfo;
-//     List<Window*> windows;
-//     Queue<Window*> windowsToGetActive;
-//     List<Task*> osTasks;
-//    kernelFiles::ZIPFile* windowButtonZIP;
-//    kernelFiles::ZIPFile* windowIconZIP;
-//     //Window* realMainWindow;
-//     //Window* realMainWindow2;
-//     //Window* mainTerminalWindow;
-//     Window* debugTerminalWindow;
-//     Window* startMenuWindow;
-//     Window* activeCrashWindow;
-//     Window* preCrashWindow;
-//     bool showDebugterminal;
+
     bool NO_INTERRUPTS = false;
-    // MStack stackArr[1000];
-    // int64_t stackPointer = 0;
+
     bool drawBackground;
     bool enableStackTrace;
     int64_t crashCount = 0;
     int maxNonFatalCrashCount = 0;
     bool crashed = false;
     bool tempCrash = false;
-//     bool bgTaskRun = true;
-//     WindowManager::WindowPointerBufferThing* windowPointerThing;
 
     List<DiskInterface::GenericDiskInterface*> diskInterfaces;
-//     //List<Audio::BasicAudioDestination*> audioDestinations;
 
     List<Audio::AudioInputDevice*> audioInputDevices;
     List<Audio::AudioOutputDevice*> audioOutputDevices;
@@ -67,15 +52,12 @@ struct OSData
 
     int mouseSensitivity = 100;
 
-//     uint8_t port64Val;
 
-//     uint32_t wantedFps = 60;
     AC97::AC97Driver* ac97Driver = NULL;
     Audio::AudioOutputDevice* pcSpeakerDev;
-//     SerialManager::Manager* serialManager = NULL;
 
-//     GenericDisplay* fallbackOriginalDisplay = NULL;
-//     GenericDisplay* currentDisplay = NULL;
+    List<FATFS*>FatFs;	/* Pointer to the filesystem objects (logical drives) */
+
 };
 
 

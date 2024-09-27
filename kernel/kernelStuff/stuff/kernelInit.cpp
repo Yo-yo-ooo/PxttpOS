@@ -22,7 +22,7 @@
 #include "../../diskStuff/Filesystem_Interfaces/mrafs/mrafsFileSystemInterface.h"
 #include <libm/cstr.h>
 #include "../../audio/audioDevStuff.h"
-
+#include "../../fsStuff/fatfs/ff.h"
 
 BasicRenderer tempRenderer = BasicRenderer(NULL, NULL);
 
@@ -240,9 +240,12 @@ void InitKernel(BootInfo* bootInfo)
     RemoveFromStack();
 
 
-
-
-
+    PrintMsgStartLayer("Init FatFs Table");
+    AddToStack();
+    InitFatFs_Table();
+    RemoveFromStack();
+    PrintMsgEndLayer("Inited");
+    StepDone();
 
     PrintMsgEndLayer("BOOT");
 
