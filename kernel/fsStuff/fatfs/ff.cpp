@@ -20,6 +20,11 @@
 
 
 #include <string.h>
+#include <libm/memStuff.h>
+#include "../../rendering/testoDebug.h"
+#include <libm/rendering/Cols.h>
+#include <limits.h>
+#include <libm/ctype.h>
 #include "ff.h"			/* Declarations of FatFs API */
 #include "diskio.h"		/* Declarations of device I/O functions */
 
@@ -461,7 +466,7 @@ typedef struct {
 #if FF_VOLUMES < 1 || FF_VOLUMES > 10
 #error Wrong FF_VOLUMES setting
 #endif
-static FATFS *FatFs[FF_VOLUMES];	/* Pointer to the filesystem objects (logical drives) */
+static FATFS **FatFs;	/* Pointer to the filesystem objects (logical drives) */
 static WORD Fsid;					/* Filesystem mount ID */
 
 #if FF_FS_RPATH != 0
@@ -3129,8 +3134,64 @@ static FRESULT follow_path (	/* FR_OK(0): successful, !=0: error code */
 }
 
 
+/*-----------------------------------------------------------------------*/
+/* atoi function in ff.cpp                                               */
+/*-----------------------------------------------------------------------*/
+int ff_atoi(char* str)
+{
+	//assert(str);
+    if(str){PrintMsgCol("str is not null", Colors.red);return -1;}
+	if (*str == '\0')//空字符串问题
+	{
+		return 0;
+	}
+	//+-号问题
+	//用isspace函数向后过滤空白字符
+	//isspace返回值不为0，代表是空格
+	while (isspace(*str))
+	{
+		str++;
+	}//走到这里str一定不是空格了
 
+	int flg = 1;
+	if (*str == '+')
+	{
+		flg = 1;
+		str++;
+	}//注意这里要用else if，不能用else
+	else if (*str == '-')
+	{
+		flg = -1;
+		str++;
+	}
+	long long n = 0;
+	while (*str != '\0')
+	{
+		if (IsDigit(*str))
+		{//是数字字符==>返回值不为0
+			n = n * 10 + (*str - '0') * flg;
+			if (n > INT_MAX)
+			{
+				n = INT_MAX;
+			}
+			if (n < INT_MIN)
+			{
+				n = INT_MIN;
+			}
+		}
+		else//不是数字字符
+		{
+			return (int)n;
+		}
+		str++;
+	}
+	if (*str == '\0')
+	{
+		//status = VAILD;//走到‘\0’就是合法转换
+	}
+	return (int)n;
 
+}
 /*-----------------------------------------------------------------------*/
 /* Get logical drive number from path name                               */
 /*-----------------------------------------------------------------------*/
@@ -3139,72 +3200,24 @@ static int get_ldnumber (	/* Returns logical drive number (-1:invalid drive numb
 	const TCHAR** path		/* Pointer to pointer to the path name */
 )
 {
-	const TCHAR *tp;
-	const TCHAR *tt;
-	TCHAR tc;
-	int i;
-	int vol = -1;
-#if FF_STR_VOLUME_ID		/* Find string volume ID */
-	const char *sp;
-	char c;
-#endif
+	const TCHAR *p;
 
-	tt = tp = *path;
-	if (!tp) return vol;	/* Invalid path name? */
-	do {					/* Find a colon in the path */
-		tc = *tt++;
-	} while (!IsTerminator(tc) && tc != ':');
-
-	if (tc == ':') {	/* DOS/Windows style volume ID? */
-		i = FF_VOLUMES;
-		if (IsDigit(*tp) && tp + 2 == tt) {	/* Is there a numeric volume ID + colon? */
-			i = (int)*tp - '0';	/* Get the LD number */
-		}
-#if FF_STR_VOLUME_ID == 1	/* Arbitrary string is enabled */
-		else {
-			i = 0;
-			do {
-				sp = VolumeStr[i]; tp = *path;	/* This string volume ID and path name */
-				do {	/* Compare the volume ID with path name */
-					c = *sp++; tc = *tp++;
-					if (IsLower(c)) c -= 0x20;
-					if (IsLower(tc)) tc -= 0x20;
-				} while (c && (TCHAR)c == tc);
-			} while ((c || tp != tt) && ++i < FF_VOLUMES);	/* Repeat for each id until pattern match */
-		}
-#endif
-		if (i < FF_VOLUMES) {	/* If a volume ID is found, get the drive number and strip it */
-			vol = i;		/* Drive number */
-			*path = tt;		/* Snip the drive prefix off */
-		}
-		return vol;
-	}
-#if FF_STR_VOLUME_ID == 2		/* Unix style volume ID is enabled */
-	if (*tp == '/') {			/* Is there a volume ID? */
-		while (*(tp + 1) == '/') tp++;	/* Skip duplicated separator */
-		i = 0;
-		do {
-			tt = tp; sp = VolumeStr[i]; /* Path name and this string volume ID */
-			do {	/* Compare the volume ID with path name */
-				c = *sp++; tc = *(++tt);
-				if (IsLower(c)) c -= 0x20;
-				if (IsLower(tc)) tc -= 0x20;
-			} while (c && (TCHAR)c == tc);
-		} while ((c || (tc != '/' && !IsTerminator(tc))) && ++i < FF_VOLUMES);	/* Repeat for each ID until pattern match */
-		if (i < FF_VOLUMES) {	/* If a volume ID is found, get the drive number and strip it */
-			vol = i;		/* Drive number */
-			*path = tt;		/* Snip the drive prefix off */
-		}
-		return vol;
-	}
-#endif
-	/* No drive prefix is found */
-#if FF_FS_RPATH != 0
-	vol = CurrVol;	/* Default drive is current drive */
-#else
-	vol = 0;		/* Default drive is 0 */
-#endif
-	return vol;		/* Return the default drive */
+    p = *path;
+    if(!p){return -1;}
+    //char* pp = {0};
+    for (int i = 0; i < sizeof(p); i++) {
+        if (p[i] == ':') {
+            char* pp = (char*)ff_memalloc(i * sizeof(char));
+            int size = sizeof(pp);
+            _memset(pp, 0, size);
+            for (int j = 0; j < i; j++)
+                *(pp + j) = *(p + j);
+            int val = ff_atoi(pp);
+            ff_memfree(pp);
+            return val;
+            break;
+        }
+    }
 }
 
 
@@ -5901,6 +5914,11 @@ FRESULT f_mkfs (
 	int vol;
 	DSTATUS ds;
 	FRESULT res;
+
+    FatFs = ff_memalloc(sizeof(FATFS*) * sizeof(FATFS));	/* Get work area */
+    for(i = 0; i < sizeof(FATFS); i++) {
+        FatFs[i] = ff_memalloc(sizeof(FATFS) * osData.diskInterfaces.GetCount());
+    }
 
 
 	/* Check mounted drive and clear work area */

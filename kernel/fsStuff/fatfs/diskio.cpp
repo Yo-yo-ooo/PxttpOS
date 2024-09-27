@@ -27,7 +27,9 @@ DSTATUS disk_status (
 )
 {
 	
-	return 0x00;
+    return (DSTATUS)osData.diskInterfaces[pdrv]->InterfaceType;
+
+	//return 0x00;
 }
 
 

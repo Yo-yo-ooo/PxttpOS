@@ -12,56 +12,64 @@
 #include <libm/heap/heap.h>
 #include <libm/list/list_basics.h>
 #include <limits.h>
+#include "../syscallManager.h"
+#include <limits.h>
 //#include "../stubs.h"
 
 
-int _atoi(char* pstr)
+int _atoi(char* str)
 {
-	int Ret_Integer = 0;
-	int Integer_sign = 1;
-	
-	/*
-	* 判断指针是否为空
-	*/
-	if(pstr == NULL)
+	//assert(str);
+    if(!str){programCrash();}
+	if (*str == '\0')//空字符串问题
 	{
-		//STDIO::printf("Pointer is NULL\n");
 		return 0;
 	}
-	
-	/*
-	* 跳过前面的空格字符
-	*/
-	while(isspace(*pstr) == 0)
+	//+-号问题
+	//用isspace函数向后过滤空白字符
+	//isspace返回值不为0，代表是空格
+	while (isspace(*str))
 	{
-		pstr++;
-	}
-	
-	/*
-	* 判断正负号
-	* 如果是正号，指针指向下一个字符
-	* 如果是符号，把符号标记为Integer_sign置-1，然后再把指针指向下一个字符
-	*/
-	if(*pstr == '-')
+		str++;
+	}//走到这里str一定不是空格了
+
+	int flg = 1;
+	if (*str == '+')
 	{
-		Integer_sign = -1;
-	}
-	if(*pstr == '-' || *pstr == '+')
+		flg = 1;
+		str++;
+	}//注意这里要用else if，不能用else
+	else if (*str == '-')
 	{
-		pstr++;
+		flg = -1;
+		str++;
 	}
-	
-	/*
-	* 把数字字符串逐个转换成整数，并把最后转换好的整数赋给Ret_Integer
-	*/
-	while(*pstr >= '0' && *pstr <= '9')
+	long long n = 0;
+	while (*str != '\0')
 	{
-		Ret_Integer = Ret_Integer * 10 + *pstr - '0';
-		pstr++;
+		if (isdigit(*str))
+		{//是数字字符==>返回值不为0
+			n = n * 10 + (*str - '0') * flg;
+			if (n > INT_MAX)
+			{
+				n = INT_MAX;
+			}
+			if (n < INT_MIN)
+			{
+				n = INT_MIN;
+			}
+		}
+		else//不是数字字符
+		{
+			return (int)n;
+		}
+		str++;
 	}
-	Ret_Integer = Integer_sign * Ret_Integer;
-	
-	return Ret_Integer;
+	if (*str == '\0')
+	{
+		//status = VAILD;//走到‘\0’就是合法转换
+	}
+	return (int)n;
 }
 
 
