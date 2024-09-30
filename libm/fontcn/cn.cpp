@@ -206,10 +206,18 @@ int UTF8dcn(int x, int y,uint8_t *str, uint32_t color,GuiComponentStuff::CanvasC
     for(int i = 0;i < StrLen(str);i++){
         Utf8_To_Utf16(str,utf16,sizeof(utf16),strictConversion);
         //serialPrintLn("Here!OK!");
-        for(int k = 0;k < 6963;k++){
+        for(uint16_t k = 0;k < 3484;k++){
             if(utf_gb2312[k].utf16 == utf16[i]){
                 buf[0] = ((char)((utf_gb2312[k].GB2312 >> 8) & 0xff));
                 buf[1] = ((char)(utf_gb2312[k].GB2312 & 0xff));
+                draw_cn(x,y,buf,color,canvas);
+                x+=16;
+            }else{continue;}
+        }
+        for(uint16_t j = 3484;j < 6964;j++){
+            if(utf_gb2312[j].utf16 == utf16[i]){
+                buf[0] = ((char)((utf_gb2312[j].GB2312 >> 8) & 0xff));
+                buf[1] = ((char)(utf_gb2312[j].GB2312 & 0xff));
                 draw_cn(x,y,buf,color,canvas);
                 x+=16;
             }else{continue;}
