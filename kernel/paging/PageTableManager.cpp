@@ -1,11 +1,11 @@
 #include "PageTableManager.h"
 #include "../devices/serial/serial.h"
-
+#include "../kernelStuff/IO/IO.h"
 
 
 PageTableManager::PageTableManager(PageTable* PML4Address)
 {
-    this->PML4 = PML4Address;
+    this->PML4 = (PageTable*)PML4Address;
 }
 
 void* PageTableManager::GetPhysicalAddressFromVirtualAddress(void* virtualAddress)
@@ -115,6 +115,8 @@ void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int 
     PDE = PML4->entries[indexer.PDP_i];
     PageTable* PDP;
 
+    PrintfMsg("MamMemory(...): First Step");
+
     if (!PDE.GetFlag(PT_Flag::Present))
     {
         PDP = (PageTable*)GlobalAllocator->RequestPage();
@@ -144,12 +146,14 @@ void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int 
         }
     }
 
-
-
+    PrintfMsg("MamMemory(...): Second Step");
+    PrintfMsg("MamMemory(...): indexer.PD_i = %d",indexer.PD_i);
     PDE = PDP->entries[indexer.PD_i];
-    PageTable* PD;
+    PrintfMsg("MamMemory(...): PDE Value: %X", PDE.Value);
+    PageTable* PD = nullptr;
     if (!PDE.GetFlag(PT_Flag::Present))
     {
+        PrintfMsg("MamMemory(...): PDE Not Get Flag Present");
         PD = (PageTable*)GlobalAllocator->RequestPage();
         _memset(PD, 0, 0x1000);
         PDE.SetAddress((uint64_t)PD >> 12);
@@ -164,6 +168,7 @@ void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int 
     }
     else
     {
+        PrintfMsg("MamMemory(...): PDE Get Flag Present");
         PD = (PageTable*)((uint64_t)PDE.GetAddress() << 12);
         if (userSpace && !PDE.GetFlag(PT_Flag::UserSuper))
         {
@@ -177,7 +182,7 @@ void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int 
         }
     }
 
-
+    PrintfMsg("MamMemory(...): Third Step");
 
 
     PDE = PD->entries[indexer.PT_i];
@@ -211,7 +216,7 @@ void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int 
         }
     }
 
-
+    PrintfMsg("MamMemory(...): Final Step");
     
     PDE = PT->entries[indexer.P_i];
     PDE.SetAddress((uint64_t)physicalMemory >> 12);
@@ -231,6 +236,7 @@ void PageTableManager::MapMemories(void* virtualMemory, void* physicalMemory, in
 {
     for (int i = 0; i < c; i++)
     {
+        PrintfMsg("MapMemory Count: %d", i);
         MapMemory((void*)((uint64_t)virtualMemory + (i * 0x1000)), (void*)((uint64_t)physicalMemory + (i * 0x1000)), flags);
     }
 }

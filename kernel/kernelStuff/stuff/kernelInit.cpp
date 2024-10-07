@@ -349,7 +349,7 @@ static inline uint64_t earlyVirtualToPhysicalAddr(const void* vAddr)
         return ~KERNEL_DATA_BEGIN & (uint64_t)vAddr;
 }
 
-
+extern uint64_t ENTRY_START_ADDR;
 
 void PrepareMemory(BootInfo* bootInfo)
 {
@@ -380,11 +380,10 @@ void PrepareMemory(BootInfo* bootInfo)
     _memset(PML4, 0, 0x1000);
     GlobalPageTableManager = PageTableManager(PML4);
     PrintMsg("> Getting PML4 Stuff");
-    //GlobalRenderer->Println("PML4 ADDR:          {}", ConvertHexToString((uint64_t)PML4), Colors.yellow);
     //asm volatile("mov %%cr3, %0" : "=r"(PML4));
-    // asm("mov %0, %%cr3" : : "r" (PML4) );
+    //asm volatile("mov %0, %%cr3" : : "r" (PML4) );
     PrintMsgStartLayer("Info");
-    PrintfMsgCol("PML4 ADDR:          %X", Colors.yellow, (uint64_t)PML4);
+    PrintfMsgCol("PML4 ADDR:          %X", Colors.yellow, (uint64_t)PML4 + hhdm_offset);
     PrintfMsgCol("ALLOC ADDR:         %X", Colors.yellow, GlobalAllocator->EFI_BITMAP_START + GlobalAllocator->EFI_BITMAP_SIZE);
     PrintfMsgCol("FB 1 ADDR:          %X", Colors.yellow, rFB);
     PrintfMsgCol("FB 2 ADDR:          %X", Colors.yellow, (uint64_t)GlobalRenderer->framebuffer->BaseAddress);
@@ -450,6 +449,7 @@ void PrepareMemory(BootInfo* bootInfo)
         GlobalPageTableManager.MapMemories((void*)kernelStartVirtual, (void*)kernelStartReal, kernelPageCount);
         GlobalPageTableManager.MapMemories((void*)kernelStartVirtual2, (void*)kernelStartReal, kernelPageCount);
     }
+    
 
     // Map Stack
     {

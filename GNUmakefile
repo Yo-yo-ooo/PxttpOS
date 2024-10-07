@@ -62,17 +62,17 @@ System.iso:
 	
 	
 	cp objects/kernel-loader/kernel.elf \
-		limine.cfg limine/limine.sys limine/limine-cd.bin limine/limine-cd-efi.bin \
+		limine.conf limine/limine-bios.sys limine/limine-bios-cd.bin limine/limine-uefi-cd.bin \
 		external/* \
 		iso_root/
 		
-	xorriso -as mkisofs -b limine-cd.bin \
+	xorriso -as mkisofs -b limine-bios-cd.bin \
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
-		--efi-boot limine-cd-efi.bin \
+		--efi-boot limine-uefi-cd.bin \
 		-efi-boot-part --efi-boot-image --protective-msdos-label \
 		iso_root -o System.iso
 		
-	limine/limine-deploy System.iso
+	limine/limine bios-install System.iso
 	rm -rf iso_root
 
 
