@@ -411,6 +411,8 @@ extern "C" void _start(void) {
     {
         limine_memmap_entry *e = memmap_response->entries[i];
         //e9_printf("> %x->%x %s", e->base, e->base + e->length, get_memmap_type(e->type));
+        
+        e9_printf("EFI Entry %d Type: %s",i,get_memmap_type(e->type));
         if(e->type != LIMINE_MEMMAP_USABLE)
             continue; 
         if (e->type == LIMINE_MEMMAP_USABLE)

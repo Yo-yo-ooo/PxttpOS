@@ -43,7 +43,7 @@ struct PageDirectoryEntry
     {
         return (Value & 0x000ffffffffff000) >> 12;
     }
-};
+}__attribute__((packed));
 
 
 
