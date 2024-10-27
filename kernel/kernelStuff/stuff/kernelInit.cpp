@@ -389,9 +389,12 @@ void PrepareMemory(BootInfo* bootInfo)
     //PML4 = (PageTable*)((uint64_t)PML4 - hhdm_offset);
     //GlobalPageTableManager.MapMemory(PML4, PML4);
     _memset(PML4, 0, 0x1000);
-    GlobalPageTableManager = PageTableManager(PML4);
+    
+    
     PrintMsg("> Getting PML4 Stuff");
-    //asm volatile("mov %%cr3, %0" : "=r"(PML4));
+    asm volatile("mov %%cr3, %0" : "=r"(PML4));
+    PML4 = (PageTable*)((uint64_t)PML4 + hhdm_offset);
+    GlobalPageTableManager = PageTableManager(PML4);
     //asm volatile("mov %0, %%cr3" : : "r" (PML4) );
     PrintMsgStartLayer("Info");
     PrintfMsgCol("PML4 ADDR:          %X", Colors.yellow, (uint64_t)PML4 + hhdm_offset);
@@ -431,6 +434,7 @@ void PrepareMemory(BootInfo* bootInfo)
 
     // Map the efi memory things
     /*
+    
     PrintMsgStartLayer("EFI Entries");
     {
         for (int i = 0; i < bootInfo->memEntryCount; i++)
@@ -488,6 +492,7 @@ void PrepareMemory(BootInfo* bootInfo)
         GlobalPageTableManager.MapMemories((void*)startVirtual, (void*)startReal, pageCount);
     }
     */
+
 #define DIV_ROUND_UP(x, y) (x + (y - 1)) / y
 #define ALIGN_UP(x, y) DIV_ROUND_UP(x, y) * y
 #define ALIGN_DOWN(x, y) (x / y) * y
@@ -517,7 +522,6 @@ void PrepareMemory(BootInfo* bootInfo)
         GlobalPageTableManager.MapMemory(gb4, gb4, PT_Flag_Present | PT_Flag_ReadWrite);
         GlobalPageTableManager.MapMemory((void*)(gb4 + hhdm_offset), (void*)gb4, PT_Flag_Present | PT_Flag_ReadWrite);
     }
-    
 
     asm("mov %0, %%cr3" : : "r" (PML4) );
 

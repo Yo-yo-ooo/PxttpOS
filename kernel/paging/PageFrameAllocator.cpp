@@ -6,6 +6,7 @@
 #include <libm/cstr.h>
 #include "../interrupts/panic.h"
 #include "../memory/heap.h"
+#include "../kernelStuff/IO/IO.h"
 
 PageFrameAllocator* GlobalAllocator;
 
@@ -77,7 +78,7 @@ void* PageFrameAllocator::RequestPage()
         if (PageBitMap[pageBitmapIndex])
             continue;
         LockPage((void*)(pageBitmapIndex * 4096 + memStartAddr));
-        return(void*)(pageBitmapIndex * 4096 + memStartAddr);
+        return(void*)((pageBitmapIndex * 4096 + memStartAddr));
     }
     
     for (pageBitmapIndex = 0; pageBitmapIndex < PageBitMap.Size * 8; pageBitmapIndex++)
@@ -85,7 +86,7 @@ void* PageFrameAllocator::RequestPage()
         if (PageBitMap[pageBitmapIndex])
             continue;
         LockPage((void*)(pageBitmapIndex * 4096 + memStartAddr));
-        return(void*)(pageBitmapIndex * 4096 + memStartAddr);
+        return(void*)((pageBitmapIndex * 4096 + memStartAddr));
     }
 
     
