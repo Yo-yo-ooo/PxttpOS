@@ -11,6 +11,4 @@ class Bitmap
         bool operator[](uint64_t index);
 
         bool Set(uint64_t index, bool value);
-        bool Get(uint64_t index);
-        void Clear(uint64_t index);
 };

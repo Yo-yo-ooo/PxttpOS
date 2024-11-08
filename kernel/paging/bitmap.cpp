@@ -45,12 +45,3 @@ bool Bitmap::Set(uint64_t index, bool value)
     RemoveFromStack();
     return true;
 }
-
-bool Bitmap::Get(uint64_t index){
-    return (Buffer[index / 8] & (1 << (index % 8))) != 0;
-}
-
-void Bitmap::Clear(uint64_t index){
-    Buffer[index / 8] &= ~(1 << (index % 8));
-    return;
-}

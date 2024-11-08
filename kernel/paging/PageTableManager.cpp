@@ -1,6 +1,6 @@
 #include "PageTableManager.h"
 #include "../devices/serial/serial.h"
-#include "../kernelStuff/IO/IO.h"
+
 
 
 PageTableManager::PageTableManager(PageTable* PML4Address)
@@ -105,21 +105,8 @@ int PageTableManager::IsVirtualAddressMapped(void* virtualAddress)
     return 0;
 }
 
-static uintptr_t* vmm_get_next_lvl(uintptr_t* lvl, uintptr_t entry, uint64_t flags, bool alloc) {
-    if (lvl[entry] & PT_Flag_Present)
-        return HIGHER_HALF((lvl[entry] & 0x000ffffffffff000));
-    if (alloc) {
-        uintptr_t* pml = (uintptr_t*)GlobalAllocator->RequestPage();
-        _memset(pml, 0, 0x1000);
-        lvl[entry] = (uintptr_t)PHYSICAL(pml) | flags;
-        return pml;
-    }
-    return NULL;
-}
-
 void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int flags)
 {
-    
     PageMapIndexer indexer = PageMapIndexer((uint64_t)virtualMemory);
     PageDirectoryEntry PDE;
     bool userSpace = ((flags & PT_Flag_UserSuper) != 0);
@@ -130,7 +117,7 @@ void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int 
 
     if (!PDE.GetFlag(PT_Flag::Present))
     {
-        PageTable* PDP = (PageTable*)GlobalAllocator->RequestPage();
+        PDP = (PageTable*)GlobalAllocator->RequestPage();
         _memset(PDP, 0, 0x1000);
         PDE.SetAddress((uint64_t)PDP >> 12);
         PDE.SetFlag(PT_Flag::Present, (flags & PT_Flag_Present) != 0);
@@ -138,7 +125,7 @@ void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int 
         PDE.SetFlag(PT_Flag::CacheDisabled, (flags & PT_Flag_CacheDisabled) != 0);
         PDE.SetFlag(PT_Flag::WriteThrough, (flags & PT_Flag_WriteThrough) != 0);
         PDE.SetFlag(PT_Flag::UserSuper, (flags & PT_Flag_UserSuper) != 0);
-        PDE.SetFlag(PT_Flag::NX, (flags & PT_Flag_NX) != 0);
+        PDE.SetFlag(PT_Flag::NX, false);
 
         PML4->entries[indexer.PDP_i] = PDE;
     }
@@ -152,10 +139,12 @@ void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int 
         }
         if (PDE.GetFlag(PT_Flag::NX))
         {
-            PDE.SetFlag(PT_Flag::NX, (flags & PT_Flag_NX) != 0);
+            PDE.SetFlag(PT_Flag::NX, false);
             PML4->entries[indexer.PDP_i] = PDE;
         }
     }
+
+
 
     PDE = PDP->entries[indexer.PD_i];
     PageTable* PD;
@@ -169,7 +158,7 @@ void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int 
         PDE.SetFlag(PT_Flag::CacheDisabled, (flags & PT_Flag_CacheDisabled) != 0);
         PDE.SetFlag(PT_Flag::WriteThrough, (flags & PT_Flag_WriteThrough) != 0);
         PDE.SetFlag(PT_Flag::UserSuper, (flags & PT_Flag_UserSuper) != 0);
-        PDE.SetFlag(PT_Flag::NX, (flags & PT_Flag_NX) != 0);
+        PDE.SetFlag(PT_Flag::NX, false);
 
         PDP->entries[indexer.PD_i] = PDE;
     }
@@ -183,7 +172,7 @@ void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int 
         }
         if (PDE.GetFlag(PT_Flag::NX))
         {
-            PDE.SetFlag(PT_Flag::NX, (flags & PT_Flag_NX) != 0);
+            PDE.SetFlag(PT_Flag::NX, false);
             PDP->entries[indexer.PD_i] = PDE;
         }
     }
@@ -203,7 +192,7 @@ void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int 
         PDE.SetFlag(PT_Flag::CacheDisabled, (flags & PT_Flag_CacheDisabled) != 0);
         PDE.SetFlag(PT_Flag::WriteThrough, (flags & PT_Flag_WriteThrough) != 0);
         PDE.SetFlag(PT_Flag::UserSuper, (flags & PT_Flag_UserSuper) != 0);
-        PDE.SetFlag(PT_Flag::NX, (flags & PT_Flag_NX) != 0);
+        PDE.SetFlag(PT_Flag::NX, false);
 
         PD->entries[indexer.PT_i] = PDE;
     }
@@ -217,7 +206,7 @@ void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int 
         }
         if (PDE.GetFlag(PT_Flag::NX))
         {
-            PDE.SetFlag(PT_Flag::NX, (flags & PT_Flag_NX) != 0);
+            PDE.SetFlag(PT_Flag::NX, false);
             PD->entries[indexer.PT_i] = PDE;
         }
     }
@@ -231,7 +220,7 @@ void PageTableManager::MapMemory(void* virtualMemory, void* physicalMemory, int 
     PDE.SetFlag(PT_Flag::CacheDisabled, (flags & PT_Flag_CacheDisabled) != 0);
     PDE.SetFlag(PT_Flag::WriteThrough, (flags & PT_Flag_WriteThrough) != 0);
     PDE.SetFlag(PT_Flag::UserSuper, (flags & PT_Flag_UserSuper) != 0);
-    PDE.SetFlag(PT_Flag::NX, (flags & PT_Flag_NX) != 0);
+    PDE.SetFlag(PT_Flag::NX, false);
     
     PT->entries[indexer.P_i] = PDE;
 

@@ -1,10 +1,6 @@
 #pragma once
 #include <stdint.h>
 
-extern uint64_t hhdm_offset;
-#define HIGHER_HALF(ptr) ((void*)((uint64_t)ptr) + hhdm_offset)
-#define PHYSICAL(ptr) ((void*)((uint64_t)ptr) - hhdm_offset)
-
 void outb(uint16_t port, uint8_t value);
 uint8_t inb(uint16_t port);
 void io_wait();   

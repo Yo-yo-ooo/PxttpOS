@@ -24,15 +24,6 @@
 #include "../../audio/audioDevStuff.h"
 #include "../../fsStuff/fatfs/ff.h"
 
-extern char text_start_ld[];
-extern char text_end_ld[];
-
-extern char rodata_start_ld[];
-extern char rodata_end_ld[];
-
-extern char data_start_ld[];
-extern char data_end_ld[];
-
 BasicRenderer tempRenderer = BasicRenderer(NULL, NULL);
 
 void InitKernel(BootInfo* bootInfo)
@@ -59,7 +50,7 @@ void InitKernel(BootInfo* bootInfo)
     //InitInitialGdt();
     DoGdtStuff();
     StepDone();
-
+    
     PrintMsg("> Preparing Interrupts");
     PrepareInterrupts();
     StepDone();
@@ -358,7 +349,6 @@ static inline uint64_t earlyVirtualToPhysicalAddr(const void* vAddr)
         return ~KERNEL_DATA_BEGIN & (uint64_t)vAddr;
 }
 
-extern uint64_t ENTRY_START_ADDR;
 
 
 void PrepareMemory(BootInfo* bootInfo)
@@ -386,18 +376,15 @@ void PrepareMemory(BootInfo* bootInfo)
     uint64_t rFB = earlyVirtualToPhysicalAddr(GlobalRenderer->framebuffer->BaseAddress);
 
     PageTable* PML4 = (PageTable*)GlobalAllocator->RequestPage();
-    //PML4 = (PageTable*)((uint64_t)PML4 - hhdm_offset);
     //GlobalPageTableManager.MapMemory(PML4, PML4);
     _memset(PML4, 0, 0x1000);
-    
-    
-    PrintMsg("> Getting PML4 Stuff");
-    asm volatile("mov %%cr3, %0" : "=r"(PML4));
-    PML4 = (PageTable*)((uint64_t)PML4 + hhdm_offset);
     GlobalPageTableManager = PageTableManager(PML4);
-    //asm volatile("mov %0, %%cr3" : : "r" (PML4) );
+    PrintMsg("> Getting PML4 Stuff");
+    //GlobalRenderer->Println("PML4 ADDR:          {}", ConvertHexToString((uint64_t)PML4), Colors.yellow);
+    //asm volatile("mov %%cr3, %0" : "=r"(PML4));
+    // asm("mov %0, %%cr3" : : "r" (PML4) );
     PrintMsgStartLayer("Info");
-    PrintfMsgCol("PML4 ADDR:          %X", Colors.yellow, (uint64_t)PML4 + hhdm_offset);
+    PrintfMsgCol("PML4 ADDR:          %X", Colors.yellow, (uint64_t)PML4);
     PrintfMsgCol("ALLOC ADDR:         %X", Colors.yellow, GlobalAllocator->EFI_BITMAP_START + GlobalAllocator->EFI_BITMAP_SIZE);
     PrintfMsgCol("FB 1 ADDR:          %X", Colors.yellow, rFB);
     PrintfMsgCol("FB 2 ADDR:          %X", Colors.yellow, (uint64_t)GlobalRenderer->framebuffer->BaseAddress);
@@ -433,8 +420,6 @@ void PrepareMemory(BootInfo* bootInfo)
     //while (true);
 
     // Map the efi memory things
-    /*
-    
     PrintMsgStartLayer("EFI Entries");
     {
         for (int i = 0; i < bootInfo->memEntryCount; i++)
@@ -466,14 +451,6 @@ void PrepareMemory(BootInfo* bootInfo)
         GlobalPageTableManager.MapMemories((void*)kernelStartVirtual2, (void*)kernelStartReal, kernelPageCount);
     }
 
-    // Map framebuffer
-    {
-        uint64_t fbBaseReal = (uint64_t)rFB;
-        uint64_t fbBaseVirtual = (uint64_t)bootInfo->framebuffer->BaseAddress;
-        uint64_t fbSize = (uint64_t)bootInfo->framebuffer->BufferSize;
-        uint64_t fbPageCount = (fbSize + 0xFFF) / 0x1000;
-        GlobalPageTableManager.MapMemories((void*)fbBaseVirtual, (void*)fbBaseReal, fbPageCount, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_WriteThrough | PT_Flag_CacheDisabled);
-    }
     // Map Stack
     {
         uint64_t stackBaseReal = (uint64_t)earlyVirtualToPhysicalAddr((void*)stackPointer);
@@ -491,41 +468,20 @@ void PrepareMemory(BootInfo* bootInfo)
         uint64_t pageCount = 0x1000;
         GlobalPageTableManager.MapMemories((void*)startVirtual, (void*)startReal, pageCount);
     }
-    */
 
-#define DIV_ROUND_UP(x, y) (x + (y - 1)) / y
-#define ALIGN_UP(x, y) DIV_ROUND_UP(x, y) * y
-#define ALIGN_DOWN(x, y) (x / y) * y
-#define phys_base ((uint64_t)bootInfo->kernelStart)
-#define virt_base ((uint64_t)bootInfo->kernelStartV)
-    uint64_t text_start = ALIGN_DOWN((uint64_t)text_start_ld, 4096);
-    uint64_t text_end = ALIGN_UP((uint64_t)text_end_ld, 4096);
-    uint64_t rodata_start = ALIGN_DOWN((uint64_t)rodata_start_ld, 4096);
-    uint64_t rodata_end = ALIGN_UP((uint64_t)rodata_end_ld, 4096);
-    uint64_t data_start = ALIGN_DOWN((uint64_t)data_start_ld, 4096);
-    uint64_t data_end = ALIGN_UP((uint64_t)data_end_ld, 4096);
-
-    PrintfMsg("Kernel TEXT Section Start: %X", text_start);
-    PrintfMsg("Kernel TEXT Section End: %X", text_end);
-    PrintfMsg("Kernel RODATA Section Start: %X", rodata_start);
-    PrintfMsg("Kernel RODATA Section End: %X", rodata_end);
-    PrintfMsg("Kernel DATA Section Start: %X", data_start);
-    PrintfMsg("Kernel DATA Section End: %X", data_end);
-
-    for (uint64_t text = text_start; text < text_end; text += 4096)
-        GlobalPageTableManager.MapMemory(text, (text - virt_base + phys_base), PT_Flag_Present);
-    for (uint64_t rodata = rodata_start; rodata < rodata_end; rodata += 4096)
-        GlobalPageTableManager.MapMemory(rodata, rodata - virt_base + phys_base, PT_Flag_Present | PT_Flag_NX);
-    for (uint64_t data = data_start; data < data_end; data += 4096)
-        GlobalPageTableManager.MapMemory(data, data - virt_base + phys_base, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_NX);
-    for (uint64_t gb4 = 0; gb4 < 0x100000000; gb4 += 4096) {
-        GlobalPageTableManager.MapMemory(gb4, gb4, PT_Flag_Present | PT_Flag_ReadWrite);
-        GlobalPageTableManager.MapMemory((void*)(gb4 + hhdm_offset), (void*)gb4, PT_Flag_Present | PT_Flag_ReadWrite);
+    // Map framebuffer
+    {
+        uint64_t fbBaseReal = (uint64_t)rFB;
+        uint64_t fbBaseVirtual = (uint64_t)bootInfo->framebuffer->BaseAddress;
+        uint64_t fbSize = (uint64_t)bootInfo->framebuffer->BufferSize;
+        uint64_t fbPageCount = (fbSize + 0xFFF) / 0x1000;
+        GlobalPageTableManager.MapMemories((void*)fbBaseVirtual, (void*)fbBaseReal, fbPageCount, PT_Flag_Present | PT_Flag_ReadWrite | PT_Flag_WriteThrough | PT_Flag_CacheDisabled);
     }
 
     asm("mov %0, %%cr3" : : "r" (PML4) );
 
 }
+
 
 uint8_t testIdtrArr[0x1000];
 IDTR idtr;
@@ -608,7 +564,7 @@ void PrepareInterrupts()
     SetIDTGate((void*)IRQ14_handler, 0x2E, IDT_TA_InterruptGate, 0x08); // IRQ14
     SetIDTGate((void*)IRQ15_handler, 0x2F, IDT_TA_InterruptGate, 0x08); // IRQ15
 
-    SetIDTGate((void*)intr_stub_49, 0x31, IDT_TA_InterruptGate | IDT_FLAG_RING3, 0x08); // SYSCALL
+     SetIDTGate((void*)intr_stub_49, 0x31, IDT_TA_InterruptGate | IDT_FLAG_RING3, 0x08); // SYSCALL
 
     RemapPIC(
         0xFF, //0b11111000, 

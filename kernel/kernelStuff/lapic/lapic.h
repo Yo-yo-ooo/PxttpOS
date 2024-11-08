@@ -2,7 +2,9 @@
 #include <stddef.h> 
 #include "../IO/IO.h"
 
-
+extern uint64_t hhdm_offset;
+#define HIGHER_HALF(ptr) ((void*)((u64)ptr) + hhdm_offset)
+#define PHYSICAL(ptr) ((void*)((u64)ptr) - hhdm_offset)
 
 typedef uint64_t u64;
 typedef uint32_t u32;

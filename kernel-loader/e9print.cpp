@@ -2,17 +2,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "flanterm/flanterm.h"
-extern struct flanterm_context *ft_ctx;
-
+void (*limine_print)(const char *buf, size_t size) = NULL;
 
 static const char CONVERSION_TABLE[] = "0123456789abcdef";
 
 void e9_putc(char c) {
+    if (limine_print != NULL)
+        limine_print(&c, 1);
+#if defined (__x86_64__) || defined (__i386__)
     __asm__ __volatile__ ("outb %0, %1" :: "a" (c), "Nd" (0xe9) : "memory");
-    if (ft_ctx != NULL) {
-        flanterm_write(ft_ctx, &c, 1);
-    }
+#endif
 }
 
 void e9_print(const char *msg) {

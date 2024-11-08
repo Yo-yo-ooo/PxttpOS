@@ -1,86 +1,70 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "../limine/limine.h"
-#include "flanterm/flanterm.h"
-#include "flanterm/backends/fb.h"
 
-extern "C" void* memset(void* d, int c, size_t n) {
-    auto* p = static_cast<char*>(d);
-    while (n--) {
-        *p++ = c;
-    }
-    return d;
-}
-
-extern "C" void* memcpy(void* dest, const void* src, size_t n) {
-    auto* p1 = static_cast<char*>(dest);
-    auto* p2 = static_cast<const char*>(src);
-    while (n--) {
-        *p1++ = *p2++;
-    }
-    return dest;
-}
 // The Limine requests can be placed anywhere, but it is important that
 // the compiler does not optimise them away, so, usually, they should
 // be made volatile or equivalent.
-__attribute__((used, section(".requests")))
-static volatile LIMINE_BASE_REVISION(2);
 
-__attribute__((used, section(".requests")))
 static volatile struct limine_terminal_request terminal_request = {
     .id = LIMINE_TERMINAL_REQUEST,
     .revision = 0
 };
 
-__attribute__((used, section(".requests")))
 static volatile struct limine_framebuffer_request framebuffer_request = {
     .id = LIMINE_FRAMEBUFFER_REQUEST,
     .revision = 0
 };
 
-__attribute__((used, section(".requests")))
-static volatile struct limine_rsdp_request rsdp_request = {
+static volatile limine_rsdp_request rsdp_request = {
     .id = LIMINE_RSDP_REQUEST,
     .revision = 0
 };
 
-__attribute__((used, section(".requests")))
-static volatile struct limine_module_request module_request = {
+static volatile limine_module_request module_request = {
     .id = LIMINE_MODULE_REQUEST,
     .revision = 0
 };
 
-__attribute__((used, section(".requests")))
-static volatile struct limine_memmap_request memmap_request = {
+static volatile limine_memmap_request memmap_request = {
     .id = LIMINE_MEMMAP_REQUEST,
     .revision = 0
 };
 
-__attribute__((used, section(".requests")))
-static volatile struct limine_smp_request smp_request = {
+#define LIMINE_SMP_REQUEST { LIMINE_COMMON_MAGIC, 0x95a67b819a1b857e, 0xa0b61b723b6a73e0 }
+static volatile limine_smp_request smp_request = {
     .id = LIMINE_SMP_REQUEST,
     .revision = 0
 };
 
-__attribute__((used, section(".requests")))
-static volatile struct limine_hhdm_request hhdm_request = {
+static volatile limine_hhdm_request hhdm_request = {
     .id = LIMINE_HHDM_REQUEST,
     .revision = 0
 };
 
 uint64_t hhdm_offset = 0;
 
-__attribute__((used, section(".requests")))
+// #define LIMINE_5_LEVEL_PAGING_REQUEST { LIMINE_COMMON_MAGIC, 0x94469551da9b3192, 0xebe5e86db7382888}
+
+// static volatile limine_5_level_paging_request paging_request = {
+//     .id = LIMINE_5_LEVEL_PAGING_REQUEST,
+//     .revision = 0
+// };
+
+//#define LIMINE_ENTRY_POINT_REQUEST { LIMINE_COMMON_MAGIC, 0x13d86c035a1cd3e1, 0x2b0caa89d8f3026a }
+
+// extern "C" void _start(void);
+
+// static volatile limine_entry_point_request entry_request = {
+//     .id = LIMINE_ENTRY_POINT_REQUEST,
+//     .revision = 0,
+//     .entry = _start
+// };
+
 struct limine_kernel_address_request kernel_address_request = {
     .id = LIMINE_KERNEL_ADDRESS_REQUEST,
-    .revision = 0
+    .revision = 0, .response = NULL
 };
-
-__attribute__((used, section(".requests_start_marker")))
-static volatile LIMINE_REQUESTS_START_MARKER;
-
-__attribute__((used, section(".requests_end_marker")))
-static volatile LIMINE_REQUESTS_END_MARKER;
 
 //__attribute__((section(".limine_reqs")))
 
@@ -149,6 +133,15 @@ static const char *get_memmap_type(uint64_t type) {
     }
 }
 
+
+
+
+
+static void write_shim(const char *s, uint64_t l) {
+    struct limine_terminal *terminal = terminal_request.response->terminals[0];
+
+    terminal_request.response->write(terminal, s, l);
+}
 
 
 void* startRAMAddr = NULL;
@@ -308,59 +301,39 @@ kernelFiles::DefaultFile getKernelFile(const char* path)
     return defFile;
 }
 
-struct flanterm_context *ft_ctx = NULL;
-//extern char kernel_start[];
+
 
 // The following will be our kernel's entry point.
 extern "C" void _start(void) {
-    if (LIMINE_BASE_REVISION_SUPPORTED == false) {
-        e9_printf("Limine base revision not supported");
-        for (;;);
-    }
-
-    if (framebuffer_request.response == NULL
-     || framebuffer_request.response->framebuffer_count < 1) {
+    // Ensure we got a terminal
+    if (terminal_request.response == NULL
+     || terminal_request.response->terminal_count < 1) {
         done();
     }
 
-    struct limine_framebuffer *Fb = framebuffer_request.response->framebuffers[0];
-
-    ft_ctx = flanterm_fb_init(
-        NULL,
-        NULL,
-        Fb->address, Fb->width, Fb->height, Fb->pitch,
-        Fb->red_mask_size, Fb->red_mask_shift,
-        Fb->green_mask_size, Fb->green_mask_shift,
-        Fb->blue_mask_size, Fb->blue_mask_shift,
-        NULL,
-        NULL, NULL,
-        NULL, NULL,
-        NULL, NULL,
-        NULL, 0, 0, 1,
-        0, 0,
-        0
-    );
+    limine_print = write_shim;
 
     // We should now be able to call the Limine terminal to print out
     // a simple "Hello World" to screen.
-    //struct limine_terminal *terminal = terminal_request.response->terminals[0];
-    //terminal_request.response->write(terminal, "> Starting Boot init...\n", 24);
-    e9_printf("> Starting Boot init...");
+    struct limine_terminal *terminal = terminal_request.response->terminals[0];
+    terminal_request.response->write(terminal, "> Starting Boot init...\n", 24);
 
-    if (hhdm_request.response == NULL) {
-        e9_printf("> HHDM is NULL!");
-        done();
-    }
 
-    hhdm_offset = hhdm_request.response->offset;
-
-    if (rsdp_request.response == NULL
-     || rsdp_request.response->address == NULL) {
-        e9_printf("> RSDP is NULL!");
+    if (framebuffer_request.response == NULL
+     || framebuffer_request.response->framebuffer_count < 1) {
+        terminal_request.response->write(terminal, "> Framebuffer is NULL!\n", 23);
         done();
     }
     else
-        e9_printf("> RSDP loaded!");
+        terminal_request.response->write(terminal, "> Framebuffer loaded!\n", 22);
+
+    if (rsdp_request.response == NULL
+     || rsdp_request.response->address == NULL) {
+        terminal_request.response->write(terminal, "> RSDP is NULL!\n", 23);
+        done();
+    }
+     else
+        terminal_request.response->write(terminal, "> RSDP loaded!\n", 15);
 
 
 
@@ -411,10 +384,6 @@ extern "C" void _start(void) {
     {
         limine_memmap_entry *e = memmap_response->entries[i];
         //e9_printf("> %x->%x %s", e->base, e->base + e->length, get_memmap_type(e->type));
-        
-        e9_printf("EFI Entry %d Type: %s",i,get_memmap_type(e->type));
-        if(e->type != LIMINE_MEMMAP_USABLE)
-            continue; 
         if (e->type == LIMINE_MEMMAP_USABLE)
         {
             //e9_printf("%x->%x %s  (%d %d %d %d bytes)", e->base, e->base + e->length, get_memmap_type(e->type), (e->length / 1000000000), (e->length / 1000000) % 1000, (e->length / 1000) % 1000, e->length % 1000);
@@ -443,8 +412,6 @@ extern "C" void _start(void) {
         e9_printf("> No valid Memory space found for OS!");
         done();
     }
-
-    
     startRAMAddr = freeMemStart;
     
     //done();
@@ -517,7 +484,6 @@ extern "C" void _start(void) {
         //freeMemStart = startRAMAddr;
         freeMemSize -= mallocDiff;
     }
-    freeMemStart = freeMemStart + hhdm_offset;
 
     if (smp_request.response == NULL)
     {
@@ -525,7 +491,7 @@ extern "C" void _start(void) {
         done();
     }
 
-    struct limine_smp_response *smp_response = smp_request.response;
+    limine_smp_response *smp_response = smp_request.response;
     e9_printf("SMP infos feature, revision %d", smp_response->revision);
     e9_printf("%d CPU(s)", smp_response->cpu_count);
 
@@ -551,13 +517,10 @@ extern "C" void _start(void) {
     e9_printf("> OS has %d MB of RAM. (Starts at %x)", freeMemSize / 1000000, (uint64_t)freeMemStart);
 
     //done();
-    
+    hhdm_offset = hhdm_request.response->offset;
 
-    e9_printf("> Limine Initializing Done");
-    bootTest(fb, rsdp, &font, &assets, 
-    startRAMAddr, freeMemStart, freeMemSize, kernelStart, 
-    kernelSize, kernelStartV, (limineSmpResponse*)smp_response, 
-    (void*)memmap_response->entries, memmap_response->entry_count);
+    terminal_request.response->write(terminal, "> Completed Boot Init!\n", 23);
+    bootTest(fb, rsdp, &font, &assets, startRAMAddr, freeMemStart, freeMemSize, kernelStart, kernelSize, kernelStartV, (limineSmpResponse*)smp_response, (void*)memmap_response->entries, memmap_response->entry_count);
     
     //done();
     

@@ -8,44 +8,11 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <stdarg.h>
 #include <string.h>
-#include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
 
-#ifndef LIMINE_NO_BIOS
-#include "limine-bios-hdd.h"
-#endif
-
-static char *program_name = NULL;
-
-static void perror_wrap(const char *fmt, ...) {
-    int old_errno = errno;
-
-    fprintf(stderr, "%s: ", program_name);
-
-    va_list args;
-    va_start(args, fmt);
-
-    vfprintf(stderr, fmt, args);
-
-    va_end(args);
-
-    fprintf(stderr, ": %s\n", strerror(old_errno));
-}
-
-static void remove_arg(int *argc, char *argv[], int index) {
-    for (int i = index; i < *argc - 1; i++) {
-        argv[i] = argv[i + 1];
-    }
-
-    (*argc)--;
-
-    argv[*argc] = NULL;
-}
-
-#ifndef LIMINE_NO_BIOS
+#include "limine-hdd.h"
 
 static bool quiet = false;
 
@@ -235,7 +202,7 @@ static bool device_init(void) {
     for (size_t i = 0; i < sizeof(guesses) / sizeof(size_t); i++) {
         void *tmp = realloc(cache, guesses[i]);
         if (tmp == NULL) {
-            perror_wrap("error: device_init(): realloc()");
+            perror("ERROR");
             return false;
         }
         cache = tmp;
@@ -258,7 +225,7 @@ static bool device_init(void) {
         return true;
     }
 
-    fprintf(stderr, "%s: error: device_init(): Couldn't determine block size of device.\n", program_name);
+    fprintf(stderr, "ERROR: Couldn't determine block size of device.\n");
     return false;
 }
 
@@ -267,14 +234,14 @@ static bool device_flush_cache(void) {
         return true;
 
     if (set_pos(device, cached_block * block_size) != 0) {
-        perror_wrap("error: device_flush_cache(): set_pos()");
+        perror("ERROR");
         return false;
     }
 
     size_t ret = fwrite(cache, block_size, 1, device);
     if (ret != 1) {
         if (ferror(device)) {
-            perror_wrap("error: device_flush_cache(): fwrite()");
+            perror("ERROR");
         }
         return false;
     }
@@ -293,14 +260,14 @@ static bool device_cache_block(uint64_t block) {
     }
 
     if (set_pos(device, block * block_size) != 0) {
-        perror_wrap("error: device_cache_block(): set_pos()");
+        perror("ERROR");
         return false;
     }
 
     size_t ret = fread(cache, block_size, 1, device);
     if (ret != 1) {
         if (ferror(device)) {
-            perror_wrap("error: device_cache_block(): fread()");
+            perror("ERROR");
         }
         return false;
     }
@@ -310,113 +277,106 @@ static bool device_cache_block(uint64_t block) {
     return true;
 }
 
-struct uninstall_data {
+struct undeploy_data {
     void *data;
     uint64_t loc;
     uint64_t count;
 };
 
-#define UNINSTALL_DATA_MAX 256
+#define UNDEPLOY_DATA_MAX 256
 
-static bool uninstalling = false;
-static struct uninstall_data uninstall_data[UNINSTALL_DATA_MAX];
-static struct uninstall_data uninstall_data_rev[UNINSTALL_DATA_MAX];
-static uint64_t uninstall_data_i = 0;
-static const char *uninstall_file = NULL;
+static bool undeploying = false;
+static struct undeploy_data undeploy_data[UNDEPLOY_DATA_MAX];
+static struct undeploy_data undeploy_data_rev[UNDEPLOY_DATA_MAX];
+static uint64_t undeploy_data_i = 0;
+static const char *undeploy_file = NULL;
 
-static void reverse_uninstall_data(void) {
-    for (size_t i = 0, j = uninstall_data_i - 1; i < uninstall_data_i; i++, j--) {
-        uninstall_data_rev[j] = uninstall_data[i];
+static void reverse_undeploy_data(void) {
+    for (size_t i = 0, j = undeploy_data_i - 1; i < undeploy_data_i; i++, j--) {
+        undeploy_data_rev[j] = undeploy_data[i];
     }
 
-    memcpy(uninstall_data, uninstall_data_rev, uninstall_data_i * sizeof(struct uninstall_data));
+    memcpy(undeploy_data, undeploy_data_rev, undeploy_data_i * sizeof(struct undeploy_data));
 }
 
-static void free_uninstall_data(void) {
-    for (size_t i = 0; i < uninstall_data_i; i++) {
-        free(uninstall_data[i].data);
+static void free_undeploy_data(void) {
+    for (size_t i = 0; i < undeploy_data_i; i++) {
+        free(undeploy_data[i].data);
     }
 }
 
-static bool store_uninstall_data(const char *filename) {
+static bool store_undeploy_data(const char *filename) {
     if (!quiet) {
-        fprintf(stderr, "Storing uninstall data to file: `%s`...\n", filename);
+        fprintf(stderr, "Storing undeploy data to file: `%s`...\n", filename);
     }
 
     FILE *udfile = fopen(filename, "wb");
     if (udfile == NULL) {
-        perror_wrap("error: `%s`", filename);
         goto error;
     }
 
-    if (fwrite(&uninstall_data_i, sizeof(uint64_t), 1, udfile) != 1) {
-        goto fwrite_error;
+    if (fwrite(&undeploy_data_i, sizeof(uint64_t), 1, udfile) != 1) {
+        goto error;
     }
 
-    for (size_t i = 0; i < uninstall_data_i; i++) {
-        if (fwrite(&uninstall_data[i].loc, sizeof(uint64_t), 1, udfile) != 1) {
-            goto fwrite_error;
+    for (size_t i = 0; i < undeploy_data_i; i++) {
+        if (fwrite(&undeploy_data[i].loc, sizeof(uint64_t), 1, udfile) != 1) {
+            goto error;
         }
-        if (fwrite(&uninstall_data[i].count, sizeof(uint64_t), 1, udfile) != 1) {
-            goto fwrite_error;
+        if (fwrite(&undeploy_data[i].count, sizeof(uint64_t), 1, udfile) != 1) {
+            goto error;
         }
-        if (fwrite(uninstall_data[i].data, uninstall_data[i].count, 1, udfile) != 1) {
-            goto fwrite_error;
+        if (fwrite(undeploy_data[i].data, undeploy_data[i].count, 1, udfile) != 1) {
+            goto error;
         }
     }
 
     fclose(udfile);
     return true;
 
-fwrite_error:
-    perror_wrap("error: store_uninstall_data(): fwrite()");
-
 error:
+    perror("ERROR");
     if (udfile != NULL) {
         fclose(udfile);
     }
     return false;
 }
 
-static bool load_uninstall_data(const char *filename) {
+static bool load_undeploy_data(const char *filename) {
     if (!quiet) {
-        fprintf(stderr, "Loading uninstall data from file: `%s`...\n", filename);
+        fprintf(stderr, "Loading undeploy data from file: `%s`...\n", filename);
     }
 
     FILE *udfile = fopen(filename, "rb");
     if (udfile == NULL) {
-        perror_wrap("error: `%s`", filename);
         goto error;
     }
 
-    if (fread(&uninstall_data_i, sizeof(uint64_t), 1, udfile) != 1) {
-        goto fread_error;
+    if (fread(&undeploy_data_i, sizeof(uint64_t), 1, udfile) != 1) {
+        goto error;
     }
 
-    for (size_t i = 0; i < uninstall_data_i; i++) {
-        if (fread(&uninstall_data[i].loc, sizeof(uint64_t), 1, udfile) != 1) {
-            goto fread_error;
-        }
-        if (fread(&uninstall_data[i].count, sizeof(uint64_t), 1, udfile) != 1) {
-            goto fread_error;
-        }
-        uninstall_data[i].data = malloc(uninstall_data[i].count);
-        if (uninstall_data[i].data == NULL) {
-            perror_wrap("error: load_uninstall_data(): malloc()");
+    for (size_t i = 0; i < undeploy_data_i; i++) {
+        if (fread(&undeploy_data[i].loc, sizeof(uint64_t), 1, udfile) != 1) {
             goto error;
         }
-        if (fread(uninstall_data[i].data, uninstall_data[i].count, 1, udfile) != 1) {
-            goto fread_error;
+        if (fread(&undeploy_data[i].count, sizeof(uint64_t), 1, udfile) != 1) {
+            goto error;
+        }
+        undeploy_data[i].data = malloc(undeploy_data[i].count);
+        if (undeploy_data[i].data == NULL) {
+            goto error;
+        }
+        if (fread(undeploy_data[i].data, undeploy_data[i].count, 1, udfile) != 1) {
+            goto error;
         }
     }
 
     fclose(udfile);
     return true;
 
-fread_error:
-    perror_wrap("error: load_uninstall_data(): fread()");
-
 error:
+    perror("ERROR");
     if (udfile != NULL) {
         fclose(udfile);
     }
@@ -430,6 +390,7 @@ static bool _device_read(void *_buffer, uint64_t loc, size_t count) {
         uint64_t block = (loc + progress) / block_size;
 
         if (!device_cache_block(block)) {
+            fprintf(stderr, "ERROR: Read error.\n");
             return false;
         }
 
@@ -446,24 +407,25 @@ static bool _device_read(void *_buffer, uint64_t loc, size_t count) {
 }
 
 static bool _device_write(const void *_buffer, uint64_t loc, size_t count) {
-    if (uninstalling) {
+    if (undeploying) {
         goto skip_save;
     }
 
-    if (uninstall_data_i >= UNINSTALL_DATA_MAX) {
-        fprintf(stderr, "%s: error: Too many uninstall data entries! Please report this bug upstream.\n", program_name);
+    if (undeploy_data_i >= UNDEPLOY_DATA_MAX) {
+        fprintf(stderr, "Internal error: Too many undeploy data entries!\n");
         return false;
     }
 
-    struct uninstall_data *ud = &uninstall_data[uninstall_data_i];
+    struct undeploy_data *ud = &undeploy_data[undeploy_data_i];
 
     ud->data = malloc(count);
     if (ud->data == NULL) {
-        perror_wrap("error: _device_write(): malloc()");
+        fprintf(stderr, "ERROR: Memory allocation failure.\n");
         return false;
     }
 
     if (!_device_read(ud->data, loc, count)) {
+        fprintf(stderr, "ERROR: Device read failure.\n");
         return false;
     }
 
@@ -477,6 +439,7 @@ skip_save:;
         uint64_t block = (loc + progress) / block_size;
 
         if (!device_cache_block(block)) {
+            fprintf(stderr, "ERROR: Write error.\n");
             return false;
         }
 
@@ -490,36 +453,31 @@ skip_save:;
         progress += chunk;
     }
 
-    if (!uninstalling) {
-        uninstall_data_i++;
+    if (!undeploying) {
+        undeploy_data_i++;
     }
     return true;
 }
 
-static bool uninstall(bool quiet_arg) {
-    bool print_cache_flush_fail = false;
-    bool print_write_fail = false;
-    bool ret = true;
-
-    uninstalling = true;
+static void undeploy(void) {
+    undeploying = true;
 
     cache_state = CACHE_CLEAN;
     cached_block = (uint64_t)-1;
 
-    for (size_t i = 0; i < uninstall_data_i; i++) {
-        struct uninstall_data *ud = &uninstall_data[i];
+    for (size_t i = 0; i < undeploy_data_i; i++) {
+        struct undeploy_data *ud = &undeploy_data[i];
         bool retry = false;
         while (!_device_write(ud->data, ud->loc, ud->count)) {
             if (retry) {
-                fprintf(stderr, "%s: warning: Retry failed.\n", program_name);
-                print_write_fail = true;
+                fprintf(stderr, "ERROR: Undeploy data index %zu failed to write. Undeploy may be incomplete!\n", i);
                 break;
             }
             if (!quiet) {
-                fprintf(stderr, "%s: warning: Uninstall data index %zu failed to write, retrying...\n", program_name, i);
+                fprintf(stderr, "Warning: Undeploy data index %zu failed to write, retrying...\n", i);
             }
             if (!device_flush_cache()) {
-                print_cache_flush_fail = true;
+                fprintf(stderr, "ERROR: Device cache flush failure. Undeploy may be incomplete!\n");
             }
             cache_state = CACHE_CLEAN;
             cached_block = (uint64_t)-1;
@@ -528,24 +486,12 @@ static bool uninstall(bool quiet_arg) {
     }
 
     if (!device_flush_cache()) {
-        print_cache_flush_fail = true;
+        fprintf(stderr, "ERROR: Device cache flush failure. Undeploy may be incomplete!\n");
     }
 
-    if (print_write_fail) {
-        fprintf(stderr, "%s: error: Some data failed to be uninstalled correctly.\n", program_name);
-        ret = false;
+    if (!quiet) {
+        fprintf(stderr, "Undeploy data restored successfully. Limine undeployed!\n");
     }
-
-    if (print_cache_flush_fail) {
-        fprintf(stderr, "%s: error: Device cache flush failure. Uninstall may be incomplete.\n", program_name);
-        ret = false;
-    }
-
-    if (ret == true && !quiet && !quiet_arg) {
-        fprintf(stderr, "Uninstall data restored successfully.\n");
-    }
-
-    return ret;
 }
 
 #define device_read(BUFFER, LOC, COUNT)        \
@@ -560,17 +506,17 @@ static bool uninstall(bool quiet_arg) {
             goto cleanup;                       \
     } while (0)
 
-static void bios_install_usage(void) {
-    printf("usage: %s bios-install <device> [GPT partition index]\n", program_name);
+static void usage(const char *name) {
+    printf("Usage: %s <device> [GPT partition index]\n", name);
     printf("\n");
     printf("    --force-mbr     Force MBR detection to work even if the\n");
     printf("                    safety checks fail (DANGEROUS!)\n");
     printf("\n");
-    printf("    --uninstall     Reverse the entire install procedure\n");
+    printf("    --undeploy      Reverse the entire deployment procedure\n");
     printf("\n");
-    printf("    --uninstall-data-file=<filename>\n");
-    printf("                    Set the input (for --uninstall) or output file\n");
-    printf("                    name of the file which contains uninstall data\n");
+    printf("    --undeploy-data-file=<filename>\n");
+    printf("                    Set the input (for --undeploy) or output file\n");
+    printf("                    name of the file which contains undeploy data\n");
     printf("\n");
     printf("    --quiet         Do not print verbose diagnostic messages\n");
     printf("\n");
@@ -578,10 +524,10 @@ static void bios_install_usage(void) {
     printf("\n");
 }
 
-static int bios_install(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
     int      ok = EXIT_FAILURE;
     int      force_mbr = 0;
-    bool uninstall_mode = false;
+    bool undeploy_mode = false;
     const uint8_t *bootloader_img = binary_limine_hdd_bin_data;
     size_t   bootloader_file_size = sizeof(binary_limine_hdd_bin_data);
     uint8_t  orig_mbr[70], timestamp[6];
@@ -594,7 +540,7 @@ static int bios_install(int argc, char *argv[]) {
 #endif
 
     if (argc < 2) {
-        bios_install_usage();
+        usage(argv[0]);
 #ifdef IS_WINDOWS
         system("pause");
 #endif
@@ -603,65 +549,63 @@ static int bios_install(int argc, char *argv[]) {
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            bios_install_usage();
+            usage(argv[0]);
             return EXIT_SUCCESS;
         } else if (strcmp(argv[i], "--quiet") == 0) {
             quiet = true;
         } else if (strcmp(argv[i], "--force-mbr") == 0) {
             if (force_mbr && !quiet) {
-                fprintf(stderr, "%s: warning: --force-mbr already set.\n", program_name);
+                fprintf(stderr, "Warning: --force-mbr already set.\n");
             }
             force_mbr = 1;
-        } else if (strcmp(argv[i], "--uninstall") == 0) {
-            if (uninstall_mode && !quiet) {
-                fprintf(stderr, "%s: warning: --uninstall already set.\n", program_name);
+        } else if (strcmp(argv[i], "--undeploy") == 0) {
+            if (undeploy_mode && !quiet) {
+                fprintf(stderr, "Warning: --undeploy already set.\n");
             }
-            uninstall_mode = true;
-        } else if (memcmp(argv[i], "--uninstall-data-file=", 21) == 0) {
-            if (uninstall_file != NULL && !quiet) {
-                fprintf(stderr, "%s: warning: --uninstall-data-file already set. Overriding...\n", program_name);
+            undeploy_mode = true;
+        } else if (memcmp(argv[i], "--undeploy-data-file=", 21) == 0) {
+            if (undeploy_file != NULL && !quiet) {
+                fprintf(stderr, "Warning: --undeploy-data-file already set. Overriding...\n");
             }
-            uninstall_file = argv[i] + 21;
-            if (strlen(uninstall_file) == 0) {
-                fprintf(stderr, "%s: error: Uninstall data file has a zero-length name!\n", program_name);
+            undeploy_file = argv[i] + 21;
+            if (strlen(undeploy_file) == 0) {
+                fprintf(stderr, "ERROR: Undeploy data file has a zero-length name!\n");
                 return EXIT_FAILURE;
             }
         } else {
             if (device != NULL) { // [GPT partition index]
                 part_ndx = argv[i]; // TODO: Make this non-positional?
             } else if ((device = fopen(argv[i], "r+b")) == NULL) { // <device>
-                perror_wrap("error: `%s`", argv[i]);
+                perror("ERROR");
                 return EXIT_FAILURE;
             }
         }
     }
 
     if (device == NULL) {
-        fprintf(stderr, "%s: error: No device specified\n", program_name);
-        bios_install_usage();
+        fprintf(stderr, "ERROR: No device specified\n");
+        usage(argv[0]);
         return EXIT_FAILURE;
     }
 
     if (!device_init()) {
-        goto uninstall_mode_cleanup;
+        goto undeploy_mode_cleanup;
     }
 
-    if (uninstall_mode) {
-        if (uninstall_file == NULL) {
-            fprintf(stderr, "%s: error: Uninstall mode set but no --uninstall-data-file=... passed.\n", program_name);
-            goto uninstall_mode_cleanup;
+    if (undeploy_mode) {
+        if (undeploy_file == NULL) {
+            fprintf(stderr, "ERROR: Undeploy mode set but no --undeploy-data-file=... passed.\n");
+            goto undeploy_mode_cleanup;
         }
 
-        if (!load_uninstall_data(uninstall_file)) {
-            goto uninstall_mode_cleanup;
+        if (!load_undeploy_data(undeploy_file)) {
+            goto undeploy_mode_cleanup;
         }
 
-        if (uninstall(false) == false) {
-            ok = EXIT_FAILURE;
-        } else {
-            ok = EXIT_SUCCESS;
-        }
-        goto uninstall_mode_cleanup;
+        undeploy();
+
+        ok = EXIT_SUCCESS;
+        goto undeploy_mode_cleanup;
     }
 
     // Probe for GPT and logical block size
@@ -676,11 +620,11 @@ static int bios_install(int argc, char *argv[]) {
             if (!force_mbr) {
                 gpt = 1;
                 if (!quiet) {
-                    fprintf(stderr, "Installing to GPT. Logical block size of %" PRIu64 " bytes.\n",
+                    fprintf(stderr, "Deploying to GPT. Logical block size of %" PRIu64 " bytes.\n",
                             lb_guesses[i]);
                 }
             } else {
-                fprintf(stderr, "%s: error: Device has a valid GPT, refusing to force MBR.\n", program_name);
+                fprintf(stderr, "ERROR: Device has a valid GPT, refusing to force MBR.\n");
                 goto cleanup;
             }
             break;
@@ -700,7 +644,7 @@ static int bios_install(int argc, char *argv[]) {
                 fprintf(stderr, "Secondary header valid.\n");
             }
         } else {
-            fprintf(stderr, "%s: error: Secondary header not valid, aborting.\n", program_name);
+            fprintf(stderr, "ERROR: Secondary header not valid, aborting.\n");
             goto cleanup;
         }
     }
@@ -712,7 +656,6 @@ static int bios_install(int argc, char *argv[]) {
 
         uint8_t hint8 = 0;
         uint16_t hint16 = 0;
-        uint32_t hint32 = 0;
 
         bool any_active = false;
 
@@ -721,79 +664,41 @@ static int bios_install(int argc, char *argv[]) {
             if (!force_mbr) {
                 mbr = 0;
             } else {
-                hint8 &= 0x80;
+                hint8 = hint8 & 0x80 ? 0x80 : 0x00;
                 device_write(&hint8, 446, sizeof(uint8_t));
             }
         }
-        any_active = any_active || (hint8 & 0x80) != 0;
-        device_read(&hint8, 446 + 4, sizeof(uint8_t));
-        if (hint8 != 0x00) {
-            device_read(&hint32, 446 + 8, sizeof(uint32_t));
-            hint32 = ENDSWAP(hint32);
-            if (hint32 < 63) {
-                goto part_too_low;
-            }
-        }
+        any_active = any_active ? any_active : (hint8 & 0x80) != 0;
         device_read(&hint8, 462, sizeof(uint8_t));
         if (hint8 != 0x00 && hint8 != 0x80) {
             if (!force_mbr) {
                 mbr = 0;
             } else {
-                hint8 &= 0x80;
+                hint8 = hint8 & 0x80 ? 0x80 : 0x00;
                 device_write(&hint8, 462, sizeof(uint8_t));
             }
         }
-        any_active = any_active || (hint8 & 0x80) != 0;
-        device_read(&hint8, 462 + 4, sizeof(uint8_t));
-        if (hint8 != 0x00) {
-            device_read(&hint32, 462 + 8, sizeof(uint32_t));
-            hint32 = ENDSWAP(hint32);
-            if (hint32 < 63) {
-                goto part_too_low;
-            }
-        }
+        any_active = any_active ? any_active : (hint8 & 0x80) != 0;
         device_read(&hint8, 478, sizeof(uint8_t));
         if (hint8 != 0x00 && hint8 != 0x80) {
             if (!force_mbr) {
                 mbr = 0;
             } else {
-                hint8 &= 0x80;
+                hint8 = hint8 & 0x80 ? 0x80 : 0x00;
                 device_write(&hint8, 478, sizeof(uint8_t));
             }
         }
-        any_active = any_active || (hint8 & 0x80) != 0;
-        device_read(&hint8, 478 + 4, sizeof(uint8_t));
-        if (hint8 != 0x00) {
-            device_read(&hint32, 478 + 8, sizeof(uint32_t));
-            hint32 = ENDSWAP(hint32);
-            if (hint32 < 63) {
-                goto part_too_low;
-            }
-        }
+        any_active = any_active ? any_active : (hint8 & 0x80) != 0;
         device_read(&hint8, 494, sizeof(uint8_t));
         if (hint8 != 0x00 && hint8 != 0x80) {
             if (!force_mbr) {
                 mbr = 0;
             } else {
-                hint8 &= 0x80;
+                hint8 = hint8 & 0x80 ? 0x80 : 0x00;
                 device_write(&hint8, 494, sizeof(uint8_t));
             }
         }
-        any_active = any_active || (hint8 & 0x80) != 0;
-        device_read(&hint8, 494 + 4, sizeof(uint8_t));
-        if (hint8 != 0x00) {
-            device_read(&hint32, 494 + 8, sizeof(uint32_t));
-            hint32 = ENDSWAP(hint32);
-            if (hint32 < 63) {
-                goto part_too_low;
-            }
-        }
-
-        if (0) {
-part_too_low:
-            fprintf(stderr, "%s: error: A partition's start sector is less than 63, aborting.\n", program_name);
-            goto cleanup;
-        }
+        any_active = any_active ? any_active : (hint8 & 0x80) != 0;
 
         char hintc[64];
         device_read(hintc, 4, 8);
@@ -864,7 +769,7 @@ part_too_low:
     }
 
     if (gpt == 0 && mbr == 0) {
-        fprintf(stderr, "error: Could not determine if the device has a valid partition table.\n");
+        fprintf(stderr, "ERROR: Could not determine if the device has a valid partition table.\n");
         fprintf(stderr, "       Please ensure the device has a valid MBR or GPT.\n");
         fprintf(stderr, "       Alternatively, pass `--force-mbr` to override these checks.\n");
         fprintf(stderr, "       **ONLY DO THIS AT YOUR OWN RISK, DATA LOSS MAY OCCUR!**\n");
@@ -888,7 +793,7 @@ part_too_low:
             sscanf(part_ndx, "%" SCNu32, &partition_num);
             partition_num--;
             if (partition_num > ENDSWAP(gpt_header.number_of_partition_entries)) {
-                fprintf(stderr, "%s: error: Partition number is too large.\n", program_name);
+                fprintf(stderr, "ERROR: Partition number is too large.\n");
                 goto cleanup;
             }
 
@@ -900,12 +805,12 @@ part_too_low:
 
             if (gpt_entry.unique_partition_guid[0] == 0 &&
               gpt_entry.unique_partition_guid[1] == 0) {
-                fprintf(stderr, "%s: error: No such partition: `%s`.\n", program_name, part_ndx);
+                fprintf(stderr, "ERROR: No such partition.\n");
                 goto cleanup;
             }
 
             if (!quiet) {
-                fprintf(stderr, "GPT partition specified. Installing there instead of embedding.\n");
+                fprintf(stderr, "GPT partition specified. Deploying there instead of embedding.\n");
             }
 
             stage2_loc_a = ENDSWAP(gpt_entry.starting_lba) * lb_size;
@@ -947,7 +852,7 @@ part_too_low:
                 new_partition_array_lba_size * partition_entries_per_lb;
 
             if ((int64_t)new_partition_entry_count <= max_partition_entry_used) {
-                fprintf(stderr, "%s: error: Cannot embed because there are too many used partition entries.\n", program_name);
+                fprintf(stderr, "ERROR: Cannot embed because there are too many used partition entries.\n");
                 goto cleanup;
             }
 
@@ -972,7 +877,7 @@ part_too_low:
             uint8_t *partition_array =
                 malloc(new_partition_entry_count * ENDSWAP(gpt_header.size_of_partition_entry));
             if (partition_array == NULL) {
-                perror_wrap("error: bios_install(): malloc()");
+                perror("ERROR");
                 goto cleanup;
             }
 
@@ -1007,7 +912,7 @@ part_too_low:
         }
     } else {
         if (!quiet) {
-            fprintf(stderr, "Installing to MBR.\n");
+            fprintf(stderr, "Deploying to MBR.\n");
         }
     }
 
@@ -1050,241 +955,29 @@ part_too_low:
         goto cleanup;
 
     if (!quiet) {
-        fprintf(stderr, "Reminder: Remember to copy the limine-bios.sys file in either\n"
+        fprintf(stderr, "Reminder: Remember to copy the limine.sys file in either\n"
                         "          the root, /boot, /limine, or /boot/limine directories of\n"
                         "          one of the partitions on the device, or boot will fail!\n");
 
-        fprintf(stderr, "Limine BIOS stages installed successfully!\n");
+        fprintf(stderr, "Limine deployed successfully!\n");
     }
 
     ok = EXIT_SUCCESS;
 
 cleanup:
-    reverse_uninstall_data();
+    reverse_undeploy_data();
     if (ok != EXIT_SUCCESS) {
-        // If we failed, attempt to reverse install process
-        fprintf(stderr, "%s: Install failed, undoing work...\n", program_name);
-        uninstall(true);
-    } else if (uninstall_file != NULL) {
-        store_uninstall_data(uninstall_file);
+        // If we failed, attempt to reverse deploy process
+        undeploy();
+    } else if (undeploy_file != NULL) {
+        store_undeploy_data(undeploy_file);
     }
-uninstall_mode_cleanup:
-    free_uninstall_data();
+undeploy_mode_cleanup:
+    free_undeploy_data();
     if (cache)
         free(cache);
     if (device != NULL)
         fclose(device);
 
     return ok;
-}
-#endif
-
-#define CONFIG_B2SUM_SIGNATURE "++CONFIG_B2SUM_SIGNATURE++"
-
-static void enroll_config_usage(void) {
-    printf("usage: %s enroll-config <Limine executable> <BLAKE2B of config file>\n", program_name);
-    printf("\n");
-    printf("    --reset      Remove enrolled BLAKE2B, will not check config integrity\n");
-    printf("\n");
-    printf("    --quiet      Do not print verbose diagnostic messages\n");
-    printf("\n");
-    printf("    --help | -h  Display this help message\n");
-    printf("\n");
-}
-
-static int enroll_config(int argc, char *argv[]) {
-    int ret = EXIT_FAILURE;
-
-    char *bootloader = NULL;
-    FILE *bootloader_file = NULL;
-    bool quiet = false;
-    bool reset = false;
-
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            enroll_config_usage();
-            return EXIT_SUCCESS;
-        } else if (strcmp(argv[i], "--quiet") == 0) {
-            remove_arg(&argc, argv, i);
-            quiet = true;
-        } else if (strcmp(argv[i], "--reset") == 0) {
-            remove_arg(&argc, argv, i);
-            reset = true;
-        }
-    }
-
-    if (argc <= (reset ? 1 : 2)) {
-        enroll_config_usage();
-#ifdef IS_WINDOWS
-        system("pause");
-#endif
-        return EXIT_FAILURE;
-    }
-
-    if (!reset && strlen(argv[2]) != 128) {
-        fprintf(stderr, "%s: error: BLAKE2B specified is not 128 characters long.\n", program_name);
-        goto cleanup;
-    }
-
-    bootloader_file = fopen(argv[1], "r+b");
-    if (bootloader_file == NULL) {
-        perror_wrap("error: `%s`", argv[1]);
-        goto cleanup;
-    }
-
-    if (fseek(bootloader_file, 0, SEEK_END) != 0) {
-        perror_wrap("error: enroll_config(): fseek()");
-        goto cleanup;
-    }
-    size_t bootloader_size = ftell(bootloader_file);
-    rewind(bootloader_file);
-
-    bootloader = malloc(bootloader_size);
-    if (bootloader == NULL) {
-        perror_wrap("error: enroll_config(): malloc()");
-        goto cleanup;
-    }
-
-    if (fread(bootloader, bootloader_size, 1, bootloader_file) != 1) {
-        perror_wrap("error: enroll_config(): fread()");
-        goto cleanup;
-    }
-
-    char *checksum_loc = NULL;
-    size_t checked_count = 0;
-    const char *config_b2sum_sign = CONFIG_B2SUM_SIGNATURE;
-    for (size_t i = 0; i < bootloader_size - ((sizeof(CONFIG_B2SUM_SIGNATURE) - 1) + 128) + 1; i++) {
-        if (bootloader[i] != config_b2sum_sign[checked_count]) {
-            checked_count = 0;
-            continue;
-        }
-
-        checked_count++;
-
-        if (checked_count == sizeof(CONFIG_B2SUM_SIGNATURE) - 1) {
-            checksum_loc = &bootloader[i + 1];
-            break;
-        }
-    }
-
-    if (checksum_loc == NULL) {
-        fprintf(stderr, "%s: error: Checksum location not found in provided executable.\n", program_name);
-        goto cleanup;
-    }
-
-    if (!reset) {
-        memcpy(checksum_loc, argv[2], 128);
-    } else {
-        memset(checksum_loc, '0', 128);
-    }
-
-    if (fseek(bootloader_file, 0, SEEK_SET) != 0) {
-        perror_wrap("error: enroll_config(): fseek()");
-        goto cleanup;
-    }
-    if (fwrite(bootloader, bootloader_size, 1, bootloader_file) != 1) {
-        perror_wrap("error: enroll_config(): fwrite()");
-        goto cleanup;
-    }
-
-    if (!quiet) {
-        fprintf(stderr, "Config file BLAKE2B successfully %s!\n", reset ? "reset" : "enrolled");
-    }
-    ret = EXIT_SUCCESS;
-
-cleanup:
-    if (bootloader != NULL) {
-        free(bootloader);
-    }
-    if (bootloader_file != NULL) {
-        fclose(bootloader_file);
-    }
-    return ret;
-}
-
-#define LIMINE_VERSION "8.1.2"
-#define LIMINE_COPYRIGHT "Copyright (C) 2019-2024 mintsuki and contributors."
-
-static void version_usage(void) {
-    printf("usage: %s version [options...]\n", program_name);
-    printf("\n");
-    printf("    --version-only  Only print the version number without licensing info\n");
-    printf("                    and other distractions\n");
-    printf("\n");
-    printf("    --help | -h     Display this help message\n");
-    printf("\n");
-}
-
-static int version(int argc, char *argv[]) {
-    if (argc >= 2) {
-        if (strcmp(argv[1], "--help") == 0) {
-            version_usage();
-            return EXIT_SUCCESS;
-        } else if (strcmp(argv[1], "--version-only") == 0) {
-            puts(LIMINE_VERSION);
-            return EXIT_SUCCESS;
-        }
-    }
-
-    puts("Limine " LIMINE_VERSION);
-    puts(LIMINE_COPYRIGHT);
-    puts("Limine is distributed under the terms of the BSD-2-Clause license.");
-    puts("There is ABSOLUTELY NO WARRANTY, to the extent permitted by law.");
-    return EXIT_SUCCESS;
-}
-
-static void general_usage(void) {
-    printf("usage: %s <command> <args...>\n", program_name);
-    printf("\n");
-    printf("    --print-datadir   Print the directory containing the bootloader files\n");
-    printf("\n");
-    printf("    --version         Print the Limine version (like the `version` command)\n");
-    printf("\n");
-    printf("    --help | -h       Display this help message\n");
-    printf("\n");
-    printf("Commands: `help`, `version`, `bios-install`, `enroll-config`\n");
-    printf("Use `--help` after specifying the command for command-specific help.\n");
-}
-
-static int print_datadir(void) {
-#ifdef LIMINE_DATADIR
-    puts(LIMINE_DATADIR);
-    return EXIT_SUCCESS;
-#else
-    fprintf(stderr, "%s: error: Cannot print datadir for `limine` built out-of-tree.\n", program_name);
-    return EXIT_FAILURE;
-#endif
-}
-
-int main(int argc, char *argv[]) {
-    program_name = argv[0];
-
-    if (argc <= 1) {
-        general_usage();
-        return EXIT_FAILURE;
-    }
-
-    if (strcmp(argv[1], "help") == 0
-     || strcmp(argv[1], "--help") == 0
-     || strcmp(argv[1], "-h") == 0) {
-        general_usage();
-        return EXIT_SUCCESS;
-    } else if (strcmp(argv[1], "bios-install") == 0) {
-#ifndef LIMINE_NO_BIOS
-        return bios_install(argc - 1, &argv[1]);
-#else
-        fprintf(stderr, "%s: error: Limine has been compiled without BIOS support.\n", program_name);
-        return EXIT_FAILURE;
-#endif
-    } else if (strcmp(argv[1], "enroll-config") == 0) {
-        return enroll_config(argc - 1, &argv[1]);
-    } else if (strcmp(argv[1], "--print-datadir") == 0) {
-        return print_datadir();
-    } else if (strcmp(argv[1], "version") == 0
-            || strcmp(argv[1], "--version") == 0) {
-        return version(argc - 1, &argv[1]);
-    }
-
-    general_usage();
-    return EXIT_FAILURE;
 }
